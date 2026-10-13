@@ -201,7 +201,8 @@ begin
   assert (select count(*) from public.roles) = 1, 'employee must see only own role';
   assert (select count(*) from public.audit_logs) = 0, 'employee must not read audit';
   assert (select count(*) from public.user_profiles) = 1, 'employee must see only own profile';
-  assert v_ctx -> 'permissions' = '[]'::jsonb, 'employee has no permissions';
+  assert v_ctx -> 'permissions' = '["attendance.view_own", "leave.request"]'::jsonb,
+    'employee has only own-attendance and leave-request permissions';
   assert (v_ctx -> 'organization' ->> 'id')::uuid = current_setting('test.org_a')::uuid, 'context org must be Alpha';
 
   begin

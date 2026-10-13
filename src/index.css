@@ -40,3 +40,13 @@ body {
     margin: 0;
   }
 }
+
+/* Sidebar menu: slim scrollbar, more visible while hovering the menu. */
+.nav-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: transparent transparent;
+}
+.nav-scroll:hover,
+.nav-scroll:focus-within {
+  scrollbar-color: var(--color-slate-300) transparent;
+}

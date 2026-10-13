@@ -152,7 +152,7 @@ export default function AppLayout() {
         )}
       >
         <Brand rail />
-        <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-2 [scrollbar-width:none]">
+        <div className="nav-scroll min-h-0 flex-1 overflow-y-auto overflow-x-hidden overscroll-contain px-4 py-2">
           <NavList rail />
         </div>
       </aside>
@@ -168,7 +168,7 @@ export default function AppLayout() {
                 <X className="size-5" />
               </button>
             </div>
-            <div className="flex-1 overflow-y-auto px-4 pb-6">
+            <div className="nav-scroll min-h-0 flex-1 overflow-y-auto overscroll-contain px-4 pb-6">
               <NavList rail={false} onNavigate={() => setDrawerOpen(false)} />
             </div>
           </div>

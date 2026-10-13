@@ -167,7 +167,8 @@ Other Part 2 decisions (why):
 - Steps 3–9 applied on Supabase by the user (2026-10-13). Platform admins allow-list ✅ (`eabc2f8`,
   `20261015000100_platform_admins.sql`: sarwar@gmail.com, nabidbhuia313@gmail.com).
 
-### Part 2 ✅ code complete (backend `de9041d`, UI next commit) — **not yet applied on Supabase**
+### Part 2 ✅ (backend `de9041d`, UI `875fe9b`) — **applied on Supabase and `part2_attendance_test.sql` passed (2026-10-14)**
+- First run failed at the leave section because `…0300_part2c_requests.sql` had not been applied; rerun after applying it passed.
 | Area | Migration | UI |
 |---|---|---|
 | 2A config | `20261016000100_part2a_time_config.sql` | `/time`: Shifts, Roster, Holidays, Leave types, Overtime policy, Work rules (law, weekly off, late policy, period lock), Geofences & QR |
@@ -179,8 +180,7 @@ Other Part 2 decisions (why):
 - Verified in the browser (`/preview`): profile dropdown, mobile layout (no horizontal scroll), mobile drawer.
 
 ### Next steps
-1. User applies the 4 Part 2 migrations in order, then runs `supabase/tests/part2_attendance_test.sql`
-   (expects `ALL PART 2 CHECKS PASSED`).
+1. Done: Part 2 migrations applied and acceptance test passed on Supabase.
 2. Hand test: shifts → roster → check-in on a phone → leave → overtime → lock.
 3. Optional: schedule pg_cron jobs; enable the Phone provider.
 4. Part 3 (payroll) reads the attendance summary, approved overtime, leave and period locks.

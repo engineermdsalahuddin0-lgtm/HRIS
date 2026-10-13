@@ -4,7 +4,7 @@ import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft, ArrowRightLeft, BadgeCheck, CalendarDays, KeyRound, MapPin, Network, Pencil, Phone, Power, TrendingDown,
-  TrendingUp, UserPlus, Mail,
+  TrendingUp, UserPlus, Mail, IdCard,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
@@ -17,11 +17,13 @@ import { useEmployeeProfile, useOrgStructure } from '@/lib/hr'
 import { useMyContext } from '@/lib/appContext'
 import { Alert, Badge, Button, Card, EmptyState, PageLoader } from '@/components/ui'
 import { StatusBadge, Tabs } from '@/components/kit'
-import { Avatar } from './EmployeesPage'
+import { useEmployeeFiles } from '@/lib/files'
+import { EmployeeFilesCard } from './EmployeeFiles'
+import { IdCardDialog } from './IdCardDialog'
 import { EditEmployeeDialog, PortalDialog, ReportingDialog, StatusDialog, TransferDialog } from './profileDialogs'
 
 type Tab = 'personal' | 'history' | 'reporting'
-type DialogKey = 'edit' | 'transfer' | 'reporting' | 'status' | 'portal' | null
+type DialogKey = 'edit' | 'transfer' | 'reporting' | 'status' | 'portal' | 'idcard' | null
 
 function Field({ label, value }: { label: string; value: ReactNode }) {
   const hidden = value === null || value === undefined
@@ -85,6 +87,7 @@ export default function EmployeeProfilePage() {
   const structure = useOrgStructure()
   const [tab, setTab] = useState<Tab>('personal')
   const [dialog, setDialog] = useState<DialogKey>(null)
+  const files = useEmployeeFiles(ctx.organization?.id, id)
 
   if (profile.isPending || structure.isPending) return <PageLoader />
   if (profile.isError) return <Alert>{errorMessage(profile.error)}</Alert>
@@ -110,7 +113,13 @@ export default function EmployeeProfilePage() {
 
       <Card>
         <div className="flex flex-wrap items-start gap-5">
-          <Avatar name={e.full_name} size="lg" />
+          {files.data?.photo ? (
+            <img src={files.data.photo.url} alt="" className="size-16 shrink-0 rounded-2xl object-cover ring-1 ring-slate-200" />
+          ) : (
+            <div className="flex size-16 shrink-0 items-center justify-center rounded-2xl bg-primary-100 text-xl font-semibold text-primary-700" aria-hidden>
+              {e.full_name.split(/s+/).map((x) => x[0]).slice(0, 2).join('').toUpperCase()}
+            </div>
+          )}
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
               <h2 className="text-2xl font-semibold text-slate-900">{e.full_name}</h2>
@@ -135,6 +144,7 @@ export default function EmployeeProfilePage() {
           </div>
           <div className="flex flex-wrap gap-2">
             {canEdit && <Button variant="secondary" onClick={() => setDialog('edit')}><Pencil className="size-4" />Edit</Button>}
+            <Button variant="secondary" onClick={() => setDialog('idcard')}><IdCard className="size-4" />ID card</Button>
             {canTransfer && <Button variant="secondary" onClick={() => setDialog('transfer')}><ArrowRightLeft className="size-4" />Transfer / promote</Button>}
             {canPortal && <Button variant="secondary" onClick={() => setDialog('portal')}><KeyRound className="size-4" />Portal access</Button>}
             {canStatus && (
@@ -195,6 +205,7 @@ export default function EmployeeProfilePage() {
               <Field label="Permanent address" value={e.permanent_address} />
             </dl>
           </Card>
+          <EmployeeFilesCard profile={p} />
           <Card>
             <h3 className="mb-4 font-semibold text-slate-900">Nominees</h3>
             {p.nominees === null ? (
@@ -311,6 +322,7 @@ export default function EmployeeProfilePage() {
       <ReportingDialog profile={p} open={dialog === 'reporting'} onClose={close} />
       <StatusDialog profile={p} open={dialog === 'status'} onClose={close} structure={structure.data} />
       <PortalDialog profile={p} open={dialog === 'portal'} onClose={close} />
+      <IdCardDialog profile={p} open={dialog === 'idcard'} onClose={close} />
     </div>
   )
 }

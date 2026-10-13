@@ -749,3 +749,26 @@ revoke all on function
   private.rebuild_range(uuid, date, date), private.leave_rollover_for_org(uuid, int)
 from public, anon, authenticated;
 grant execute on function private.can_decide_for(uuid, text, text), private.current_manager_of(uuid) to authenticated;
+
+-- Minimal colleague list (name, card ID, department) for choosing a swap partner.
+-- No contact or personal fields.
+create or replace function public.list_colleagues()
+returns table (id uuid, full_name text, card_id text, department_name text)
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  perform private.require_permission('attendance.view_own');
+  return query
+    select e.id, e.full_name, e.card_id, d.name
+    from public.employees e
+    left join public.departments d on d.id = e.department_id
+    where e.org_id = private.current_org_id() and e.status = 'active'
+      and e.id is distinct from private.current_employee_id()
+    order by e.full_name;
+end;
+$$;
+revoke all on function public.list_colleagues() from public, anon;
+grant execute on function public.list_colleagues() to authenticated;

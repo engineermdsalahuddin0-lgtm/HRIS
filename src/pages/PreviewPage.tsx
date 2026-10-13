@@ -17,6 +17,7 @@ const MOCK: MyContext = {
   permissions: [
     'audit.view', 'employees.create', 'employees.view', 'org.manage', 'org.view',
     'roles.manage', 'roles.view', 'settings.manage',
+    'attendance.view_own', 'attendance.view_all', 'leave.request', 'leave.approve', 'overtime.view', 'shifts.manage',
   ],
   is_platform_admin: true,
   pending_signup_request: null,

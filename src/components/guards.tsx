@@ -47,8 +47,11 @@ export function RequirePlatformAdmin() {
 }
 
 /** Hides a page from roles without the permission (UI only; the database enforces it too). */
-export function RequirePermission({ permission }: { permission: string }) {
-  const allowed = useSession((s) => s.context?.permissions.includes(permission) ?? false)
+export function RequirePermission({ permission }: { permission: string | string[] }) {
+  const allowed = useSession((s) => {
+    const have = s.context?.permissions ?? []
+    return (Array.isArray(permission) ? permission : [permission]).some((p) => have.includes(p))
+  })
   if (!allowed) return <Navigate to="/" replace />
   return <Outlet />
 }

@@ -86,14 +86,67 @@ Architecture source: [docs/Part01Architecture.md](docs/Part01Architecture.md) (t
 - **Dashboard** reads `get_dashboard_stats()` (real data). Sample data only on the dev-only `/preview` route.
 - **Audit viewer** uses `list_audit_logs()` / `get_audit_filter_options()` (admin-only) and shows a per-field diff.
 
+### Part 2 decisions (Time & Attendance) — user answers 2026-10-13
+User clarifications that override the Part 2 doc:
+1. **Web browser now; a mobile app later** will send exact location. Now: browser Geolocation for GPS check-in.
+   *Live Tracking (location pings) is deferred to the mobile app* — not built.
+2. **No biometric device yet** → Step 2D (device registry, ADMS push endpoint, PIN mapping, unmapped inbox) **deferred**.
+   Raw punches already have `source = biometric` and `device_id`, so devices plug into `private.record_punch` later.
+3. **Management and owners get overtime too** → overtime is calculated for every grade; no grade exclusion anywhere.
+4. **Company chooses the law**: `org_work_settings.labor_regime` = `bd_labour_act` (default, Labour Act 2006) or
+   `bd_epz_labour_act` (EPZ Labour Act 2019, for EPZ enterprises). If not EPZ → Labour Act. `apply_labor_regime_defaults()`
+   resets leave types and overtime rates to that law. Today both seeds are the same (CL 10, SL 14, EL 18/yr monthly accrual
+   carry ≤ 40, ML 112, LWP unlimited; OT ×2.0 everywhere, workday cap 2 h) — *values must be confirmed by HR/legal*.
+5. **Month = 30 days** (`month_days` fixed at 30; daily rate = monthly ÷ 30 in Part 3). **Late deduction policy** per company:
+   `none` | `days_per_lates` (N lates = X days of pay, default 3 → 1) | `amount_per_late` (fixed taka per late).
+   Applied in `get_attendance_summary()`; taka for day-based deductions is computed in Part 3 (needs salary).
+6. **Manager sees their team** = everyone below them on the current reporting chain (recursive, any line type) via
+   `private.team_employee_ids()`. HR/Admin see everyone with `attendance.view_all`.
+
+Other Part 2 decisions (why):
+- **Raw punches are immutable evidence** (`attendance_punches`, append-only trigger, idempotent unique key). Derived
+  `attendance_records` are rebuilt by `private.rebuild_attendance_day(emp, date)` — idempotent (no update when equal).
+- **Engine**: check-in = first punch in [start − earliest, start + cut-off]; check-out = last punch after check-in up to
+  end + window. Late = beyond grace (workdays only). Absent only after the cut-off. Half day = worked < threshold.
+  Early out = before end − grace. Recorded breaks are deducted; otherwise the shift break when raw time ≥ 6 h.
+  A night shift belongs to its start date; every punch rebuilds its local date and the day before.
+- **Overtime**: workday = after shift end (daily cap); weekend/holiday = all worked time (no daily cap); minimum minutes,
+  rounding, optional monthly cap (applied in the summary). Manual, decided or locked records are never overwritten.
+- **Manual fixes** add override punches (`kind = override_in/out` + `work_date`), so originals stay; they need
+  `attendance.adjust`, a reason, not on yourself, not in a locked period; audited.
+- **Geofence**: nearest active fence; outside the radius or accuracy worse than max(100 m, radius) → `outside_geofence`
+  (flag, never block). No location while fences exist → flagged; `require_location` makes location mandatory.
+- **QR**: `issue_qr_code(office)` returns a random code once and stores only its SHA-256; valid for `qr_rotation_seconds`
+  (+15 s grace); one use per employee per code. The QR is a link `/attendance/qr?c=…`, so a phone camera opens the app.
+- **Leave**: balance checked at request; pending reserves days; approval → used + attendance `on_leave`; cancel restores
+  both. Weekly offs/holidays are not counted unless the type says so. One calendar year per request. Approver = the
+  reporting manager (team) or HR (`leave.view_all`). Nobody decides their own request. Monthly accrual is computed on read
+  (`ensure_leave_balance`), so no monthly job; year rollover via `run_leave_rollover(year)`.
+- **Shift swap**: request → colleague accepts → manager/HR approves → one-day override rosters for both.
+  `list_colleagues()` gives employees a minimal name/card/department list to pick a partner (no contact data).
+- **Period lock** (`set_period_lock`, admin-only `attendance.lock_period`): locked dates refuse punches, fixes, leave,
+  overtime and rebuilds. Built now for Part 3 payroll.
+- **Files**: private buckets `employee-files/{org}/{employee}/{photo|signature|nid}` and `org-assets/{org}/logo`;
+  storage policies call `private.employee_file_access()` / `private.org_asset_access()` (same rules as the profile; the NID
+  scan only for roles ticked for NID). The app uses 1-hour signed URLs.
+- **ID card**: CR80 front/back generated in the browser from the profile (logo, photo, name, designation, card ID, blood
+  group, QR `OLYMPUS:{org_code}:{card_id}`, holder signature); printed via the `.print-area` print CSS.
+- **Holidays seeded**: fixed-date BD public holidays for this and next year (21 Feb, 26 Mar, 14 Apr, 1 May, 16 Dec,
+  25 Dec). Eid, Puja and other lunar dates are added by HR each year.
+- **No map library**: the geofence form uses "Use my location" + coordinates, with a Google Maps link to check.
+- **Profile dropdown** in the top bar (photo/initials, role, org code, My profile, Change password, Sign out).
+- **Lazy-loaded routes** keep every JS chunk under 500 kB.
+
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).
-- **Phone login**: Supabase Phone provider is **disabled** (`phone_provider_disabled`). Phone-only logins created in Step 7
-  can't sign in until the user enables Authentication → Providers → Phone (needs an SMS provider choice).
-- **pg_cron** for the 3-year audit purge not scheduled yet.
-- §9 assumptions of the architecture doc: treated as accepted.
+- **Phone login**: Supabase Phone provider is **disabled** (`phone_provider_disabled`). Phone-only logins can't sign in
+  until Authentication → Providers → Phone is enabled (needs an SMS provider).
+- **pg_cron** not scheduled yet for the audit purge (`private.purge_expired_audit_logs()`) and the daily attendance close
+  (`private.run_daily_close_all()`, closes "yesterday" per org timezone). Until then HR uses "Close / rebuild day".
+- Statutory leave/overtime values must be confirmed against the chosen law.
+- Part 2 deferred: devices (2D) and live tracking (mobile app).
+- §9 assumptions of both docs: treated as accepted (Part 2 #2 confirmed by the user: manager sees their team).
 - Email confirmation is ON in Supabase for self sign-up (portal logins created by HR are pre-confirmed).
-- Bundle is > 500 kB (one chunk); route-level code splitting can be added later.
 
 ## Progress
 ### Step 1 — Foundation ✅ (`d319403`) — applied + tested on Supabase
@@ -111,15 +164,35 @@ Architecture source: [docs/Part01Architecture.md](docs/Part01Architecture.md) (t
 - Tests: `supabase/tests/step3_9_acceptance_test.sql` covers architecture §6 tests 1–12 (Admin, HR, Manager, Employee,
   two companies). **Passes in PGlite** together with the Step 1 test. Typecheck + production build pass.
 
+- Steps 3–9 applied on Supabase by the user (2026-10-13). Platform admins allow-list ✅ (`eabc2f8`,
+  `20261015000100_platform_admins.sql`: sarwar@gmail.com, nabidbhuia313@gmail.com).
+
+### Part 2 ✅ code complete (backend `de9041d`, UI next commit) — **not yet applied on Supabase**
+| Area | Migration | UI |
+|---|---|---|
+| 2A config | `20261016000100_part2a_time_config.sql` | `/time`: Shifts, Roster, Holidays, Leave types, Overtime policy, Work rules (law, weekly off, late policy, period lock), Geofences & QR |
+| 2B attendance | `20261016000200_part2b_attendance.sql` | `/attendance/me` (check in/out with location, break, calendar, month summary, swaps), `/attendance` (daily KPIs + table + fix, monthly summary, calendar, reconciliation, swap approvals), `/attendance/qr`, `/attendance/qr-display/:officeId` |
+| 2C requests | `20261016000300_part2c_requests.sql` | `/leave` (balances, request, my requests, approvals, all), `/overtime` (approve/reject, manual) |
+| Files | `20261016000400_files_storage.sql` | Profile: photo/signature/NID upload + **ID card**; Settings: **company logo**; top-bar **profile dropdown** |
+- Tests: `npm run test:db` (PGlite: all migrations + 3 SQL suites, 17 + 19 + 21 checks) and `npm test` (vitest, 23 unit
+  tests); `npm run test:all` runs both. Typecheck + build pass.
+- Verified in the browser (`/preview`): profile dropdown, mobile layout (no horizontal scroll), mobile drawer.
+
 ### Next steps
-1. User applies the 7 Step 3–9 migrations in order in the SQL Editor, then runs `step3_9_acceptance_test.sql`
-   (expects `ALL STEP 3-9 CHECKS PASSED`).
-2. Hand test in the app (doc §6), then tag the Part 1 release.
-3. Then Part 2 (shift, attendance, salary, …) per the doc.
+1. User applies the 4 Part 2 migrations in order, then runs `supabase/tests/part2_attendance_test.sql`
+   (expects `ALL PART 2 CHECKS PASSED`).
+2. Hand test: shifts → roster → check-in on a phone → leave → overtime → lock.
+3. Optional: schedule pg_cron jobs; enable the Phone provider.
+4. Part 3 (payroll) reads the attendance summary, approved overtime, leave and period locks.
 
 ## File map
 - `supabase/migrations/` — schema, RLS, functions (apply in order)
 - `supabase/tests/` — SQL acceptance checks (one transaction, rolled back)
+- `scripts/db-test/` — PGlite runner + Supabase stand-in (`npm run test:db`); `src/lib/__tests__/` — vitest unit tests
+- `src/lib/time.ts` — Part 2 types + hooks; `src/lib/files.ts` — storage hooks (photo/signature/NID/logo, QR payload)
+- `src/components/UserMenu.tsx` — top-bar profile dropdown + `PersonAvatar`
+- `src/pages/attendance/`, `src/pages/leave/`, `src/pages/overtime/`, `src/pages/time/` — Part 2 screens
+- `src/pages/employees/EmployeeFiles.tsx`, `IdCardDialog.tsx` — uploads and ID card
 - `src/stores/session.ts` — Zustand session + `get_my_context()`
 - `src/lib/appContext.tsx` — `useMyContext()` (real or `/preview` mock)
 - `src/lib/hr.ts` — HR types + React Query hooks (structure, employees, roles, dashboard, audit)

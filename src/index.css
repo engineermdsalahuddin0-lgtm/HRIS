@@ -17,3 +17,26 @@
 body {
   @apply bg-slate-50 text-slate-900 antialiased;
 }
+
+/* Printing: only the element marked .print-area is printed (ID cards). */
+@media print {
+  body * {
+    visibility: hidden;
+  }
+  .print-area,
+  .print-area * {
+    visibility: visible;
+  }
+  .print-area {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    gap: 8mm;
+    align-items: flex-start;
+    justify-content: center;
+    padding: 10mm;
+  }
+  @page {
+    margin: 0;
+  }
+}

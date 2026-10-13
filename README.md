@@ -65,4 +65,21 @@ select id from auth.users where email = 'you@example.com';
 - [x] Step 8: Deactivation flows
 - [x] Step 9: Audit log viewer and acceptance tests (`supabase/tests/step3_9_acceptance_test.sql`)
 
+## Part 2 — Time & Attendance
+
+- [x] 2A: shifts, rosters, holidays, leave types, overtime policy, work rules (Labour Act / EPZ, 30-day month, late deduction)
+- [x] 2B: punches (web, GPS, QR, manual), attendance engine, daily close, reconciliation, monthly summary
+- [x] 2C: leave requests and approvals, overtime approval, breaks, shift swaps
+- [ ] 2D: biometric devices and live tracking (deferred: no devices yet; tracking comes with the mobile app)
+- [x] Files: employee photo / signature / NID, company logo, printable ID card
+
+## Tests
+
+```bash
+npm run test:all
+```
+
+`npm test` runs the unit tests (vitest); `npm run test:db` runs every migration and every SQL test in an in-process
+Postgres (PGlite), no Docker needed.
+
 See [memory.md](memory.md) for decisions and the reasons behind them.

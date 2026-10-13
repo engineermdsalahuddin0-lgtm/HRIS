@@ -1,4 +1,6 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { ImageUp, Trash2 } from 'lucide-react'
+import { useOrgLogo, useUploadOrgLogo } from '@/lib/files'
 import { errorMessage } from '@/lib/identity'
 import { useOrgSettings, useSettingsSave } from '@/lib/hr'
 import { useMyContext } from '@/lib/appContext'
@@ -46,6 +48,8 @@ export default function SettingsPage() {
   return (
     <div className="mx-auto max-w-3xl space-y-6">
       <PageHeader title="Settings" description="Organization details and the employee card ID policy." />
+
+      <LogoCard orgId={settings.data.id} />
 
       <Card className="space-y-4">
         <h3 className="font-semibold text-slate-900">Organization</h3>
@@ -107,5 +111,35 @@ export default function SettingsPage() {
         <Button loading={save.isPending} onClick={submit}>Save settings</Button>
       </div>
     </div>
+  )
+}
+
+function LogoCard({ orgId }: { orgId: string }) {
+  const logo = useOrgLogo(orgId)
+  const upload = useUploadOrgLogo(orgId)
+  const input = useRef<HTMLInputElement>(null)
+  return (
+    <Card className="flex flex-wrap items-center gap-5">
+      <div className="flex size-20 items-center justify-center overflow-hidden rounded-2xl bg-slate-50 ring-1 ring-slate-200">
+        {logo.data ? <img src={logo.data} alt="Company logo" className="h-full w-full object-contain" /> : <span className="text-xs text-slate-400">No logo</span>}
+      </div>
+      <div className="min-w-48 flex-1">
+        <h3 className="font-semibold text-slate-900">Company logo</h3>
+        <p className="text-sm text-slate-500">Shown in the menu and on ID cards. PNG, JPG or WEBP, up to 2 MB. A square image works best.</p>
+        {upload.isError && <p className="mt-1 text-sm text-red-600">{errorMessage(upload.error)}</p>}
+      </div>
+      <div className="flex gap-2">
+        <input ref={input} type="file" accept="image/png,image/jpeg,image/webp" className="hidden"
+          onChange={(e) => { const f = e.target.files?.[0]; if (f) upload.mutate(f); e.target.value = '' }} />
+        <Button variant="secondary" loading={upload.isPending} onClick={() => input.current?.click()}>
+          <ImageUp className="size-4" /> {logo.data ? 'Replace' : 'Upload'}
+        </Button>
+        {logo.data && (
+          <Button variant="ghost" aria-label="Remove logo" onClick={() => confirm('Remove the company logo?') && upload.mutate(null)}>
+            <Trash2 className="size-4" />
+          </Button>
+        )}
+      </div>
+    </Card>
   )
 }

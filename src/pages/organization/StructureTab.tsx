@@ -10,7 +10,7 @@ import { useSaveStructure } from '@/lib/hr'
 export interface FieldSpec {
   name: string
   label: string
-  type?: 'text' | 'textarea' | 'select' | 'number'
+  type?: 'text' | 'textarea' | 'select' | 'number' | 'time' | 'date' | 'checkbox'
   options?: Option[]
   required?: boolean
   /** Not editable after creation (e.g. an office's branch). */
@@ -72,7 +72,7 @@ export function StructureTab<T extends Row>({
     const init: Record<string, string> = {}
     for (const f of fields) {
       const v = row === 'new' ? '' : (row as unknown as Record<string, unknown>)[f.name]
-      init[f.name] = v === null || v === undefined ? '' : String(v)
+      init[f.name] = v === null || v === undefined ? (f.type === 'checkbox' ? 'false' : '') : f.type === 'time' ? String(v).slice(0, 5) : String(v)
     }
     setValues(init)
     setEditing(row)
@@ -90,7 +90,7 @@ export function StructureTab<T extends Row>({
     for (const f of fields) {
       if (!isNew && f.createOnly) continue
       const v = values[f.name]?.trim() ?? ''
-      payload[f.name] = v === '' ? null : f.type === 'number' ? Number(v) : v
+      payload[f.name] = f.type === 'checkbox' ? v === 'true' : v === '' ? null : f.type === 'number' ? Number(v) : v
     }
     try {
       await save.mutateAsync({ id: isNew ? undefined : (editing as T).id, values: payload })
@@ -236,6 +236,16 @@ export function StructureTab<T extends Row>({
                 />
               )
             }
+            if (f.type === 'checkbox') {
+              return (
+                <label key={f.name} className="flex items-center gap-2 self-end pb-2.5 text-sm text-slate-700">
+                  <input type="checkbox" className="size-4 accent-primary-600" checked={values[f.name] === 'true'} disabled={disabled}
+                    onChange={(e) => setValues((v) => ({ ...v, [f.name]: String(e.target.checked) }))} />
+                  {f.label}
+                  {f.hint && <span className="text-xs text-slate-400">({f.hint})</span>}
+                </label>
+              )
+            }
             if (f.type === 'textarea') {
               return (
                 <Textarea
@@ -252,7 +262,7 @@ export function StructureTab<T extends Row>({
                 key={f.name}
                 {...common}
                 label={f.required ? `${f.label} *` : f.label}
-                type={f.type === 'number' ? 'number' : 'text'}
+                type={f.type === 'number' || f.type === 'time' || f.type === 'date' ? f.type : 'text'}
                 hint={disabled ? 'Cannot be changed after creation' : f.hint}
                 onChange={(e) => setValues((v) => ({ ...v, [f.name]: e.target.value }))}
               />

@@ -18,7 +18,7 @@ docs/                   Architecture documents
 2. Apply the migrations, in filename order, using either:
    - the Supabase SQL editor (paste each file in `supabase/migrations/`), or
    - the CLI: `npx supabase login`, `npx supabase link --project-ref <ref>`, `npx supabase db push`.
-3. Run `supabase/tests/step1_foundation_test.sql` in the SQL editor. The Results tab must show
+3. Run each file in `supabase/tests/` in the SQL editor. The Results tab must show
    `ALL STEP 1 CHECKS PASSED`; any failed check shows as an error instead. It leaves no data behind.
 4. Copy `.env.example` to `.env.local` and fill in the project URL and **anon** key.
 5. `npm install` then `npm run dev`.
@@ -56,11 +56,13 @@ select id from auth.users where email = 'you@example.com';
 ## Build progress (Part 1)
 
 - [x] Step 1: Foundation: organizations, user profiles, roles and permissions, RLS, audit log, org sign-up
-- [ ] Step 2: Login: email/phone, first-login password change, lockout
-- [ ] Step 3: Organization structure
-- [ ] Step 4: Roles screen and field visibility
-- [ ] Step 5: Employees
-- [ ] Step 6: History, reporting chain, nominees
-- [ ] Step 7: Portal access
-- [ ] Step 8: Deactivation flows
-- [ ] Step 9: Audit log viewer and acceptance pass
+- [x] Step 2: Login: email/phone, first-login password change (lockout: Supabase rate limit for now)
+- [x] Step 3: Organization structure
+- [x] Step 4: Roles screen and field visibility, card ID policy
+- [x] Step 5: Employees
+- [x] Step 6: History, reporting chain, nominees
+- [x] Step 7: Portal access
+- [x] Step 8: Deactivation flows
+- [x] Step 9: Audit log viewer and acceptance tests (`supabase/tests/step3_9_acceptance_test.sql`)
+
+See [memory.md](memory.md) for decisions and the reasons behind them.

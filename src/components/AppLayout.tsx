@@ -11,6 +11,7 @@ import {
   ScrollText,
   Settings,
   ShieldCheck,
+  UserRound,
   Users,
   X,
 } from 'lucide-react'
@@ -31,19 +32,27 @@ interface NavItem {
 
 const NAV: NavItem[] = [
   { to: '/', label: 'Dashboard', icon: LayoutDashboard },
-  { to: '/employees', label: 'Employees', icon: Users, permission: 'employees.view', soon: 'Step 5' },
-  { to: '/organization', label: 'Organization', icon: Building2, permission: 'org.view', soon: 'Step 3' },
-  { to: '/settings/roles', label: 'Roles & access', icon: ShieldCheck, permission: 'roles.view', soon: 'Step 4' },
-  { to: '/audit', label: 'Audit log', icon: ScrollText, permission: 'audit.view', soon: 'Step 9' },
-  { to: '/settings', label: 'Settings', icon: Settings, permission: 'settings.manage', soon: 'Step 4' },
+  { to: '/me', label: 'My profile', icon: UserRound },
+  { to: '/employees', label: 'Employees', icon: Users, permission: 'employees.view' },
+  { to: '/organization', label: 'Organization', icon: Building2, permission: 'org.view' },
+  { to: '/settings/roles', label: 'Roles & access', icon: ShieldCheck, permission: 'roles.view' },
+  { to: '/audit', label: 'Audit log', icon: ScrollText, permission: 'audit.view' },
+  { to: '/settings', label: 'Settings', icon: Settings, permission: 'settings.manage' },
   { to: '/platform/requests', label: 'Sign-up requests', icon: Inbox, platformOnly: true },
 ]
 
-const TITLES: Record<string, string> = {
-  '/': 'Dashboard',
-  '/preview': 'Dashboard',
-  '/platform/requests': 'Sign-up requests',
-}
+const TITLES: [string, string][] = [
+  ['/employees/new', 'Add employee'],
+  ['/employees', 'Employees'],
+  ['/organization', 'Organization'],
+  ['/settings/roles', 'Roles & access'],
+  ['/settings', 'Settings'],
+  ['/audit', 'Audit log'],
+  ['/platform/requests', 'Sign-up requests'],
+  ['/me', 'My profile'],
+  ['/', 'Dashboard'],
+]
+const titleFor = (path: string) => TITLES.find(([prefix]) => path === prefix || (prefix !== '/' && path.startsWith(prefix)))?.[1] ?? 'Dashboard'
 
 function useNavItems() {
   const context = useMyContext()
@@ -88,7 +97,7 @@ function NavList({ rail, onNavigate }: { rail: boolean; onNavigate?: () => void 
           <NavLink
             key={to}
             to={isPreview && to === '/' ? '/preview' : to}
-            end
+            end={to === '/' || to === '/settings'}
             onClick={onNavigate}
             title={text}
             className={({ isActive }) =>
@@ -200,7 +209,7 @@ export default function AppLayout() {
           >
             <Menu className="size-5" />
           </button>
-          <h1 className="text-lg font-semibold text-slate-900">{TITLES[pathname] ?? ''}</h1>
+          <h1 className="text-lg font-semibold text-slate-900">{titleFor(pathname)}</h1>
 
           <div className="ml-auto flex items-center gap-2 md:gap-4">
             {context.organization && (

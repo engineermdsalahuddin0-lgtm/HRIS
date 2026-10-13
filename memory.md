@@ -41,6 +41,9 @@ Architecture source: [docs/Part01Architecture.md](docs/Part01Architecture.md) (t
 - Soft delete only (`prevent_delete` trigger); deactivate = `status`.
 - Phones stored as `+8801XXXXXXXXX` (`private.normalize_bd_phone`); Supabase Auth stores them without `+`.
 - Login error is always "ID or password is wrong".
+- **Platform (super) admins**: `sarwar@gmail.com`, `nabidbhuia313@gmail.com` (migration `20261015000100_platform_admins.sql`).
+  Kept in `private.platform_admin_allowlist`; promoted only once the email is **confirmed** (trigger on `auth.users`),
+  so nobody can claim the role by signing up with that address first. To add one: insert the email into the allowlist.
 
 ### Step 3–9 decisions
 - **Field-level security via a view, not RLS** — base tables `employees`, `employee_sensitive`, `employee_nominees`,

@@ -321,6 +321,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   reports 42P01 "relation does not exist" on later statements (PGlite is fine). Read source tables directly, and carry
   ids/snapshots between statements as text/JSON in `set_config('t.x', …, true)` (`jsonb_to_recordset` to read back).
 
+## A10b. Spotlight guide (onboarding tours)
+- `src/components/spotlight/`: SpotlightTour (dark mask 70%, box-shadow hole, step card, keyboard, focus trap), geometry.ts (pure,
+  tested), useSpotlightTour(key) (auto-open once per browser via localStorage `olympus.tour.<key>`), dashboardTour.tsx.
+- Mark targets with `data-tour="…"`; bump the key version when steps change. Usage documented in README.
+
 ## A11. Code conventions
 - Professional comments: a header block per migration/file explaining purpose and rules; comments explain *why*, not
   what. Meaningful names (`v_employee`, `v_deduct_daily`, `p_period_month`); no abbreviations like `x`, `tmp`.

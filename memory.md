@@ -154,18 +154,20 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - `payroll_adjustments` (apply_month, direction, amount, reason, status pending|approved|rejected|applied|cancelled)
 - `payment_batches` (per run & method, total, status generated|exported|paid, reference)
 
-**Tax, PF, gratuity (Part 3C)** — closed tables, RPCs only (except references read via RPC)
--  (global: key, category law|company_policy|company_setting, area, title(+bn), law_name, section,
+**Tax, PF, gratuity (Part 3C)** — closed tables, RPCs only
+- `statutory_references` (global: key, category law|company_policy|company_setting, area, title(+bn), law_name, section,
   summary(+bn), source_url, verified_on, status verified|needs_confirmation) — every explained number links here by key
--  (global: code '2026-27', exempt divisor/cap, rebate %/cap, minimum tax), , -  (TIN 12 digits, taxpayer_type, is_new_taxpayer, parent_of_disabled, declared_investment),   (posted at lock; challan_reference/date, status posted|deposited)
--  (rates, basis, min service, interest, vesting jsonb, is_recognised, confirmed_at), ,  (append-only)
--  (basis, min service, partial_year_months, bands jsonb, provision_enabled),  (append-only)
+- `tax_fiscal_years` (global: code '2026-27', exempt divisor/cap, rebate %/cap, minimum tax), `tax_thresholds`, `tax_slabs`
+- `tax_profiles` (TIN 12 digits, taxpayer_type, is_new_taxpayer, parent_of_disabled, declared_investment), `tds_ledger`
+  (posted at lock; challan_reference/date, status posted|deposited)
+- `pf_settings` (rates, basis, min service, interest, vesting jsonb, is_recognised, confirmed_at), `pf_members`, `pf_ledger` (append-only)
+- `gratuity_settings` (basis, min service, partial_year_months, bands jsonb, provision_enabled), `gratuity_provisions` (append-only)
 - payroll_slips + taxable_earnings, tds_preview, employer_pf, tax_detail jsonb; slip line types + 'pf' (PF_EE), 'tax' (TDS)
 - payroll_settings + tds_apply_minimum_tax, tds_confirmed_at/by (switches auto_tds/pf_enabled/gratuity_enabled from 3A)
 
 **Performance (manual scoring demo)**
--  (draft|open|closed),  (weight, sum 100),  (one per cycle+employee;
-  draft|submitted|acknowledged, overall_score, rating),  (1-5 + comment)
+- `performance_cycles` (draft|open|closed), `performance_criteria` (weight, sum 100), `performance_reviews` (one per
+  cycle+employee; draft|submitted|acknowledged, overall_score, rating), `performance_scores` (1-5 + comment)
 
 **Platform / SaaS**
 - `platform_plans` (TRIAL/BASIC/PRO/ENTERPRISE, price_per_employee null = contact sales, max_employees, features)
@@ -198,14 +200,15 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `reopen_payroll_run`, `cancel_payroll_run`, `mark_payment_batch_paid`, `lock_payroll_run`,
   `create_payroll_adjustment`, `decide_payroll_adjustment`, `cancel_payroll_adjustment`, `list_payroll_runs`,
   `get_payroll_run`, `get_payslip`, `list_my_payslips`, `list_payroll_adjustments`, `get_payment_sheet`
-- **Tax/PF/gratuity (3C)**: , , , ,
-   (needs confirm=true to switch on), , , ,
-  , , , , ,
-  , , , ;  now wraps
-   and posts TDS/PF/gratuity ledgers
-- **Performance**: , , , ,
-  , , , - 3C engine hook:  =  (3B) +  (PF, TDS) + ;
-   = core + tax profiles, PF members/settings, earlier FY slips;  returns the working json.
+- **Tax/PF/gratuity (3C)**: `list_statutory_references`, `get_tax_tables`, `preview_tax`, `get_statutory_settings`,
+  `save_statutory_settings` (needs confirm=true to switch on), `list_tax_profiles`, `save_tax_profile`, `list_tds_ledger`,
+  `set_tds_challan`, `get_run_statutory_summary`, `list_pf_members`, `set_pf_membership`, `get_pf_statement`,
+  `preview_pf_withdrawal`, `post_pf_interest`, `preview_gratuity`, `list_gratuity_liability`; `lock_payroll_run` now wraps
+  `private.lock_payroll_run_core` and posts the TDS / PF / gratuity ledgers
+- **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
+  `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
+- 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
+  `payroll_inputs_fingerprint` = core + tax profiles, PF members/settings, earlier FY slips; `compute_annual_tax` returns the working json.
 - Key private helpers: `current_org_id`, `current_employee_id`, `current_role_id`, `has_permission`, `is_org_admin`,
   `is_platform_admin`, `require_permission`, `viewer`, `time_viewer`, `money_viewer`, `team_employee_ids`,
   `can_see_time`, `write_audit`, `attach_standard_triggers`, `rebuild_attendance_day`, `record_punch`,

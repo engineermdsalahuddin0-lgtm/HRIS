@@ -36,6 +36,9 @@ const TIME_SETUP = [
 // Part 3A: any money permission opens the Compensation page; its tabs follow the permissions.
 const COMPENSATION = ['compensation.view', 'increments.approve', 'bonuses.manage', 'deductions.manage']
 
+// Law & policy library: anyone who works with pay or its settings.
+const REFERENCES = ['compensation.view', 'payroll.prepare', 'payroll.approve', 'payroll_settings.manage', 'tax.view_profiles', 'pf.manage', 'gratuity.manage', 'performance.manage']
+
 export const router = createBrowserRouter([
   { path: '/login', element: <PublicOnly><LoginPage /></PublicOnly> },
   { path: '/register', element: <PublicOnly>{page(() => import('@/pages/public/RegisterPage'))}</PublicOnly> },
@@ -77,6 +80,15 @@ export const router = createBrowserRouter([
               guarded(COMPENSATION, '/compensation', page(() => import('@/pages/salary/CompensationPage'))),
               guarded(['compensation.view', 'compensation.edit'], '/salary', page(() => import('@/pages/salary/SalaryStructurePage'))),
               guarded(['payroll_settings.manage', 'compensation.view'], '/settings/payroll', page(() => import('@/pages/salary/PayrollSettingsPage'))),
+              // Part 3C: tax, provident fund, gratuity, law references
+              guarded(['tax.view_profiles', 'tax.manage', 'payroll.prepare', 'payroll_settings.manage'], '/tax', page(() => import('@/pages/statutory/TaxPage'))),
+              guarded('pf.manage', '/pf', page(() => import('@/pages/statutory/ProvidentFundPage'))),
+              guarded('gratuity.manage', '/gratuity', page(() => import('@/pages/statutory/GratuityPage'))),
+              guarded(['payroll_settings.manage', 'pf.manage', 'gratuity.manage', 'tax.view_profiles'], '/settings/statutory', page(() => import('@/pages/statutory/StatutorySettingsPage'))),
+              guarded(REFERENCES, '/references', page(() => import('@/pages/statutory/ReferencesPage'))),
+              // Performance (manual scoring demo)
+              guarded(['performance.manage', 'performance.review'], '/performance', page(() => import('@/pages/performance/PerformancePage'))),
+              { path: '/my-reviews', element: page(() => import('@/pages/performance/MyReviewsPage')) },
               {
                 element: <RequirePlatformAdmin />,
                 children: [

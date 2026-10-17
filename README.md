@@ -73,6 +73,14 @@ select id from auth.users where email = 'you@example.com';
 - [ ] 2D: biometric devices and live tracking (deferred: no devices yet; tracking comes with the mobile app)
 - [x] Files: employee photo / signature / NID, company logo, printable ID card
 
+## Part 3 — Payroll ([docs/Part03Architecture.md](docs/Part03Architecture.md))
+
+- [x] 3A: salary components and templates, versioned employee pay, increments (maker-checker, arrears preview),
+      bonuses with eligibility, loans/advances, encrypted payment accounts, payroll settings
+- [ ] 3B: payroll engine, runs, payslips, payment sheets
+- [ ] 3C: tax (TDS), provident fund, gratuity
+- [ ] 3D: hours compliance, grievance box, committees
+
 ## Tests
 
 ```bash

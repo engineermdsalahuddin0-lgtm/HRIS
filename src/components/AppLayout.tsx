@@ -2,8 +2,8 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
-  Building2, CalendarClock, CalendarDays, Clock, Fingerprint, Inbox, LayoutDashboard, Menu, ScrollText, Settings,
-  ShieldCheck, Timer, UserRound, Users, X,
+  Building2, CalendarClock, CalendarDays, Clock, Fingerprint, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
+  ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X,
 } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
 import { useOrgLogo } from '@/lib/files'
@@ -28,6 +28,9 @@ export const NAV: NavItem[] = [
   { to: '/attendance', label: 'Attendance', icon: Clock, anyOf: ['attendance.view_team', 'attendance.view_all'], section: 'Team' },
   { to: '/overtime', label: 'Overtime', icon: Timer, anyOf: ['overtime.view', 'overtime.approve'] },
   { to: '/employees', label: 'Employees', icon: Users, anyOf: ['employees.view'] },
+  { to: '/compensation', label: 'Compensation', icon: Wallet, anyOf: ['compensation.view', 'increments.approve', 'bonuses.manage', 'deductions.manage'], section: 'Payroll' },
+  { to: '/salary', label: 'Salary structure', icon: Layers, anyOf: ['compensation.view', 'compensation.edit'] },
+  { to: '/settings/payroll', label: 'Payroll settings', icon: SlidersHorizontal, anyOf: ['payroll_settings.manage', 'compensation.view'] },
   { to: '/organization', label: 'Organization', icon: Building2, anyOf: ['org.view'], section: 'Setup' },
   {
     to: '/time', label: 'Time setup', icon: CalendarClock,
@@ -50,6 +53,9 @@ const TITLES: [string, string][] = [
   ['/time', 'Time setup'],
   ['/organization', 'Organization'],
   ['/settings/roles', 'Roles & access'],
+  ['/settings/payroll', 'Payroll settings'],
+  ['/compensation', 'Compensation'],
+  ['/salary', 'Salary structure'],
   ['/settings', 'Settings'],
   ['/audit', 'Audit log'],
   ['/platform/requests', 'Sign-up requests'],

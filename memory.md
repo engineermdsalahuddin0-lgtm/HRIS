@@ -1,7 +1,8 @@
 # Olympus HRIS — Project memory
 
 Running log of **what was done and why**. Read this first when resuming work.
-Architecture source: [docs/Part01Architecture.md](docs/Part01Architecture.md) (titled "AIHR BD"; project name is **Olympus HRIS**).
+Architecture source: [docs/Part01Architecture.md](docs/Part01Architecture.md), [Part02](docs/Part02Architecture.md),
+[Part03](docs/Part03Architecture.md) (titled "AIHR BD"; project name is **Olympus HRIS**).
 
 ## Stack (decided)
 - Frontend: **Vite + React + TypeScript**, Tailwind v4 (orange primary), React Router, React Query (server data),
@@ -137,6 +138,49 @@ Other Part 2 decisions (why):
 - **Profile dropdown** in the top bar (photo/initials, role, org code, My profile, Change password, Sign out).
 - **Lazy-loaded routes** keep every JS chunk under 500 kB.
 
+### Part 3A decisions (Salary structure) — 2026-10-17
+User answers in the Part 3 doc §9: #14 retention period confirmed by the company **and every payment must be traceable
+in the audit log**; #15 wants a **visible manual performance-scoring demo** now (PMS later) — not built yet, see Open.
+Other §9 assumptions treated as accepted (30-day basis, base per org, maker-checker, negative net → 0 + carry, lines
+2 decimals / net nearest taka).
+- **Salary tables closed to API roles** (`employee_compensation`, lines, increments, deductions, payment accounts);
+  reads via security-barrier views (`employee_pay_v`, `salary_increments_v`, `employee_deductions_v`,
+  `payment_accounts_v`) filtered by `private.money_viewer()`; writes only via RPCs. *Why:* doc "salary readable only by
+  roles the Admin ticked"; Manager/Employee get no money permission.
+- **Permissions** (3A): `compensation.view/edit`, `increments.approve`, `bonuses.manage`, `deductions.manage`,
+  `payroll_settings.manage`, `payment_accounts.view/edit`. HR default: view/edit, bonuses, deductions, accounts view/edit.
+  **Not** HR by default: `increments.approve`, `payroll_settings.manage` (Admin ticks them). Employee sees own payment
+  accounts (masked) and own loans only — not the pay table (payslips come in 3B).
+- **Pay is versioned, never edited**: a change closes the current row (`effective_to` = new date − 1) and opens a new one;
+  lines are a **snapshot** (code, name, calc, rate, amount), so template edits never change past or current pay.
+  Guard trigger allows only closing a row; lines are append-only; no overlap per employee.
+- **Starting pay** (`set_initial_compensation`) only once per employee; every later change = **increment request →
+  approval** (maker-checker: requester ≠ approver, nobody decides their own pay). One pending increment per employee.
+- **Resolution** `private.resolve_salary(template, basic | target gross)`: gross = basic + fixed + basic·Σ%basic +
+  gross·Σ%gross (Σ%gross < 100). With a target gross, basic is solved and the rounding paisa goes on the Basic line so the
+  gross matches exactly. Lines rounded half away from zero to 2 decimals. Client mirror `previewTemplate()` (integer paisa
+  + BigInt) gives the same numbers for the unsaved template builder; the server stays the authority.
+- **Arrears** preview `get_increment_arrears`: gross difference per month on the 30-day basis from the effective month up to
+  (not incl.) the current month; first month pays `30 − (day − 1)` days. 3B pays it.
+- **Bonus eligibility**: in scope (all / departments / employees), employed in the payment month, pay on record, completed
+  service months at the payment month end ≥ minimum. Percent of basic or gross from the pay effective that month.
+- **Loans/advances**: `remaining` starts = total, installment ≤ total; 3B posts installments and stops at zero.
+- **Payment accounts**: numbers encrypted with pgcrypto `pgp_sym_encrypt` (AES-256); only the last 4 digits kept clear
+  for masking; stored numbers are never sent back to the form (empty = keep). Reveal = `reveal_payment_account` (needs
+  `payment_accounts.view`, audited, the UI hides it again after 30 s). The audit trigger strips the encrypted columns and
+  only records `number_changed`. Nobody (except Admin) edits their own payment data. *Trade-off:* the key lives in
+  `private.app_secrets` (not readable by API roles) because Vault is not available in PGlite; could move to Supabase Vault.
+- **Payroll settings**: deduction base, OT base + **OT hourly divisor (placeholder 208 — must be confirmed)**, pay weekly
+  off/holidays, half-day %, unpaid-leave base, net rounding, negative-net rule, payslip release, large-change warning.
+  Changing a statutory value clears `statutory_confirmed_at`; `confirm_payroll_statutory_values()` re-confirms.
+  Tax/PF/gratuity switches exist in the table but are edited in 3C.
+- **Seeded components** (examples, not statutory): BASIC (the one Basic), HOUSE_RENT 50% basic, MEDICAL 750,
+  CONVEYANCE 450, FOOD 1250. Basic cannot be changed or switched off; a component used by an active template cannot be off.
+- **Safe error messages** (`errorMessage` in `src/lib/identity.ts`): our own RAISE messages pass through; Postgres
+  internals (constraint/table names, RLS text, PGRST codes) become plain sentences. RPCs validate inputs explicitly so
+  users get a clear message instead of a constraint error.
+- Meals (optional) **deferred**.
+
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).
 - **Phone login**: Supabase Phone provider is **disabled** (`phone_provider_disabled`). Phone-only logins can't sign in
@@ -147,6 +191,11 @@ Other Part 2 decisions (why):
 - Part 2 deferred: devices (2D) and live tracking (mobile app).
 - §9 assumptions of both docs: treated as accepted (Part 2 #2 confirmed by the user: manager sees their team).
 - Email confirmation is ON in Supabase for self sign-up (portal logins created by HR are pre-confirmed).
+- **Part 3A migration not yet applied on Supabase**: run `20261017000100_part3a_salary_structure.sql`, then
+  `supabase/tests/part3a_salary_structure_test.sql` (expect "ALL PART 3A CHECKS PASSED").
+- **PMS demo** (user note on §9 #15): a visible manual performance-scoring screen is wanted as a demo before the real
+  PMS part — scope (who scores, scale, link to performance bonus?) to be agreed.
+- Overtime hourly divisor (208) and half-day % are placeholders until the company confirms them.
 
 ## Progress
 ### Step 1 — Foundation ✅ (`d319403`) — applied + tested on Supabase
@@ -179,16 +228,32 @@ Other Part 2 decisions (why):
   tests); `npm run test:all` runs both. Typecheck + build pass.
 - Verified in the browser (`/preview`): profile dropdown, mobile layout (no horizontal scroll), mobile drawer.
 
+### Part 3A ✅ code complete (2026-10-17) — **not yet applied on Supabase**
+| Area | Migration | UI |
+|---|---|---|
+| 3A salary structure | `20261017000100_part3a_salary_structure.sql` | `/salary` (KPI tiles, Templates builder with live gross preview, Components), `/compensation` (Employee pay + set pay / request change, Increments review with arrears, Bonuses + eligibility preview, Loans & advances with schedule), `/settings/payroll`, Employee profile **Financial** tab (`?tab=financial`) |
+- Tests: `part3a_salary_structure_test.sql` 11 checks (Part 3 tests 1, 2, 9, 10, 14 set-up, 16, 17, 21 masking +
+  immutability, statutory confirmation), hand-calculated: 17,450.00; 15,033.33 / 7,516.67 / 25,000.00; 34,166.67;
+  arrears 3,910.00; bonus 7,516.67. vitest 35 tests (`payroll.test.ts` mirrors the same golden numbers;
+  `identity.test.ts` covers safe errors). Typecheck + build pass. UI not yet checked against live data.
+- Fixed in passing: profile initials regex `/s+/` → `/\s+/`.
+
 ### Next steps
 1. Done: Part 2 migrations applied and acceptance test passed on Supabase.
 2. Hand test: shifts → roster → check-in on a phone → leave → overtime → lock.
 3. Optional: schedule pg_cron jobs; enable the Phone provider.
-4. Part 3 (payroll) reads the attendance summary, approved overtime, leave and period locks.
+4. Apply Part 3A on Supabase and run its test; hand test templates → set pay → increment (two people) → bonus preview.
+5. Part 3B (payroll engine): runs, slips + lines, adjustments, payment sheets, payslip view/PDF, lock integration.
+   Reads the attendance summary, approved overtime, leave, period locks, pay versions, bonuses, loans, arrears.
+6. Agree the PMS demo scope (manual scoring).
 
 ## File map
 - `supabase/migrations/` — schema, RLS, functions (apply in order)
 - `supabase/tests/` — SQL acceptance checks (one transaction, rolled back)
 - `scripts/db-test/` — PGlite runner + Supabase stand-in (`npm run test:db`); `src/lib/__tests__/` — vitest unit tests
+- `src/lib/payroll.ts` — Part 3 types + hooks + money helpers (`formatTaka`, `parseMoney`, `previewTemplate`,
+  `installmentSchedule`); `src/pages/salary/` — SalaryStructurePage, CompensationPage, PayrollSettingsPage, dialogs
+  (SetPay, Increment, Deduction, PaymentAccount, MaskedNumber); `src/pages/employees/FinancialTab.tsx`
 - `src/lib/time.ts` — Part 2 types + hooks; `src/lib/files.ts` — storage hooks (photo/signature/NID/logo, QR payload)
 - `src/components/UserMenu.tsx` — top-bar profile dropdown + `PersonAvatar`
 - `src/pages/attendance/`, `src/pages/leave/`, `src/pages/overtime/`, `src/pages/time/` — Part 2 screens

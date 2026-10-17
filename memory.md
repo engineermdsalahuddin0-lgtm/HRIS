@@ -249,11 +249,13 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | Steps 3–9 org/employees | `20261014000100…0700` | ✅ applied, passed | `step3_9_acceptance_test.sql` (19) |
 | Platform admins allow-list | `20261015000100_platform_admins` | ✅ applied | (in platform test) |
 | Part 2 time & attendance + files | `20261016000100…0400` | ✅ applied, passed | `part2_attendance_test.sql` (21) |
-| Part 3A salary structure | `20261017000100_part3a_salary_structure` | ✅ applied, passed | `part3a_salary_structure_test.sql` (11) |
+| Part 3A salary structure | `20261017000100_part3a_salary_structure` | ⏳ **not applied** (probe 2026-10-17: tables missing) | `part3a_salary_structure_test.sql` (11) |
 | Platform SaaS / landing | `20261018000100_platform_saas` | ✅ applied, passed | `platform_saas_test.sql` (7) |
 | **Part 3B payroll engine** | `20261019000100_part3b_payroll_engine` | ⏳ **not applied yet** | `part3b_payroll_engine_test.sql` (12) |
 - Local: all 6 SQL suites pass in PGlite (87 checks); vitest 42 tests; typecheck + build pass.
-- **Next** (in order): user applies 3B + runs its test; hand test a payroll run (HR prepares, Admin approves) →
+- 2026-10-17: running 3B failed (23503, `compensation.view` missing) because 3A was never applied; 3B now starts
+  with a guard that names the missing prerequisite. Always probe with the anon key before trusting "applied".
+- **Next** (in order): user applies 3A, then 3B + runs its test; hand test a payroll run (HR prepares, Admin approves) →
   **Part 3C** (tax/TDS, PF, gratuity — statutory values must come from verified sources, never memory) →
   **Part 3D** (hours compliance, grievance box with true anonymity, committees) → PMS demo (manual scoring; scope TBD).
 - **Deferred**: Part 2D biometric devices, live location tracking (mobile app), meals, bank/wallet integrations,

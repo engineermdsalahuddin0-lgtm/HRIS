@@ -281,9 +281,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 6. Commit (backend and UI separately), update **this file** (A5/A6/A8/A9 + Part B), tell the user which SQL files to
    run in the SQL Editor and what to hand test.
 
-- **SQL test gotcha**: never use `create temporary table` in SQL tests — the Supabase SQL Editor fails with
-  42P01 (PGlite allows it). Use a normal scratch table `private.test_*` (removed by the final rollback) read only as
-  postgres, and pass values to authenticated-role checks via `set_config('t.x', …, true)`.
+- **SQL test gotcha**: SQL tests must **not create tables** (temp or normal) mid-script — the Supabase SQL Editor then
+  reports 42P01 "relation does not exist" on later statements (PGlite is fine). Read source tables directly, and carry
+  ids/snapshots between statements as text/JSON in `set_config('t.x', …, true)` (`jsonb_to_recordset` to read back).
 
 ## A11. Code conventions
 - Professional comments: a header block per migration/file explaining purpose and rules; comments explain *why*, not

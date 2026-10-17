@@ -57,8 +57,8 @@ export default function DashboardPage() {
   const canView = context.permissions.includes('employees.view')
   const stats = useDashboardStats(!isPreview && canView && !!context.organization)
 
-  // A platform admin without a company lands on the approvals screen.
-  if (!context.organization) return <Navigate to="/platform/requests" replace />
+  // A platform admin without a company lands on the platform dashboard.
+  if (!context.organization) return <Navigate to="/platform" replace />
 
   const { organization, user, permissions } = context
   const firstName = user?.full_name?.split(' ')[0]

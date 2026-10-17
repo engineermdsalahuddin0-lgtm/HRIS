@@ -181,6 +181,30 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   users get a clear message instead of a constraint error.
 - Meals (optional) **deferred**.
 
+### Platform / SaaS decisions — user answers 2026-10-17
+- **Order agreed**: landing page + super-admin platform first, then Part 3B.
+- **Registration = one form (company + admin account)** on `/register`. The company details are sent as sign-up metadata
+  (`org_application`); trigger `on_auth_user_signup_application` validates them and creates a **pending application**.
+  Bad values are dropped and a bad application never blocks the account (the onboarding screen still lets them apply).
+  *Why:* email confirmation is on, so the applicant has no session right after sign-up and cannot call an RPC.
+- **Super admins** (`sarwar@gmail.com`, `nabidbhuia313@gmail.com`) accept or reject applications; **reject needs remarks**
+  (shown to the applicant). Accepting works before the applicant confirms their email; they can sign in after confirming.
+- **Platform dashboard** (`/platform`) shows only statuses: applications pending / accepted / rejected and organizations
+  active / non-active; clicking an organization row opens `/platform/organizations/:id` with employee volume,
+  subscription and payment status (+ admins, application details, payment history).
+- **Subscriptions = plan + manual payment entry** (no gateway yet): `platform_plans` (TRIAL 30 days ≤ 25 employees, BASIC,
+  PRO, ENTERPRISE; prices null = "Contact sales"), one `org_subscriptions` row per org (every new org starts on TRIAL via a
+  trigger on `organizations`), `org_payments` recorded by super admins (due / paid / overdue / waived / refunded; a due
+  invoice past its due date reads as overdue). Payment status per org = overdue > due > paid > none.
+- **Deactivate organization** = `suspended` or `inactive` with a required reason; its users lose access on the next request
+  (active_membership requires an active org). Reactivation restores access.
+- Billing tables closed to API roles; only platform RPCs (`private.require_platform_admin()`) reach them. Every platform
+  action is audited on the organization concerned.
+- **Landing page** (`/` when signed out): hero, modules, "made for Bangladesh", security, how it works, pricing from
+  `get_public_plans()` (anon-callable; falls back to built-in plans), FAQ, CTA. No invented testimonials or customer counts.
+  Ideas taken from ibos.io (hero + CTA, solutions grid, 3-step process, FAQ).
+- Old `SignupPage` and `SignupRequestsPage` removed; `/signup` → `/register`, `/platform/requests` → `/platform/applications`.
+
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).
 - **Phone login**: Supabase Phone provider is **disabled** (`phone_provider_disabled`). Phone-only logins can't sign in
@@ -238,8 +262,19 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   `identity.test.ts` covers safe errors). Typecheck + build pass. UI not yet checked against live data.
 - Fixed in passing: profile initials regex `/s+/` → `/\s+/`.
 
+### Platform / landing ✅ code complete (2026-10-17) — **not yet applied on Supabase**
+| Area | Migration | UI |
+|---|---|---|
+| SaaS platform | `20261018000100_platform_saas.sql` | `/` landing (signed out), `/register` (2-step), `/platform` dashboard, `/platform/applications` (accept / reject with remarks), `/platform/organizations/:id` (volume, subscription, payments, activate/deactivate) |
+- Tests: `platform_saas_test.sql` 7 checks (applications from sign-up metadata incl. invalid data, anon can read plans only,
+  non-admins blocked, reject needs remarks, trial on approval, overdue → paid, plan change, suspend → no access →
+  reactivate, audit). All 5 SQL suites pass (75 checks); vitest 35; typecheck + build pass.
+- Verified in the browser: landing desktop + mobile (no horizontal scroll), register step-1 validation, `?plan=` preselect.
+
 ### Next steps
 1. Done: Part 2 migrations applied and acceptance test passed on Supabase.
+0. Apply `20261017000100_part3a_salary_structure.sql` and `20261018000100_platform_saas.sql`, then run
+   `part3a_salary_structure_test.sql` and `platform_saas_test.sql`.
 2. Hand test: shifts → roster → check-in on a phone → leave → overtime → lock.
 3. Optional: schedule pg_cron jobs; enable the Phone provider.
 4. Apply Part 3A on Supabase and run its test; hand test templates → set pay → increment (two people) → bonus preview.
@@ -256,6 +291,8 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   (SetPay, Increment, Deduction, PaymentAccount, MaskedNumber); `src/pages/employees/FinancialTab.tsx`
 - `src/lib/time.ts` — Part 2 types + hooks; `src/lib/files.ts` — storage hooks (photo/signature/NID/logo, QR payload)
 - `src/components/UserMenu.tsx` — top-bar profile dropdown + `PersonAvatar`
+- `src/lib/platform.ts` — platform/SaaS types + hooks; `src/pages/public/` — PublicShell, LandingPage, RegisterPage;
+  `src/pages/platform/` — PlatformDashboardPage, ApplicationsPage, OrganizationDetailsPage
 - `src/pages/attendance/`, `src/pages/leave/`, `src/pages/overtime/`, `src/pages/time/` — Part 2 screens
 - `src/pages/employees/EmployeeFiles.tsx`, `IdCardDialog.tsx` — uploads and ID card
 - `src/stores/session.ts` — Zustand session + `get_my_context()`

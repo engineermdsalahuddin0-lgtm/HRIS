@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
-  Building2, CalendarClock, CalendarDays, Clock, Fingerprint, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
+  Building2, CalendarClock, CalendarDays, Clock, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
   ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X,
 } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
@@ -39,7 +39,8 @@ export const NAV: NavItem[] = [
   { to: '/settings/roles', label: 'Roles & access', icon: ShieldCheck, anyOf: ['roles.view'] },
   { to: '/audit', label: 'Audit log', icon: ScrollText, anyOf: ['audit.view'] },
   { to: '/settings', label: 'Settings', icon: Settings, anyOf: ['settings.manage'] },
-  { to: '/platform/requests', label: 'Sign-up requests', icon: Inbox, platformOnly: true, section: 'Platform' },
+  { to: '/platform', label: 'Platform', icon: Globe, platformOnly: true, section: 'Platform' },
+  { to: '/platform/applications', label: 'Applications', icon: Inbox, platformOnly: true },
 ]
 
 const TITLES: [string, string][] = [
@@ -58,7 +59,9 @@ const TITLES: [string, string][] = [
   ['/salary', 'Salary structure'],
   ['/settings', 'Settings'],
   ['/audit', 'Audit log'],
-  ['/platform/requests', 'Sign-up requests'],
+  ['/platform/applications', 'Applications'],
+  ['/platform/organizations', 'Organization'],
+  ['/platform', 'Platform'],
   ['/me', 'My profile'],
   ['/', 'Dashboard'],
 ]
@@ -74,7 +77,7 @@ function useNavItems() {
   })
 }
 
-const EXACT = new Set(['/', '/settings', '/attendance'])
+const EXACT = new Set(['/', '/settings', '/attendance', '/platform'])
 
 /** In the rail, labels appear when the rail expands (hover or keyboard focus); in the drawer they always show. */
 function NavList({ rail, onNavigate }: { rail: boolean; onNavigate?: () => void }) {

@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react'
-import { Navigate, Outlet } from 'react-router-dom'
+import { Suspense, lazy } from 'react'
+import { Navigate, Outlet, useLocation } from 'react-router-dom'
 import { useSession } from '@/stores/session'
 import { Alert, AuthShell, Button, PageLoader } from '@/components/ui'
 
@@ -11,11 +12,20 @@ export function PublicOnly({ children }: { children: ReactNode }) {
   return children
 }
 
-/** Any page that needs a signed-in user. */
+const LandingPage = lazy(() => import('@/pages/public/LandingPage'))
+
+/**
+ * Any page that needs a signed-in user. Visitors who are not signed in see the
+ * public landing page at "/" and are sent to the login page everywhere else.
+ */
 export function RequireSession() {
   const { status, session, context, contextError, refreshContext, signOut } = useSession()
+  const { pathname } = useLocation()
   if (status === 'loading') return <PageLoader />
-  if (!session) return <Navigate to="/login" replace />
+  if (!session) {
+    if (pathname === '/') return <Suspense fallback={<PageLoader />}><LandingPage /></Suspense>
+    return <Navigate to="/login" replace />
+  }
   if (!context?.user) {
     return (
       <AuthShell title="Could not load your account">

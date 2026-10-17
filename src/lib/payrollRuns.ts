@@ -3,6 +3,7 @@
 // lifecycle actions and formats.
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
+import type { TaxDetail } from '@/lib/statutory'
 
 export type RunStatus = 'draft' | 'calculated' | 'reviewed' | 'approved' | 'paid' | 'locked' | 'cancelled'
 export type RunScope = 'all' | 'branch' | 'department'
@@ -47,6 +48,8 @@ export interface Payslip {
     late_count: number; overtime_minutes: number; gross_earnings: number; total_deductions: number
     net_before_rounding: number; rounding_adjustment: number; net: number; carry_forward_out: number
     payment_method: string | null; payment_status: 'pending' | 'paid'; warnings: PayrollWarning[]
+    // Part 3C: tax working, TDS preview (auto-TDS off), employer PF cost.
+    taxable_earnings?: number; tds_preview?: number; employer_pf?: number; tax_detail?: TaxDetail | null
   }
   run: { id: string; status: RunStatus; period_month: string; approved_at: string | null }
   employee: {

@@ -1,8 +1,298 @@
-# Olympus HRIS — Project memory
+# Olympus HRIS — Project memory (handbook + decision log)
 
-Running log of **what was done and why**. Read this first when resuming work.
-Architecture source: [docs/Part01Architecture.md](docs/Part01Architecture.md), [Part02](docs/Part02Architecture.md),
-[Part03](docs/Part03Architecture.md) (titled "AIHR BD"; project name is **Olympus HRIS**).
+> **Every new session: read Part A fully before doing anything.** It is the single source of truth for how the
+> project is built, what exists, what is applied on Supabase and what comes next. Part B explains *why*.
+> After finishing any task: update the **Status board (A9)**, the relevant schema/RPC/UI sections, and add the
+> decisions to Part B. Keep this file in sync with the code — it is the project's memory.
+
+---------------------------------------------------------------------------------------------------------------------
+# Part A — Handbook
+---------------------------------------------------------------------------------------------------------------------
+
+## A0. Quick start for a new session
+1. Read this file (Part A, then the Part B section of the area you will touch).
+2. Read the architecture doc of the part you work on: `docs/Part01Architecture.md`, `Part02Architecture.md`,
+   `Part03Architecture.md` (titled "AIHR BD"; the product name is **Olympus HRIS**). User answers to the docs'
+   "assumptions to confirm" are recorded in Part B and **override** the docs.
+3. `git log --oneline | head -20` and `git status` to see where work stopped.
+4. Before coding, run `npm run test:all` (unit + database tests) to confirm a green baseline.
+5. Language: the user writes Bangla/Banglish → answer in Bangla, technical terms in English. The user wants visible
+   UI early, a commit per step, and this file updated after every step.
+
+## A1. Project at a glance
+- **What**: multi-tenant SaaS HRIS for Bangladeshi companies: organization & employees, attendance (web/GPS/QR),
+  leave, overtime, salary structure, payroll, platform administration (applications, subscriptions, payments).
+- **Repo**: `E:\Project 04 Olympus` (git, branch `main`). `E:\Olympus` is an unrelated old prototype — ignore it.
+- **Stack**: Vite + React 19 + TypeScript, Tailwind v4 (orange `primary-*`), React Router 7, TanStack React Query 5
+  (server state), Zustand (session), react-hook-form + zod, lucide-react icons, recharts, `qrcode`.
+  Backend = **Supabase** (Postgres + Auth + Storage). **No Next.js, no Edge Functions, no service-role key**:
+  all server logic is Postgres functions.
+- **Supabase project ref**: `tlvhybyattbxthoacixg`. `.env` (git-ignored) holds `VITE_SUPABASE_URL` + anon key only.
+- **Super admins** (platform): `sarwar@gmail.com`, `nabidbhuia313@gmail.com` (allow-list, promoted on email confirm).
+
+## A2. Environment and workflow rules (important)
+- **No Docker; terminal DB ports are firewall-blocked.** Never `supabase db push`. The user applies each migration
+  **manually in the Supabase SQL Editor** (new empty tab, nothing selected, whole file), in filename order, then runs
+  the matching `supabase/tests/*.sql` (expects a final `ALL … CHECKS PASSED` row; only the last result set shows).
+- HTTPS to Supabase works: probe objects with the anon key (`401 42501` = exists but closed, `404 PGRST20x` = missing).
+- **Local verification**: `npm run test:db` = PGlite (in-process Postgres + pgcrypto) + `scripts/db-test/supabase-stub.sql`
+  (fake `auth`, `storage`, roles) → runs **every migration and every SQL test**. `npm test` = vitest unit tests.
+  `npm run test:all` = both. `npm run typecheck`, `npm run build`.
+- Dev server: `npm run dev` → `http://localhost:5173` (`.claude/launch.json` name `web`). `/preview` (dev only) renders the
+  app shell + dashboard with a mock Admin without login.
+- **Never** create accounts or type passwords on the live Supabase from the agent; the user tests logins by hand.
+- Commits: one per step, message body lists what/why, ends with `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`.
+- The machine has **no Python** — use Node one-liners for scripted edits (watch `$$` in JS `replace()` strings).
+
+## A3. Architecture and request flow
+```
+Browser (React SPA)
+  ├─ supabase-js (anon key + user JWT)
+  │    ├─ auth: signInWithPassword / signUp / updateUser
+  │    ├─ RPC  supabase.rpc('fn', {p_...})      → public.* SECURITY DEFINER functions (all writes, most reads)
+  │    ├─ views  from('xxx_v').select()          → security-barrier views with built-in row/field filtering
+  │    ├─ tables from('config table')            → RLS + column grants (config/structure tables only)
+  │    └─ storage buckets (signed URLs)          → storage policies call private.*_access()
+Postgres
+  ├─ public  : tables, views, API functions (RPC)
+  ├─ private : helpers, triggers, secrets (never exposed to the API)
+  └─ auth    : Supabase users (we insert logins directly for portal access)
+```
+- **Tenant isolation**: every business table has `org_id`; **composite FKs `(org_id, id)`** stop cross-org links; RLS
+  filters by `private.current_org_id()`; protected tables are closed to API roles entirely (views/RPCs only).
+- **Identity → org/role** comes from tables on every request (`org_members`), never from JWT claims, so role changes,
+  revocation and org suspension apply on the next request.
+- **Every RPC pattern**: `perform private.require_permission('x')` → load row with `org_id = private.current_org_id()`
+  (else `P0002 'X not found'`) → validate inputs explicitly (`22023` with a user-readable message) → write → audit.
+- **Audit**: generic trigger `private.audit_row_change()` on business tables + explicit `private.write_audit(...)` for
+  named events. `audit_logs` is append-only (even for the DB owner); NID and payment numbers are masked/stripped.
+- **Soft delete only**: `private.prevent_delete()`; status columns instead of deletes.
+- **Locks / flags**: "transaction-local flag" pattern (`set_config('olympus.x','on',true)` then off) lets one RPC do a
+  guarded change (structure deactivation, audit purge, payroll payment marking).
+- **Errors**: SQLSTATE `22023` invalid input, `23502` missing value, `23505` duplicate, `23514` rule broken,
+  `23P01` overlap, `42501` not allowed, `P0002` not found. Frontend `errorMessage()` (`src/lib/identity.ts`) shows our
+  RAISE messages and turns Postgres internals into plain sentences — never leak schema names.
+
+## A4. Main flows (business)
+1. **Company onboarding**: visitor → landing `/` → `/register` (company + admin account in one form; company data sent as
+   sign-up metadata) → trigger creates a pending `org_signup_requests` row → applicant confirms email → super admin
+   accepts (`approve_org_signup_request`: creates org with random immutable 6-digit `org_code`, default roles, grades,
+   field access, time/leave/overtime/payroll defaults, TRIAL subscription, applicant = Admin with an employee row) or
+   rejects with remarks → applicant logs in → `/onboarding` shows status until approved.
+2. **Login**: one field (email or BD mobile) + password; generic error "ID or password is wrong"; first login with a
+   company-issued password forces `/change-password`.
+3. **Org setup** (Admin/HR): Organization → branches/offices/departments/designations(+grade)/operations; Time setup →
+   shifts, roster, holidays, leave types, overtime policy, work rules (law, weekly off, late policy), geofences/QR;
+   Salary structure → components/templates; Payroll settings; Roles & access → permissions + field ticks.
+4. **Employee lifecycle**: Add employee (2 steps) → card ID auto/custom → set starting pay → give portal access (login
+   created in SQL, forced password change) → transfer/promote (history) → reporting lines → deactivate (revokes login,
+   closes lines) / reactivate.
+5. **Daily attendance**: employee checks in/out on `/attendance/me` (browser GPS or office QR) → raw punch (immutable) →
+   engine rebuilds the day (present/late/absent/half day/early out, night shifts, overtime record) → HR fixes with
+   reason (override punches) → daily close (pg_cron later; now "Close / rebuild day").
+6. **Requests**: leave (balance reserved → manager/HR approves → attendance on_leave), overtime approval, shift swaps
+   (colleague accepts → manager approves → override roster), breaks.
+7. **Pay changes**: increment request (HR) → approval by someone else (Admin) → new pay version; back-dated → arrears.
+   Bonuses, loans/advances, payment accounts (encrypted).
+8. **Monthly payroll**: HR creates run (month, scope) → calculate → review → Admin approves (preparer cannot) → payment
+   sheets (CSV per method, export audited) → mark batches paid → lock (also locks the month's attendance/leave/OT).
+   Fix after approval = reopen (reason) or adjustment in an open month. Employees see payslips (EN/বাংলা, print to PDF).
+9. **Platform admin**: `/platform` status dashboard → applications (accept / reject with remarks) → organization details
+   (employee volume, subscription, payments; activate/deactivate with reason; record invoices/payments manually).
+
+## A5. Data schema (by module) — `public` unless noted
+Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_by`, `status`; money `numeric(12,2)`.
+
+**Foundation & identity** (Step 1–2)
+- `organizations` (org_code 6-digit immutable, name, status active|suspended|inactive, timezone, card_id_mode/length)
+- `user_profiles` (id = auth user, email, phone +880…, full_name, status, must_change_password, last_login_at)
+- `org_members` (user_id, org_id, role_id, employee_id, status) — one active membership per user
+- `roles` (system_key admin|hr_manager|manager|employee|null, name, status), `permissions` (catalog),
+  `role_permissions`, `role_field_access` (role, resource, field_key, can_view, can_edit), `field_catalog`
+- `platform_admins`, `private.platform_admin_allowlist`, `org_signup_requests` (applicant, org details, status,
+  review_note, organization_id), `audit_logs` (append-only)
+
+**Organization & employees** (Steps 3–9)
+- `grades` (code EM0–4 / MS0–2 / OWNER01–02, category, level = seniority), `departments`, `designations`
+  (department_id + grade_id), `branches`, `offices` (branch_id), `operations`, `office_operations`
+- `employees` (card_id, personal fields, join_date, exit_date, employment_type, status active|inactive|terminated,
+  department/designation/branch/office/operation, user_id) — **closed table**, read via `employees_v` (field masking)
+- `employee_sensitive` (nid_number), `employee_nominees`, `employment_history` (append-only events with from/to json),
+  `reporting_lines` (manager per line type, start/end dates)
+
+**Time & attendance** (Part 2)
+- `org_work_settings` (labor_regime bd_labour_act|bd_epz_labour_act, weekly_off_days, default_shift_id, month_days=30,
+  late_deduction_mode/lates_per_deduction/late_deduction_days/late_amount_per_late, qr_rotation_seconds, require_location)
+- `shifts` (times, grace/windows, half-day threshold, auto_checkout), `shift_rosters` (date range, is_override),
+  `holidays`, `leave_types`, `leave_balances`, `leave_requests`, `overtime_policy`, `period_locks`
+- `geofences`, `qr_checkin_codes` (hash only), `qr_code_uses`, `attendance_punches` (immutable raw),
+  `attendance_records` (derived per employee/day), `break_records`, `overtime_records` (minutes, day_type, multiplier,
+  status pending|approved|rejected, locked), `shift_swaps`
+- Views: `attendance_v`, `attendance_punches_v`, `overtime_v`, `leave_requests_v`, `shift_swaps_v`, `break_records_v`
+- Storage buckets: `employee-files/{org}/{employee}/{photo|signature|nid}`, `org-assets/{org}/logo`
+
+**Salary structure** (Part 3A) — closed tables, views + RPCs
+- `payroll_settings` (deduct_base, ot_rate_basis, ot_hourly_divisor 208*, pay_weekly_off, pay_holidays,
+  half_day_deduction_percent, unpaid_leave_base, net_rounding, negative_net_rule, payslip_release, large_change_percent,
+  statutory_confirmed_at, auto_tds/pf_enabled/gratuity_enabled for 3C)
+- `salary_components` (kind earning|deduction, calc fixed|percent_of_basic|percent_of_gross, is_basic),
+  `salary_templates` + `salary_template_lines`
+- `employee_compensation` (versioned: effective_from/to, basic, gross, change_type) + `employee_compensation_lines`
+  (snapshot), `salary_increments` (maker-checker, arrears_slip_id), `bonuses` + `bonus_eligibility`,
+  `employee_deductions` (loan/advance/other: total, installment, start_month, remaining, status),
+  `employee_payment_accounts` (bank/mobile_wallet/cash; numbers encrypted, last4 for masking),
+  `private.app_secrets` (encryption key)
+- Views: `employee_pay_v`, `salary_increments_v`, `employee_deductions_v`, `payment_accounts_v`
+
+**Payroll engine** (Part 3B) — closed tables, RPCs only
+- `payroll_runs` (period_month, scope all|branch|department, status draft|calculated|reviewed|approved|paid|locked|
+  cancelled, inputs_fingerprint, prepared/reviewed/approved/locked by+at, totals, run_warnings)
+- `payroll_slips` (one per employee per month: compensation_id, monthly gross, employed/payable days, absent/half/
+  unpaid-leave days, late_count, OT minutes, gross_earnings, total_deductions, net, carry_forward_out, payment account,
+  payment_status, warnings, has_blocker)
+- `payroll_slip_lines` (direction earning|deduction, line_type, code, label, base, rate, quantity, amount, source)
+- `payroll_adjustments` (apply_month, direction, amount, reason, status pending|approved|rejected|applied|cancelled)
+- `payment_batches` (per run & method, total, status generated|exported|paid, reference)
+
+**Platform / SaaS**
+- `platform_plans` (TRIAL/BASIC/PRO/ENTERPRISE, price_per_employee null = contact sales, max_employees, features)
+- `org_subscriptions` (one per org: plan, status trial|active|past_due|suspended|cancelled|expired, seats, price,
+  period end, trial end), `org_payments` (period, amount, due_date, status due|paid|overdue|waived|refunded, method, ref)
+
+## A6. RPC catalog (public functions the UI calls)
+- **Session/login**: `get_my_context`, `record_login`, `complete_password_change`
+- **Applications/platform**: `submit_org_signup_request`, `cancel_org_signup_request`, `approve_org_signup_request`,
+  `reject_org_signup_request`, `get_public_plans` (anon), `platform_overview`, `platform_list_applications`,
+  `platform_organization_details`, `platform_set_organization_status`, `platform_update_subscription`,
+  `platform_record_payment`, `platform_update_payment`
+- **Roles**: `set_role_permissions`, `set_role_field_access`
+- **Employees**: `create_employee`, `update_employee`, `get_employee_stats`, `get_employee_profile`, `transfer_employee`,
+  `set_reporting_line`, `grant_portal_access`, `revoke_portal_access`, `change_portal_role`, `reset_user_password`,
+  `deactivate_employee`, `reactivate_employee`
+- **Structure**: `get_deactivation_impact`, `deactivate_branch|office|department|designation`
+- **Audit/dashboard**: `list_audit_logs`, `get_audit_filter_options`, `get_dashboard_stats`
+- **Time config**: `apply_labor_regime_defaults`, `set_period_lock`
+- **Attendance**: `punch`, `manual_punch`, `adjust_attendance`, `issue_qr_code`, `run_daily_close`, `rebuild_attendance`,
+  `get_reconciliation`, `get_attendance_summary`, `get_my_today`, `list_colleagues`
+- **Requests**: `get_leave_balances`, `request_leave`, `decide_leave`, `cancel_leave`, `run_leave_rollover`,
+  `decide_overtime`, `add_manual_overtime`, `start_break`, `end_break`, `request_shift_swap`, `respond_shift_swap`,
+  `decide_shift_swap`, `cancel_shift_swap`
+- **Salary (3A)**: `save_salary_template`, `preview_salary`, `set_initial_compensation`, `request_increment`,
+  `decide_increment`, `cancel_increment`, `get_increment_arrears`, `get_employee_compensation`, `save_bonus`,
+  `get_bonus_preview`, `create_deduction`, `cancel_deduction`, `save_payment_account`, `reveal_payment_account`,
+  `confirm_payroll_statutory_values`, `get_compensation_stats`
+- **Payroll (3B)**: `create_payroll_run`, `calculate_payroll_run`, `review_payroll_run`, `approve_payroll_run`,
+  `reopen_payroll_run`, `cancel_payroll_run`, `mark_payment_batch_paid`, `lock_payroll_run`,
+  `create_payroll_adjustment`, `decide_payroll_adjustment`, `cancel_payroll_adjustment`, `list_payroll_runs`,
+  `get_payroll_run`, `get_payslip`, `list_my_payslips`, `list_payroll_adjustments`, `get_payment_sheet`
+- Key private helpers: `current_org_id`, `current_employee_id`, `current_role_id`, `has_permission`, `is_org_admin`,
+  `is_platform_admin`, `require_permission`, `viewer`, `time_viewer`, `money_viewer`, `team_employee_ids`,
+  `can_see_time`, `write_audit`, `attach_standard_triggers`, `rebuild_attendance_day`, `record_punch`,
+  `resolve_salary`, `create_compensation`, `compensation_on`, `calculate_slip`, `payroll_inputs_fingerprint`,
+  `seed_org_defaults` (calls the per-part seed functions for new orgs).
+
+## A7. Permissions and default roles
+- **Admin** (`system_key = admin`) implicitly has every permission; its set cannot be edited. **Admin-only** (never
+  grantable): `roles.manage`, `settings.manage`, `audit.view`, `attendance.lock_period`.
+- Catalog by module:
+  - organization: `org.view`, `org.manage`
+  - employees: `employees.view|create|edit|deactivate|transfer|reporting|portal_access`
+  - security: `users.reset_password`, `roles.view`, `roles.manage`, `audit.view`; settings: `settings.manage`
+  - attendance: `attendance.view_own|view_team|view_all|adjust|qr_display|settings|lock_period`, `shifts.manage`,
+    `roster.manage`, `holidays.manage`, `swaps.approve`, `geofences.manage`
+  - leave: `leave.request|approve|manage_types|view_all`; overtime: `overtime.view|approve|manage_policy`
+  - payroll: `compensation.view|edit`, `increments.approve`, `bonuses.manage`, `deductions.manage`,
+    `payroll_settings.manage`, `payment_accounts.view|edit`, `payroll.view_own|prepare|review|approve|reopen|lock`,
+    `payment.export`
+- **HR Manager** default: org view/manage, all employees.*, users.reset_password, roles.view, all attendance except
+  lock_period, shifts/roster/holidays/swaps/geofences, all leave, all overtime, compensation view/edit, bonuses,
+  deductions, payment accounts view/edit, payroll.view_own/prepare/review. **Not**: increments.approve,
+  payroll_settings.manage, payroll.approve/reopen/lock, payment.export (Admin until ticked).
+- **Manager** default: org.view, employees.view, attendance.view_own/view_team, swaps.approve, leave.request/approve,
+  overtime.view/approve, payroll.view_own. Sees **no salary**.
+- **Employee** default: attendance.view_own, leave.request, payroll.view_own (+ own profile always).
+- Field-level access: `role_field_access` ticks per role (HR all; Manager phone/email/join date/type/gender view;
+  Employee = which own fields they may edit). People always see their whole own record.
+- Maker-checker everywhere money/approval is involved: increments, payroll runs, payroll adjustments; nobody approves
+  their own leave/overtime/swap/attendance fix/pay.
+
+## A8. UI map (routes → pages)
+- Shell: `src/components/AppLayout.tsx` (hover-expand icon rail with company logo, sections Team/Payroll/Setup/Platform,
+  mobile drawer, top bar with `UserMenu` dropdown), guards in `src/components/guards.tsx`, routes in `src/router.tsx`
+  (lazy-loaded pages; `guarded(permission|any-of, path, page)`), session in `src/stores/session.ts`.
+- Public: `/` landing (signed out) · `/register` · `/login` · `/change-password` · `/onboarding`
+- Everyone: `/` dashboard (real stats; personal home without employees.view) · `/me` → own profile ·
+  `/attendance/me` · `/attendance/qr?c=` · `/leave` · `/payslips`
+- Team/HR: `/attendance` (daily, monthly summary, calendar, reconciliation, swaps) · `/overtime` · `/employees`,
+  `/employees/new`, `/employees/:id` (tabs Personal, History, Reporting, Financial; dialogs edit, transfer, reporting,
+  status, portal, ID card; files photo/signature/NID)
+- Payroll: `/payroll` (runs + adjustments) · `/payroll/runs/:id` · `/compensation` (pay, increments, bonuses, loans) ·
+  `/salary` (templates, components) · `/settings/payroll`
+- Setup: `/organization` (6 tabs) · `/time` (shifts, roster, holidays, leave types, OT policy, work rules, geofences/QR) ·
+  `/attendance/qr-display/:officeId` · `/settings/roles` · `/audit` · `/settings` (org, logo, card ID policy)
+- Platform: `/platform` · `/platform/applications` · `/platform/organizations/:id`
+- Data hooks: `src/lib/hr.ts` (Part 1), `time.ts` (Part 2), `files.ts` (storage), `payroll.ts` (3A + money helpers),
+  `payrollRuns.ts` (3B + CSV), `payslipText.ts` (EN/BN), `platform.ts`, `identity.ts` (phone/login/errors),
+  `options.ts` (labels/dates), `appContext.tsx` (`useMyContext` real or preview mock)
+- UI kit: `components/ui.tsx` (Button, Input, Card, Alert, Badge, Spinner, PageLoader, EmptyState, AuthShell),
+  `components/kit.tsx` (Select, Textarea, Modal on `<dialog>`, Tabs, Switch, Checkbox, Table th/td, StatusBadge,
+  PageHeader); generic `pages/organization/StructureTab.tsx` (config-driven CRUD table + form).
+- Design rules: orange primary, rounded-2xl cards, every page has loading/empty/error states, actions hidden when the
+  role lacks the permission (the DB still enforces), mobile-first (no horizontal scroll at 375 px), Bangla where
+  user-facing documents need it (payslip).
+
+## A9. Status board (keep this current)
+| Part / step | Migration(s) | On Supabase | Test file (checks) |
+|---|---|---|---|
+| Step 1 foundation | `20261013000100…0300` | ✅ applied, passed | `step1_foundation_test.sql` (17) |
+| Step 2 login | `20261013000400_login` | ✅ applied | — |
+| Steps 3–9 org/employees | `20261014000100…0700` | ✅ applied, passed | `step3_9_acceptance_test.sql` (19) |
+| Platform admins allow-list | `20261015000100_platform_admins` | ✅ applied | (in platform test) |
+| Part 2 time & attendance + files | `20261016000100…0400` | ✅ applied, passed | `part2_attendance_test.sql` (21) |
+| Part 3A salary structure | `20261017000100_part3a_salary_structure` | ✅ applied, passed | `part3a_salary_structure_test.sql` (11) |
+| Platform SaaS / landing | `20261018000100_platform_saas` | ✅ applied, passed | `platform_saas_test.sql` (7) |
+| **Part 3B payroll engine** | `20261019000100_part3b_payroll_engine` | ⏳ **not applied yet** | `part3b_payroll_engine_test.sql` (12) |
+- Local: all 6 SQL suites pass in PGlite (87 checks); vitest 42 tests; typecheck + build pass.
+- **Next** (in order): user applies 3B + runs its test; hand test a payroll run (HR prepares, Admin approves) →
+  **Part 3C** (tax/TDS, PF, gratuity — statutory values must come from verified sources, never memory) →
+  **Part 3D** (hours compliance, grievance box with true anonymity, committees) → PMS demo (manual scoring; scope TBD).
+- **Deferred**: Part 2D biometric devices, live location tracking (mobile app), meals, bank/wallet integrations,
+  payment gateway for subscriptions, Supabase Vault for the encryption key.
+- **Open user decisions**: see "Open decisions" at the end of Part B.
+
+## A10. Recipe: building the next part
+1. Read the part's doc section + any user answers; ask only real decisions (AskUserQuestion), record answers in Part B.
+2. **Migration** `supabase/migrations/YYYYMMDDHHMMSS_partXX_name.sql`: header comment (what + rules), permissions
+   insert + `seed_*` update (and run it for existing orgs), tables (org_id + composite FKs, checks, unique indexes),
+   guards/triggers (`attach_standard_triggers`, append-only where history), helpers in `private`, RPCs in `public`
+   (permission check → org-scoped load → explicit validation → write → audit), views with `security_barrier`,
+   then privileges: `enable row level security`, `revoke all … from anon, authenticated`, grant only what is needed,
+   `revoke all on function … from public, anon` + `grant execute … to authenticated`, private functions revoked.
+3. **SQL test** `supabase/tests/partXX_….sql`: one transaction, fixtures via auth.users + signup + platform approval,
+   switch users with `set local role authenticated` + `set_config('request.jwt.claims', …)`, read closed tables only via
+   RPCs when in the authenticated role, **hand-calculated expected numbers written in comments first**, `raise notice
+   'PASS …'`, final `select '==== ALL … PASSED ====' as result; rollback;`. Run `npm run test:db`.
+4. **Frontend**: types + hooks in `src/lib/<area>.ts` (React Query, `invalidateQueries` after mutations), pages in
+   `src/pages/<area>/`, lazy route via `guarded(...)` in `router.tsx`, nav item (`anyOf` permissions) + title in
+   `AppLayout.tsx`, unit tests for pure helpers in `src/lib/__tests__/`.
+5. Verify: `npm run test:all`, `npm run typecheck`, `npm run build` (no chunk > 500 kB), browser check (desktop + 375 px).
+6. Commit (backend and UI separately), update **this file** (A5/A6/A8/A9 + Part B), tell the user which SQL files to
+   run in the SQL Editor and what to hand test.
+
+## A11. Code conventions
+- Professional comments: a header block per migration/file explaining purpose and rules; comments explain *why*, not
+  what. Meaningful names (`v_employee`, `v_deduct_daily`, `p_period_month`); no abbreviations like `x`, `tmp`.
+- SQL: `set search_path = ''`, fully qualified names, `security definer` only where needed, every function's privileges
+  set explicitly, money via `private.round_money` (2 decimals, half away from zero), dates in org timezone
+  (`private.org_today`).
+- Never trust the client: permissions, org scope, maker-checker, locks and validation all live in the database.
+  Sensitive data (NID, account numbers) masked in views, encrypted at rest, stripped from audit, reveals/exports audited.
+- Frontend: never show raw DB errors (use `errorMessage`), validate forms with zod for UX only, keep secrets out of
+  `VITE_*`, CSV exports through `csvCell` (formula-injection safe).
+
+---------------------------------------------------------------------------------------------------------------------
+# Part B — Decision log (why things are the way they are)
+---------------------------------------------------------------------------------------------------------------------
 
 ## Stack (decided)
 - Frontend: **Vite + React + TypeScript**, Tailwind v4 (orange primary), React Router, React Query (server data),
@@ -324,17 +614,13 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
 - Note: in tests the org owner joins on the approval day, so owners are not in back-dated payroll months.
 
 ### Next steps
-1. Done: Part 2 migrations applied and acceptance test passed on Supabase.
-0. Apply `20261019000100_part3b_payroll_engine.sql`, run `part3b_payroll_engine_test.sql`; hand test a run with two
-   people (HR prepares, Admin approves). Then Part 3C (tax/TDS, PF, gratuity) and 3D (compliance, grievance, committees).
-0. Apply `20261017000100_part3a_salary_structure.sql` and `20261018000100_platform_saas.sql`, then run
-   `part3a_salary_structure_test.sql` and `platform_saas_test.sql`.
-2. Hand test: shifts → roster → check-in on a phone → leave → overtime → lock.
-3. Optional: schedule pg_cron jobs; enable the Phone provider.
-4. Apply Part 3A on Supabase and run its test; hand test templates → set pay → increment (two people) → bonus preview.
-5. Part 3B (payroll engine): runs, slips + lines, adjustments, payment sheets, payslip view/PDF, lock integration.
-   Reads the attendance summary, approved overtime, leave, period locks, pay versions, bonuses, loans, arrears.
-6. Agree the PMS demo scope (manual scoring).
+(Single source: see **A9 Status board**.) In order:
+1. User applies `20261019000100_part3b_payroll_engine.sql`, runs `part3b_payroll_engine_test.sql`; hand test a run
+   with two people (HR prepares, Admin approves), payslip EN/বাংলা, payment sheet CSV, lock.
+2. Part 3C: tax/TDS, PF, gratuity (statutory values from verified sources, confirmed by the user).
+3. Part 3D: hours compliance, grievance box, committees.
+4. PMS demo (manual performance scoring) — agree scope first (user note #15 in Part03 §9).
+5. Optional: pg_cron jobs (daily close, leave rollover, audit purge); enable the Phone provider; account lockout.
 
 ## File map
 - `supabase/migrations/` — schema, RLS, functions (apply in order)

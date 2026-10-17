@@ -204,7 +204,9 @@ begin
 end $$;
 
 reset role;
-create temporary table march_net on commit drop as
+-- Scratch tables live in private (the SQL Editor does not keep temp tables
+-- visible across statements); the final rollback removes them.
+create table private.test_march_net as
   select e.full_name, s.employee_id, s.net, s.gross_earnings, s.total_deductions, s.carry_forward_out, s.id as slip_id
   from public.payroll_slips s join public.employees e on e.id = s.employee_id
   where s.run_id = current_setting('t.run_mar')::uuid;
@@ -214,40 +216,40 @@ declare
   v_line numeric;
 begin
   -- Test 3 / 10 / 14: 17,450 + bonus 5,000 - loan 1,000 = 21,450.
-  assert (select net from march_net where employee_id = current_setting('t.e1')::uuid) = 21450, 'E1 March 21,450';
+  assert (select net from private.test_march_net where employee_id = current_setting('t.e1')::uuid) = 21450, 'E1 March 21,450';
   -- Test 4: two absent days in a 31-day month = same as February: 16,783.
-  assert (select net from march_net where employee_id = current_setting('t.e2')::uuid) = 16783, 'test 4: March = February';
+  assert (select net from private.test_march_net where employee_id = current_setting('t.e2')::uuid) = 16783, 'test 4: March = February';
   -- Test 5: joiner on 16 March: 15 days not employed -> 17,450 x 15 / 30 = 8,725.00 off; bonus refused (0 months).
-  assert (select net from march_net where employee_id = current_setting('t.e3')::uuid) = 8725, 'test 5: joiner 8,725';
+  assert (select net from private.test_march_net where employee_id = current_setting('t.e3')::uuid) = 8725, 'test 5: joiner 8,725';
   -- Test 5: leaver on 20 March: 10 days -> 5,816.67 off -> 11,633.33 -> 11,633.
-  assert (select net from march_net where employee_id = current_setting('t.e4')::uuid) = 11633, 'test 5: leaver 11,633';
+  assert (select net from private.test_march_net where employee_id = current_setting('t.e4')::uuid) = 11633, 'test 5: leaver 11,633';
   -- Test 7: manager (MS grade) overtime: 2 h x 48.0769 x 2 = 192.31; 5 h x 2 = 480.77; 4 h x 3 = 576.92
   --         = 1,250.00 -> 18,700.
-  assert (select net from march_net where employee_id = current_setting('t.e5')::uuid) = 18700, 'test 7: MS overtime 18,700';
+  assert (select net from private.test_march_net where employee_id = current_setting('t.e5')::uuid) = 18700, 'test 7: MS overtime 18,700';
   select amount into v_line from public.payroll_slip_lines
-   where slip_id = (select slip_id from march_net where employee_id = current_setting('t.e5')::uuid) and code = 'OT_HOLIDAY';
+   where slip_id = (select slip_id from private.test_march_net where employee_id = current_setting('t.e5')::uuid) and code = 'OT_HOLIDAY';
   assert v_line = 576.92, 'holiday overtime line 576.92';
   -- OWNER-grade overtime is paid the same way: 17,450 + 192.31 = 17,642.31 -> 17,642.
-  assert (select net from march_net where employee_id = current_setting('t.dir')::uuid) = 17642, 'test 7: OWNER-grade overtime';
+  assert (select net from private.test_march_net where employee_id = current_setting('t.dir')::uuid) = 17642, 'test 7: OWNER-grade overtime';
   -- Test 6: 3 lates = 1 day (333.33) + 1 half day at 50% (166.67) = 500.00 -> 16,950. Pending overtime is ignored.
-  assert (select net from march_net where employee_id = current_setting('t.e6')::uuid) = 16950, 'test 6: late + half day 16,950';
+  assert (select net from private.test_march_net where employee_id = current_setting('t.e6')::uuid) = 16950, 'test 6: late + half day 16,950';
   -- Test 9: increment to 20,000 from 16 Feb: February paid 17,450, arrears = 2,550 x 15 / 30 = 1,275.00 -> 21,275.
-  assert (select net from march_net where employee_id = current_setting('t.e7')::uuid) = 21275, 'test 9: arrears 21,275';
+  assert (select net from private.test_march_net where employee_id = current_setting('t.e7')::uuid) = 21275, 'test 9: arrears 21,275';
   -- Test 15: 17,450 - 20,000 = -2,550 -> net 0, 2,550 carried.
-  assert (select net from march_net where employee_id = current_setting('t.e8')::uuid) = 0
-     and (select carry_forward_out from march_net where employee_id = current_setting('t.e8')::uuid) = 2550,
+  assert (select net from private.test_march_net where employee_id = current_setting('t.e8')::uuid) = 0
+     and (select carry_forward_out from private.test_march_net where employee_id = current_setting('t.e8')::uuid) = 2550,
     'test 15: negative net -> 0 and carry 2,550';
   assert (select warnings @> '[{"code":"large_change"}]' from public.payroll_slips
-          where id = (select slip_id from march_net where employee_id = current_setting('t.e4')::uuid)),
+          where id = (select slip_id from private.test_march_net where employee_id = current_setting('t.e4')::uuid)),
     'a large change from last month is flagged';
   assert (select warnings @> '[{"code":"missing_payment_account"}]' from public.payroll_slips
-          where id = (select slip_id from march_net where employee_id = current_setting('t.e2')::uuid)),
+          where id = (select slip_id from private.test_march_net where employee_id = current_setting('t.e2')::uuid)),
     'a missing payment account is flagged';
   raise notice 'PASS tests 4/5/6/7/9/10/14/15: March golden nets';
 end $$;
 
 -- Test 18 setup: a snapshot of every slip and line (no ids or timestamps).
-create temporary table march_snapshot on commit drop as
+create table private.test_march_snapshot as
   select s.employee_id,
          to_jsonb(s) - array['id', 'created_at', 'updated_at'] as slip,
          (select jsonb_agg(to_jsonb(l) - array['id', 'slip_id'] order by l.sort_order, l.code, l.amount)
@@ -276,10 +278,10 @@ select public.calculate_payroll_run(current_setting('t.run_mar')::uuid);
 reset role;
 do $$
 begin
-  assert (select count(*) from march_snapshot) = (select count(*) from public.payroll_slips where run_id = current_setting('t.run_mar')::uuid),
+  assert (select count(*) from private.test_march_snapshot) = (select count(*) from public.payroll_slips where run_id = current_setting('t.run_mar')::uuid),
     'same number of slips';
   assert not exists (
-    select 1 from march_snapshot m
+    select 1 from private.test_march_snapshot m
     join public.payroll_slips s on s.employee_id = m.employee_id and s.run_id = current_setting('t.run_mar')::uuid
     where m.slip <> to_jsonb(s) - array['id', 'created_at', 'updated_at']
        or m.lines is distinct from (select jsonb_agg(to_jsonb(l) - array['id', 'slip_id'] order by l.sort_order, l.code, l.amount)
@@ -365,15 +367,15 @@ select public.approve_payroll_run(current_setting('t.run_mar')::uuid);
 
 -- Recalculation created new slips; refresh the slip ids used below.
 reset role;
-truncate march_net;
-insert into march_net
+truncate private.test_march_net;
+insert into private.test_march_net
   select e.full_name, s.employee_id, s.net, s.gross_earnings, s.total_deductions, s.carry_forward_out, s.id
   from public.payroll_slips s join public.employees e on e.id = s.employee_id
   where s.run_id = current_setting('t.run_mar')::uuid;
 -- Session temp tables are not visible to the authenticated role on Supabase,
 -- so the slip ids used by the payslip checks travel as settings instead.
-select set_config('t.slip_e1', (select slip_id::text from march_net where employee_id = current_setting('t.e1')::uuid), true),
-       set_config('t.slip_e2', (select slip_id::text from march_net where employee_id = current_setting('t.e2')::uuid), true);
+select set_config('t.slip_e1', (select slip_id::text from private.test_march_net where employee_id = current_setting('t.e1')::uuid), true),
+       set_config('t.slip_e2', (select slip_id::text from private.test_march_net where employee_id = current_setting('t.e2')::uuid), true);
 set local role authenticated;
 
 -- Test 21: payment sheets.

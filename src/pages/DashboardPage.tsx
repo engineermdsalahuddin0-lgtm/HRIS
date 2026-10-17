@@ -114,7 +114,7 @@ export default function DashboardPage() {
     <div className="mx-auto max-w-7xl space-y-6">
       {header}
 
-      <div className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
+      <div data-tour="kpis" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiTile
           label="Total employees"
           value={k.total}
@@ -132,7 +132,7 @@ export default function DashboardPage() {
         </EmptyState>
       ) : (
         <>
-          <div className="grid gap-4 lg:grid-cols-3">
+          <div data-tour="charts" className="grid gap-4 lg:grid-cols-3">
             <ChartCard
               className="lg:col-span-2"
               title="Headcount"
@@ -162,7 +162,8 @@ export default function DashboardPage() {
       )}
 
       <div className="grid gap-4 lg:grid-cols-3">
-        <Card className="lg:col-span-2">
+        <div data-tour="activity" className="lg:col-span-2">
+        <Card className="h-full">
           <h2 className="mb-4 font-semibold text-slate-900">Recent activity</h2>
           {d.recent_activity.length === 0 ? (
             <p className="text-sm text-slate-500">No activity yet.</p>
@@ -193,8 +194,10 @@ export default function DashboardPage() {
             </ul>
           )}
         </Card>
+        </div>
 
-        <Card>
+        <div data-tour="quick-actions">
+        <Card className="h-full">
           <h2 className="mb-4 font-semibold text-slate-900">Quick actions</h2>
           <div className="space-y-2">
             {QUICK_ACTIONS.filter((q) => permissions.includes(q.permission)).map(({ label, to, icon: Icon }) => (
@@ -213,6 +216,7 @@ export default function DashboardPage() {
             )}
           </div>
         </Card>
+        </div>
       </div>
     </div>
   )

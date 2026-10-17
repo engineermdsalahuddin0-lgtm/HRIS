@@ -249,7 +249,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | Steps 3–9 org/employees | `20261014000100…0700` | ✅ applied, passed | `step3_9_acceptance_test.sql` (19) |
 | Platform admins allow-list | `20261015000100_platform_admins` | ✅ applied | (in platform test) |
 | Part 2 time & attendance + files | `20261016000100…0400` | ✅ applied, passed | `part2_attendance_test.sql` (21) |
-| Part 3A salary structure | `20261017000100_part3a_salary_structure` | ⏳ **not applied** (probe 2026-10-17: tables missing) | `part3a_salary_structure_test.sql` (11) |
+| Part 3A salary structure | `20261017000100_part3a_salary_structure` | ✅ applied 2026-10-17 | `part3a_salary_structure_test.sql` (11) |
 | Platform SaaS / landing | `20261018000100_platform_saas` | ✅ applied, passed | `platform_saas_test.sql` (7) |
 | **Part 3B payroll engine** | `20261019000100_part3b_payroll_engine` | ⏳ **not applied yet** | `part3b_payroll_engine_test.sql` (12) |
 - Local: all 6 SQL suites pass in PGlite (87 checks); vitest 42 tests; typecheck + build pass.
@@ -280,6 +280,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 5. Verify: `npm run test:all`, `npm run typecheck`, `npm run build` (no chunk > 500 kB), browser check (desktop + 375 px).
 6. Commit (backend and UI separately), update **this file** (A5/A6/A8/A9 + Part B), tell the user which SQL files to
    run in the SQL Editor and what to hand test.
+
+- **SQL test gotcha**: session temp tables created as postgres are *not* visible after `set local role authenticated`
+  on Supabase (PGlite allows it). Pass values to authenticated-role checks via `set_config('t.x', …, true)`.
 
 ## A11. Code conventions
 - Professional comments: a header block per migration/file explaining purpose and rules; comments explain *why*, not

@@ -31,6 +31,17 @@
 -- zero). Tables are closed to API roles; reads and writes go through RPCs.
 -- =============================================================================
 
+-- Part 3B builds on the Part 3A salary structure. Stop early with a clear message
+-- if it has not been applied yet, instead of failing half way on a missing object.
+do $guard$
+begin
+  if to_regclass('public.employee_compensation') is null
+     or not exists (select 1 from public.permissions where key = 'compensation.view') then
+    raise exception 'Apply 20261017000100_part3a_salary_structure.sql first, then run this file again';
+  end if;
+end;
+$guard$;
+
 -- -----------------------------------------------------------------------------
 -- 1. Permissions
 -- -----------------------------------------------------------------------------

@@ -251,10 +251,15 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | Part 2 time & attendance + files | `20261016000100…0400` | ✅ applied, passed | `part2_attendance_test.sql` (21) |
 | Part 3A salary structure | `20261017000100_part3a_salary_structure` | ✅ applied 2026-10-17 | `part3a_salary_structure_test.sql` (11) |
 | Platform SaaS / landing | `20261018000100_platform_saas` | ✅ applied, passed | `platform_saas_test.sql` (7) |
+| **Part 3C tax/PF/gratuity + refs** | `20261020000100_part3c_tax_pf_gratuity` | ⏳ not applied | `part3c_tax_pf_gratuity_pms_test.sql` (14, covers PMS too) |
+| **PMS manual scoring demo** | `20261020000200_pms_manual_scoring` | ⏳ not applied | (same test) |
 | **Part 3B payroll engine** | `20261019000100_part3b_payroll_engine` | ✅ applied, passed 2026-10-17 | `part3b_payroll_engine_test.sql` (12) |
 - Local: all 6 SQL suites pass in PGlite (87 checks); vitest 42 tests; typecheck + build pass.
 - 2026-10-17: running 3B failed (23503, `compensation.view` missing) because 3A was never applied; 3B now starts
   with a guard that names the missing prerequisite. Always probe with the anon key before trusting "applied".
+- **3C/PMS status (2026-10-17)**: backend done + golden-tested (commit 2154d41). FY 2026-27 tax values verified from PwC (reviewed 31 Jul 2026) + Daily Star (Finance Act 2026): threshold 400k (woman/65+ 450k, disabled/third gender 525k, freedom fighter 550k), slabs 10/15/20/25/30 on 300k/400k/500k/2M/rest, exempt min(1/3, 500k), rebate min(3% taxable, 10% investment, 750k), min tax 5,000 (new 1,000). PF/gratuity defaults are placeholders marked needs_confirmation (Labour Act 2025-26 amendments uncertain).
+  UI done: src/lib/statutory.ts (hooks), src/lib/calculationGuide.ts (+tests), components/references.tsx (law/policy chips), components/calcVisuals.tsx (TaxBreakdown, SlabBar, NetFlow), payslip dialog "How it was calculated" view (pages/payroll/CalculationExplainer.tsx), run page TDS/PF columns.
+  **UI still to build**: /tax page (calculator with TaxBreakdown, slabs, profiles, TDS ledger + challan), /pf (members, statement, withdrawal preview, interest), /gratuity (liability, payout preview), /settings/statutory (switches + PF/gratuity settings + confirm), /references library page, /performance (cycles, criteria weights, scoring dialog with live weightedScore) and /my-reviews (acknowledge); add routes in router.tsx + NAV items in AppLayout.tsx; browser check; then user applies the two migrations + runs the test.
 - **Next** (in order): hand test a payroll run (HR prepares, Admin approves) →
   **Part 3C** (tax/TDS, PF, gratuity — statutory values must come from verified sources, never memory) →
   **Part 3D** (hours compliance, grievance box with true anonymity, committees) → PMS demo (manual scoring; scope TBD).

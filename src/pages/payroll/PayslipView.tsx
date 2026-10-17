@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { Printer } from 'lucide-react'
+import { Calculator, FileText, Printer } from 'lucide-react'
 import { errorMessage } from '@/lib/identity'
 import type { Payslip, PayslipLine } from '@/lib/payrollRuns'
 import { formatPeriod, usePayslip } from '@/lib/payrollRuns'
@@ -7,6 +7,7 @@ import type { PayslipLanguage } from '@/lib/payslipText'
 import { formatMoney, formatNumber, lineLabel, payslipText } from '@/lib/payslipText'
 import { Alert, Button, Spinner, cx } from '@/components/ui'
 import { Modal } from '@/components/kit'
+import { CalculationExplainer } from './CalculationExplainer'
 
 /** "base × rate × quantity" for a line, so every amount is explainable. */
 function lineBasis(language: PayslipLanguage, line: PayslipLine): string {
@@ -117,6 +118,7 @@ export function PayslipDocument({ payslip, language }: { payslip: Payslip; langu
 export function PayslipDialog({ slipId, onClose }: { slipId: string | null; onClose: () => void }) {
   const payslip = usePayslip(slipId)
   const [language, setLanguage] = useState<PayslipLanguage>('en')
+  const [view, setView] = useState<'payslip' | 'explain'>('payslip')
   return (
     <Modal open={!!slipId} onClose={onClose} size="xl" title="Payslip"
       footer={
@@ -130,13 +132,28 @@ export function PayslipDialog({ slipId, onClose }: { slipId: string | null; onCl
             ))}
           </div>
           <Button variant="secondary" onClick={onClose}>Close</Button>
-          <Button onClick={() => window.print()} disabled={!payslip.data}><Printer className="size-4" />Print / PDF</Button>
+          <Button onClick={() => window.print()} disabled={!payslip.data || view !== 'payslip'}><Printer className="size-4" />Print / PDF</Button>
         </>
       }
     >
       {payslip.isPending ? <div className="flex justify-center py-10 text-primary-600"><Spinner /></div>
         : payslip.isError ? <Alert>{errorMessage(payslip.error)}</Alert>
-        : <PayslipDocument payslip={payslip.data} language={language} />}
+        : (
+          <div className="space-y-4">
+            <div className="flex gap-1 rounded-xl bg-slate-100 p-1 print:hidden" role="tablist" aria-label="View">
+              {([['payslip', 'Payslip', FileText], ['explain', 'How it was calculated', Calculator]] as const).map(([key, label, Icon]) => (
+                <button key={key} role="tab" aria-selected={view === key} onClick={() => setView(key)}
+                  className={cx('flex flex-1 items-center justify-center gap-1.5 rounded-lg px-3 py-1.5 text-sm',
+                    view === key ? 'bg-white font-medium shadow-sm' : 'text-slate-500')}>
+                  <Icon className="size-4" />{label}
+                </button>
+              ))}
+            </div>
+            {view === 'payslip'
+              ? <PayslipDocument payslip={payslip.data} language={language} />
+              : <CalculationExplainer payslip={payslip.data} />}
+          </div>
+        )}
     </Modal>
   )
 }

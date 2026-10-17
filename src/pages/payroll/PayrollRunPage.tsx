@@ -6,6 +6,8 @@ import { formatTaka } from '@/lib/payroll'
 import type { PayrollRunDetail } from '@/lib/payrollRuns'
 import { RUN_STEPS, RUN_STATUS_LABEL, downloadText, fetchPaymentSheet, formatPeriod, toCsv, usePayrollAction, usePayrollRun } from '@/lib/payrollRuns'
 import { useMyContext } from '@/lib/appContext'
+import type { RunStatutoryRow } from '@/lib/statutory'
+import { useRunStatutorySummary } from '@/lib/statutory'
 import { Alert, Badge, Button, Card, PageLoader, cx } from '@/components/ui'
 import { Modal, PageHeader, Table, Textarea, td, th } from '@/components/kit'
 import { RunStatusBadge } from './PayrollRunsPage'
@@ -36,6 +38,25 @@ function StatusStepper({ status }: { status: PayrollRunDetail['run']['status'] }
   )
 }
 
+/** TDS and PF columns: TDS deducted, or the preview in grey when auto-TDS is off. */
+function StatutoryCells({ row }: { row: RunStatutoryRow | undefined }) {
+  if (!row) return (<><td className={td}>—</td><td className={td}>—</td></>)
+  return (
+    <>
+      <td className={td + ' tabular-nums'}>
+        {row.tds > 0 ? formatTaka(row.tds)
+          : row.tds_preview > 0 ? <span className="text-slate-400" title="Preview: auto-TDS is off">{formatTaka(row.tds_preview)}*</span>
+          : <span className="text-slate-400">—</span>}
+      </td>
+      <td className={td + ' tabular-nums'}>
+        {row.pf_employee > 0 || row.pf_employer > 0
+          ? <span title="Employee / employer">{formatTaka(row.pf_employee)}<span className="block text-xs text-slate-400">+{formatTaka(row.pf_employer)} er</span></span>
+          : <span className="text-slate-400">—</span>}
+      </td>
+    </>
+  )
+}
+
 /** One payroll run: status, checks, actions allowed for the role, slips and payment sheets. */
 export default function PayrollRunPage() {
   const { id } = useParams()
@@ -43,6 +64,8 @@ export default function PayrollRunPage() {
   const ctx = useMyContext()
   const can = (permission: string) => ctx.permissions.includes(permission)
   const runQuery = usePayrollRun(id)
+  const statutory = useRunStatutorySummary(id)
+  const statutoryBySlip = useMemo(() => new Map((statutory.data ?? []).map((row) => [row.slip_id, row])), [statutory.data])
   const calculate = usePayrollAction<{ p_run_id: string }>('calculate_payroll_run')
   const review = usePayrollAction<{ p_run_id: string }>('review_payroll_run')
   const approve = usePayrollAction<{ p_run_id: string }>('approve_payroll_run')
@@ -194,9 +217,9 @@ export default function PayrollRunPage() {
         </label>
       </div>
 
-      <Table minWidth={980} head={
+      <Table minWidth={1120} head={
         <tr><th className={th}>Employee</th><th className={th}>Pay</th><th className={th}>Payable days</th><th className={th}>OT (h)</th>
-          <th className={th}>Gross</th><th className={th}>Deductions</th><th className={th}>Net</th><th className={th}>Paid by</th><th className={th}>Checks</th></tr>
+          <th className={th}>Gross</th><th className={th}>Deductions</th><th className={th} title="Income tax deducted (or preview when auto-TDS is off)">TDS</th><th className={th} title="Provident fund: employee / employer">PF</th><th className={th}>Net</th><th className={th}>Paid by</th><th className={th}>Checks</th></tr>
       }>
         {visibleSlips.map((slip) => (
           <tr key={slip.id} className="cursor-pointer hover:bg-slate-50" onClick={() => setOpenSlipId(slip.id)}>
@@ -209,6 +232,7 @@ export default function PayrollRunPage() {
             <td className={`${td} tabular-nums`}>{slip.overtime_minutes ? (slip.overtime_minutes / 60).toFixed(1) : '—'}</td>
             <td className={`${td} tabular-nums`}>{formatTaka(slip.gross_earnings)}</td>
             <td className={`${td} tabular-nums`}>{formatTaka(slip.total_deductions)}</td>
+            <StatutoryCells row={statutoryBySlip.get(slip.id)} />
             <td className={`${td} tabular-nums font-semibold`}>{formatTaka(slip.net)}
               {slip.carry_forward_out > 0 && <span className="block text-xs font-normal text-red-600">carry {formatTaka(slip.carry_forward_out)}</span>}</td>
             <td className={td}>{slip.payment_method ? METHOD_LABEL[slip.payment_method] : <span className="text-slate-400">—</span>}</td>

@@ -309,4 +309,4 @@ Each step: build, run its golden tests, commit, then continue.
 12. Meals use a monthly fixed deduction or manual entries now. The scanner comes later.
 13. Anonymous grievances store no submitter identity.
 14. The payroll record retention period is confirmed by the company. yes..and payment must be traceable by audit log.
-15. Performance management is a separate later part.{Tumi manually scoring system rakho ja visible thakbe karon future e pms korleo ekhn ekta demo banano lagbe}
+15. Performance management is a separate later part.

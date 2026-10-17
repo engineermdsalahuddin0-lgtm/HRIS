@@ -208,7 +208,6 @@ create temporary table march_net on commit drop as
   select e.full_name, s.employee_id, s.net, s.gross_earnings, s.total_deductions, s.carry_forward_out, s.id as slip_id
   from public.payroll_slips s join public.employees e on e.id = s.employee_id
   where s.run_id = current_setting('t.run_mar')::uuid;
-grant select on march_net to authenticated;
 
 do $$
 declare
@@ -371,6 +370,10 @@ insert into march_net
   select e.full_name, s.employee_id, s.net, s.gross_earnings, s.total_deductions, s.carry_forward_out, s.id
   from public.payroll_slips s join public.employees e on e.id = s.employee_id
   where s.run_id = current_setting('t.run_mar')::uuid;
+-- Session temp tables are not visible to the authenticated role on Supabase,
+-- so the slip ids used by the payslip checks travel as settings instead.
+select set_config('t.slip_e1', (select slip_id::text from march_net where employee_id = current_setting('t.e1')::uuid), true),
+       set_config('t.slip_e2', (select slip_id::text from march_net where employee_id = current_setting('t.e2')::uuid), true);
 set local role authenticated;
 
 -- Test 21: payment sheets.
@@ -397,7 +400,7 @@ begin
                                        where b ->> 'method' = 'bank'));
   assert (v_sheet ->> 'total')::numeric = 21450, 'bank sheet total = E1 net';
   assert v_sheet -> 'rows' -> 0 ->> 'account_number' = '1234567890123', 'export has the full number';
-  assert (public.get_payslip((select slip_id from march_net where employee_id = current_setting('t.e1')::uuid))
+  assert (public.get_payslip(current_setting('t.slip_e1')::uuid)
           -> 'payment' ->> 'masked_number') = '•••• 0123', 'the payslip shows the number masked';
   raise notice 'PASS test 21: payment sheet totals = slip nets; full numbers only in the export';
 end $$;
@@ -407,10 +410,10 @@ select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticate
 do $$
 begin
   assert jsonb_array_length(public.list_my_payslips()) = 2, 'E1 sees February and March';
-  assert (public.get_payslip((select slip_id from march_net where employee_id = current_setting('t.e1')::uuid))
+  assert (public.get_payslip(current_setting('t.slip_e1')::uuid)
           -> 'slip' ->> 'net')::numeric = 21450, 'E1 opens their own slip';
   begin
-    perform public.get_payslip((select slip_id from march_net where employee_id = current_setting('t.e2')::uuid));
+    perform public.get_payslip(current_setting('t.slip_e2')::uuid);
     raise exception 'FAIL: employee opened a colleague''s slip';
   exception when no_data_found then null;
   end;
@@ -515,7 +518,7 @@ begin
   exception when no_data_found then null;
   end;
   begin
-    perform public.get_payslip((select slip_id from march_net where employee_id = current_setting('t.e1')::uuid));
+    perform public.get_payslip(current_setting('t.slip_e1')::uuid);
     raise exception 'FAIL: Beta read Alpha slip';
   exception when no_data_found then null;
   end;

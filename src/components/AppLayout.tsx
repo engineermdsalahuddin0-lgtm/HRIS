@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
-  Banknote, Building2, CalendarClock, CalendarDays, Clock, FileText, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
+  Award, Banknote, BookOpen, Building2, HandCoins, PiggyBank, Receipt, Scale, Star, CalendarClock, CalendarDays, Clock, FileText, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
   ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X,
 } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
@@ -26,13 +26,20 @@ export const NAV: NavItem[] = [
   { to: '/attendance/me', label: 'My attendance', icon: Fingerprint, anyOf: ['attendance.view_own'] },
   { to: '/leave', label: 'Leave', icon: CalendarDays, anyOf: ['leave.request', 'leave.approve', 'leave.view_all'] },
   { to: '/payslips', label: 'My payslips', icon: FileText, anyOf: ['payroll.view_own'] },
+  { to: '/my-reviews', label: 'My reviews', icon: Award },
   { to: '/attendance', label: 'Attendance', icon: Clock, anyOf: ['attendance.view_team', 'attendance.view_all'], section: 'Team' },
   { to: '/overtime', label: 'Overtime', icon: Timer, anyOf: ['overtime.view', 'overtime.approve'] },
   { to: '/employees', label: 'Employees', icon: Users, anyOf: ['employees.view'] },
+  { to: '/performance', label: 'Performance', icon: Star, anyOf: ['performance.manage', 'performance.review'] },
   { to: '/payroll', label: 'Payroll runs', icon: Banknote, anyOf: ['payroll.prepare', 'payroll.review', 'payroll.approve', 'payroll.reopen', 'payroll.lock'], section: 'Payroll' },
   { to: '/compensation', label: 'Compensation', icon: Wallet, anyOf: ['compensation.view', 'increments.approve', 'bonuses.manage', 'deductions.manage'] },
   { to: '/salary', label: 'Salary structure', icon: Layers, anyOf: ['compensation.view', 'compensation.edit'] },
+  { to: '/tax', label: 'Tax & TDS', icon: Receipt, anyOf: ['tax.view_profiles', 'tax.manage', 'payroll.prepare', 'payroll_settings.manage'] },
+  { to: '/pf', label: 'Provident fund', icon: PiggyBank, anyOf: ['pf.manage'] },
+  { to: '/gratuity', label: 'Gratuity', icon: HandCoins, anyOf: ['gratuity.manage'] },
   { to: '/settings/payroll', label: 'Payroll settings', icon: SlidersHorizontal, anyOf: ['payroll_settings.manage', 'compensation.view'] },
+  { to: '/settings/statutory', label: 'Statutory settings', icon: Scale, anyOf: ['payroll_settings.manage', 'pf.manage', 'gratuity.manage', 'tax.view_profiles'] },
+  { to: '/references', label: 'Law & policy', icon: BookOpen, anyOf: ['compensation.view', 'payroll.prepare', 'payroll.approve', 'payroll_settings.manage', 'tax.view_profiles', 'pf.manage', 'gratuity.manage', 'performance.manage'] },
   { to: '/organization', label: 'Organization', icon: Building2, anyOf: ['org.view'], section: 'Setup' },
   {
     to: '/time', label: 'Time setup', icon: CalendarClock,
@@ -57,6 +64,13 @@ const TITLES: [string, string][] = [
   ['/organization', 'Organization'],
   ['/settings/roles', 'Roles & access'],
   ['/settings/payroll', 'Payroll settings'],
+  ['/settings/statutory', 'Statutory settings'],
+  ['/tax', 'Income tax & TDS'],
+  ['/pf', 'Provident fund'],
+  ['/gratuity', 'Gratuity'],
+  ['/references', 'Law & policy'],
+  ['/performance', 'Performance'],
+  ['/my-reviews', 'My reviews'],
   ['/compensation', 'Compensation'],
   ['/payroll', 'Payroll'],
   ['/payslips', 'My payslips'],

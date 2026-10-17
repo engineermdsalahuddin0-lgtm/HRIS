@@ -154,6 +154,19 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - `payroll_adjustments` (apply_month, direction, amount, reason, status pending|approved|rejected|applied|cancelled)
 - `payment_batches` (per run & method, total, status generated|exported|paid, reference)
 
+**Tax, PF, gratuity (Part 3C)** — closed tables, RPCs only (except references read via RPC)
+-  (global: key, category law|company_policy|company_setting, area, title(+bn), law_name, section,
+  summary(+bn), source_url, verified_on, status verified|needs_confirmation) — every explained number links here by key
+-  (global: code '2026-27', exempt divisor/cap, rebate %/cap, minimum tax), , -  (TIN 12 digits, taxpayer_type, is_new_taxpayer, parent_of_disabled, declared_investment),   (posted at lock; challan_reference/date, status posted|deposited)
+-  (rates, basis, min service, interest, vesting jsonb, is_recognised, confirmed_at), ,  (append-only)
+-  (basis, min service, partial_year_months, bands jsonb, provision_enabled),  (append-only)
+- payroll_slips + taxable_earnings, tds_preview, employer_pf, tax_detail jsonb; slip line types + 'pf' (PF_EE), 'tax' (TDS)
+- payroll_settings + tds_apply_minimum_tax, tds_confirmed_at/by (switches auto_tds/pf_enabled/gratuity_enabled from 3A)
+
+**Performance (manual scoring demo)**
+-  (draft|open|closed),  (weight, sum 100),  (one per cycle+employee;
+  draft|submitted|acknowledged, overall_score, rating),  (1-5 + comment)
+
 **Platform / SaaS**
 - `platform_plans` (TRIAL/BASIC/PRO/ENTERPRISE, price_per_employee null = contact sales, max_employees, features)
 - `org_subscriptions` (one per org: plan, status trial|active|past_due|suspended|cancelled|expired, seats, price,
@@ -185,6 +198,14 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `reopen_payroll_run`, `cancel_payroll_run`, `mark_payment_batch_paid`, `lock_payroll_run`,
   `create_payroll_adjustment`, `decide_payroll_adjustment`, `cancel_payroll_adjustment`, `list_payroll_runs`,
   `get_payroll_run`, `get_payslip`, `list_my_payslips`, `list_payroll_adjustments`, `get_payment_sheet`
+- **Tax/PF/gratuity (3C)**: , , , ,
+   (needs confirm=true to switch on), , , ,
+  , , , , ,
+  , , , ;  now wraps
+   and posts TDS/PF/gratuity ledgers
+- **Performance**: , , , ,
+  , , , - 3C engine hook:  =  (3B) +  (PF, TDS) + ;
+   = core + tax profiles, PF members/settings, earlier FY slips;  returns the working json.
 - Key private helpers: `current_org_id`, `current_employee_id`, `current_role_id`, `has_permission`, `is_org_admin`,
   `is_platform_admin`, `require_permission`, `viewer`, `time_viewer`, `money_viewer`, `team_employee_ids`,
   `can_see_time`, `write_audit`, `attach_standard_triggers`, `rebuild_attendance_day`, `record_punch`,
@@ -204,6 +225,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   - payroll: `compensation.view|edit`, `increments.approve`, `bonuses.manage`, `deductions.manage`,
     `payroll_settings.manage`, `payment_accounts.view|edit`, `payroll.view_own|prepare|review|approve|reopen|lock`,
     `payment.export`
+  - 3C: `tax.view_profiles`, `tax.manage`, `pf.manage`, `gratuity.manage` (HR default all four)
+  - performance: `performance.manage` (HR), `performance.review` (HR + Manager, own team only)
 - **HR Manager** default: org view/manage, all employees.*, users.reset_password, roles.view, all attendance except
   lock_period, shifts/roster/holidays/swaps/geofences, all leave, all overtime, compensation view/edit, bonuses,
   deductions, payment accounts view/edit, payroll.view_own/prepare/review. **Not**: increments.approve,
@@ -230,6 +253,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `/salary` (templates, components) · `/settings/payroll`
 - Setup: `/organization` (6 tabs) · `/time` (shifts, roster, holidays, leave types, OT policy, work rules, geofences/QR) ·
   `/attendance/qr-display/:officeId` · `/settings/roles` · `/audit` · `/settings` (org, logo, card ID policy)
+- 3C: `/tax` (calculator / tax tables / profiles / TDS ledger) · `/pf` · `/gratuity` · `/settings/statutory` · `/references`;
+  payslip dialog has a "How it was calculated" view (pages/payroll/CalculationExplainer.tsx); run page shows TDS / PF columns
+- Performance: `/performance` (cycles, criteria weights, scoring dialog) · `/my-reviews` (everyone; acknowledge)
+- Visual helpers: `lib/calculationGuide.ts` (explainLine, taxSteps, weightedScore…), `components/references.tsx`
+  (SourceBadge, ReferenceChips, ReferenceCard), `components/calcVisuals.tsx` (TaxBreakdown, SlabBar, NetFlow) — plain HTML bars
 - Platform: `/platform` · `/platform/applications` · `/platform/organizations/:id`
 - Data hooks: `src/lib/hr.ts` (Part 1), `time.ts` (Part 2), `files.ts` (storage), `payroll.ts` (3A + money helpers),
   `payrollRuns.ts` (3B + CSV), `payslipText.ts` (EN/BN), `platform.ts`, `identity.ts` (phone/login/errors),
@@ -259,7 +287,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   with a guard that names the missing prerequisite. Always probe with the anon key before trusting "applied".
 - **3C/PMS status (2026-10-17)**: backend done + golden-tested (commit 2154d41). FY 2026-27 tax values verified from PwC (reviewed 31 Jul 2026) + Daily Star (Finance Act 2026): threshold 400k (woman/65+ 450k, disabled/third gender 525k, freedom fighter 550k), slabs 10/15/20/25/30 on 300k/400k/500k/2M/rest, exempt min(1/3, 500k), rebate min(3% taxable, 10% investment, 750k), min tax 5,000 (new 1,000). PF/gratuity defaults are placeholders marked needs_confirmation (Labour Act 2025-26 amendments uncertain).
   UI done: src/lib/statutory.ts (hooks), src/lib/calculationGuide.ts (+tests), components/references.tsx (law/policy chips), components/calcVisuals.tsx (TaxBreakdown, SlabBar, NetFlow), payslip dialog "How it was calculated" view (pages/payroll/CalculationExplainer.tsx), run page TDS/PF columns.
-  **UI still to build**: /tax page (calculator with TaxBreakdown, slabs, profiles, TDS ledger + challan), /pf (members, statement, withdrawal preview, interest), /gratuity (liability, payout preview), /settings/statutory (switches + PF/gratuity settings + confirm), /references library page, /performance (cycles, criteria weights, scoring dialog with live weightedScore) and /my-reviews (acknowledge); add routes in router.tsx + NAV items in AppLayout.tsx; browser check; then user applies the two migrations + runs the test.
+  UI pages done (2026-10-17): /tax (calculator, tax tables, profiles, TDS ledger + challan), /pf, /gratuity, /settings/statutory, /references, /performance, /my-reviews. Browser-checked nav only; data pages need the migrations applied.
 - **Next** (in order): hand test a payroll run (HR prepares, Admin approves) →
   **Part 3C** (tax/TDS, PF, gratuity — statutory values must come from verified sources, never memory) →
   **Part 3D** (hours compliance, grievance box with true anonymity, committees) → PMS demo (manual scoring; scope TBD).

@@ -181,6 +181,46 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   users get a clear message instead of a constraint error.
 - Meals (optional) **deferred**.
 
+### Part 3B decisions (Payroll engine) — 2026-10-19
+- **Lifecycle** draft → calculated → reviewed → approved → paid → locked (+ cancelled). The **preparer = whoever last
+  calculated**; that person can never approve (maker-checker enforced in `approve_payroll_run`). Review is blocked while
+  the run is stale or has blockers.
+- **Stale detection**: `private.payroll_inputs_fingerprint(org, month)` (md5 of counts / max(updated_at) / sums of
+  attendance, approved overtime, pay versions, increments, bonuses, loans, adjustments, employees, payment accounts,
+  settings, previous month's approved slips). Stored at calculation; review/approve refuse a different fingerprint.
+- **Engine** `private.calculate_slip` (30-day basis, every line rounded to paisa half away from zero):
+  pay = the version in force on the 1st of the month (or the joining day); a mid-month change is paid as arrears next
+  month. Earnings = every snapshot line at full value. **Proration** = −gross × days not employed / 30
+  (`private.employed_days`: joining day N → N−1 days off; leaving on day N → 30−N off; leaving on/after month end = full).
+  **Overtime** = approved minutes grouped by (day type, multiplier stored on the record) × (OT base ÷ divisor) — every grade.
+  **Bonuses**: active, payment month, scope, completed service ≥ minimum. **Arrears** (`private.increment_arrears_due`):
+  for approved back-dated increments, every already-approved month slip with a different pay version →
+  (new gross − slip gross) × (first month: days from the effective date, else 30) / 30; paid once (`arrears_slip_id`).
+  **Adjustments**: approved, apply month. **Absence** = deduct base ÷ 30 × absent days; **half day** × the set %;
+  **unpaid leave** = unpaid-leave base ÷ 30 × days on a leave type with `paid = false`; unpaid weekly off / holidays only
+  if the settings say so. **Late** = Part 2 policy (floor(lates ÷ N) × X days × daily, or taka × lates).
+  **Loans** = least(installment, remaining) from the start month. **Carry** = last month's `carry_forward_out`.
+  Net = gross − deductions → negative: `zero_and_carry` (net 0, carry) or `block` (blocker); else net-rounding rule.
+- **Warnings / blockers** per slip: missing_compensation (blocker), negative_net, missing_payment_account, large_change
+  (vs last month's approved net, `large_change_percent`), no_attendance. Run warnings: attendance_not_locked,
+  statutory_unconfirmed.
+- **Approval posts** (one transaction): loans `remaining −= installment` (0 → completed), increment `arrears_slip_id`,
+  adjustments `applied`, payment batches per method (`unassigned` when no account; net 0 slips excluded).
+  **Reopen** (`payroll.reopen`, reason ≥ 5 chars, audited) reverses exactly these and returns to calculated.
+- **Frozen slips**: a trigger blocks changing slips/lines of approved+ runs; only marking payments sets a
+  transaction-local flag. Corrections after approval = `payroll_adjustments` (maker-checker) in an open month.
+- **Paid / lock**: `mark_payment_batch_paid` per batch; all paid → run paid. `lock_payroll_run` → locked and, for a
+  whole-organization run, inserts a Part 2 period lock for the month (attendance, leave, overtime read-only).
+- **One run per employee per month** (unique slip key); a branch/department run skips people already in another run.
+- **Visibility**: payroll staff = any of prepare/review/approve/reopen/lock. Employees see their own slip via
+  `get_payslip` / `list_my_payslips` only once released (`payslip_release`: approved or paid). Managers see nothing.
+- **Payment sheets**: `get_payment_sheet(batch)` decrypts numbers, needs `payment.export`, audited
+  (`payment_sheet.exported`); the UI builds a CSV with **formula-injection protection** (`csvCell`) and a UTF-8 BOM.
+- **Payslip PDF**: printable `PayslipDocument` in **English or Bangla** (labels + Bangla digits; component names as
+  entered) printed through the browser (Save as PDF). Every line shows base × rate × quantity.
+- **Permissions** added: `payroll.view_own` (Employee, Manager, HR), `payroll.prepare` + `payroll.review` (HR),
+  `payroll.approve`, `payroll.reopen`, `payroll.lock`, `payment.export` (Admin until ticked for another role).
+
 ### Platform / SaaS decisions — user answers 2026-10-17
 - **Order agreed**: landing page + super-admin platform first, then Part 3B.
 - **Registration = one form (company + admin account)** on `/register`. The company details are sent as sign-up metadata
@@ -271,8 +311,22 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   reactivate, audit). All 5 SQL suites pass (75 checks); vitest 35; typecheck + build pass.
 - Verified in the browser: landing desktop + mobile (no horizontal scroll), register step-1 validation, `?plan=` preselect.
 
+### Part 3B ✅ code complete (2026-10-19) — **not yet applied on Supabase**
+| Area | Migration | UI |
+|---|---|---|
+| 3B payroll engine | `20261019000100_part3b_payroll_engine.sql` | `/payroll` (runs, new run = create + calculate, adjustments with approve/reject), `/payroll/runs/:id` (status stepper, checks, role-based actions, slips, payment sheets CSV, mark paid, reopen, lock), `/payslips` (own payslips), payslip dialog EN/বাংলা + print |
+- Tests: `part3b_payroll_engine_test.sql` 12 golden checks (Part 3 tests 1–10, 14–21): Feb 17,450 / 16,783 / total
+  156,383; Mar 21,450 (bonus − loan), 16,783 (31-day = Feb), 8,725 joiner, 11,633 leaver, 18,700 MS OT
+  (192.31 + 480.77 + 576.92), 17,642 OWNER-grade OT, 16,950 late + half day, 21,275 arrears (2,550 × 15/30),
+  0 + carry 2,550; Apr 16,950 (last 500), 14,900 carry recovered, 20,000 no second arrears; Beta gross-base absence
+  1,163.33, 200/late = 600, down-rounding 15,878.98 → 15,878; recalc identical; stale input blocks review; preparer cannot
+  approve; reopen reverses loans/adjustments; lock blocks March attendance fix. vitest 42 (csv safety, Bangla money).
+- Note: in tests the org owner joins on the approval day, so owners are not in back-dated payroll months.
+
 ### Next steps
 1. Done: Part 2 migrations applied and acceptance test passed on Supabase.
+0. Apply `20261019000100_part3b_payroll_engine.sql`, run `part3b_payroll_engine_test.sql`; hand test a run with two
+   people (HR prepares, Admin approves). Then Part 3C (tax/TDS, PF, gratuity) and 3D (compliance, grievance, committees).
 0. Apply `20261017000100_part3a_salary_structure.sql` and `20261018000100_platform_saas.sql`, then run
    `part3a_salary_structure_test.sql` and `platform_saas_test.sql`.
 2. Hand test: shifts → roster → check-in on a phone → leave → overtime → lock.
@@ -291,6 +345,8 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   (SetPay, Increment, Deduction, PaymentAccount, MaskedNumber); `src/pages/employees/FinancialTab.tsx`
 - `src/lib/time.ts` — Part 2 types + hooks; `src/lib/files.ts` — storage hooks (photo/signature/NID/logo, QR payload)
 - `src/components/UserMenu.tsx` — top-bar profile dropdown + `PersonAvatar`
+- `src/lib/payrollRuns.ts` — Part 3B types, hooks, CSV helpers; `src/lib/payslipText.ts` — EN/BN payslip labels;
+  `src/pages/payroll/` — PayrollRunsPage (runs + adjustments), PayrollRunPage, PayslipView (dialog + printable), MyPayslipsPage
 - `src/lib/platform.ts` — platform/SaaS types + hooks; `src/pages/public/` — PublicShell, LandingPage, RegisterPage;
   `src/pages/platform/` — PlatformDashboardPage, ApplicationsPage, OrganizationDetailsPage
 - `src/pages/attendance/`, `src/pages/leave/`, `src/pages/overtime/`, `src/pages/time/` — Part 2 screens

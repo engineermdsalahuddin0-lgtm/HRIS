@@ -69,6 +69,10 @@ export const router = createBrowserRouter([
               guarded(['leave.request', 'leave.approve', 'leave.view_all'], '/leave', page(() => import('@/pages/leave/LeavePage'))),
               guarded(['overtime.view', 'overtime.approve'], '/overtime', page(() => import('@/pages/overtime/OvertimePage'))),
               guarded(TIME_SETUP, '/time', page(() => import('@/pages/time/TimeSetupPage'))),
+              // Part 3B: payroll runs and payslips
+              guarded(['payroll.prepare', 'payroll.review', 'payroll.approve', 'payroll.reopen', 'payroll.lock'], '/payroll', page(() => import('@/pages/payroll/PayrollRunsPage'))),
+              guarded(['payroll.prepare', 'payroll.review', 'payroll.approve', 'payroll.reopen', 'payroll.lock'], '/payroll/runs/:id', page(() => import('@/pages/payroll/PayrollRunPage'))),
+              guarded('payroll.view_own', '/payslips', page(() => import('@/pages/payroll/MyPayslipsPage'))),
               // Part 3A: salary structure
               guarded(COMPENSATION, '/compensation', page(() => import('@/pages/salary/CompensationPage'))),
               guarded(['compensation.view', 'compensation.edit'], '/salary', page(() => import('@/pages/salary/SalaryStructurePage'))),

@@ -2,13 +2,16 @@ import { useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
-  Award, Banknote, BookOpen, Building2, HandCoins, PiggyBank, Receipt, Scale, Star, CalendarClock, CalendarDays, Clock, FileText, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
+  Award, Banknote, CircleHelp, BookOpen, Building2, HandCoins, PiggyBank, Receipt, Scale, Star, CalendarClock, CalendarDays, Clock, FileText, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
   ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X,
 } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
 import { useOrgLogo } from '@/lib/files'
 import { cx } from '@/components/ui'
 import { UserMenu } from '@/components/UserMenu'
+import { SpotlightTour } from '@/components/spotlight/SpotlightTour'
+import { useSpotlightTour } from '@/components/spotlight/useSpotlightTour'
+import { DASHBOARD_TOUR } from '@/components/spotlight/dashboardTour'
 
 interface NavItem {
   to: string
@@ -167,12 +170,16 @@ function Brand({ rail }: { rail: boolean }) {
 export default function AppLayout() {
   const context = useMyContext()
   const { pathname } = useLocation()
+  // Dashboard guide: opens once per browser on the first dashboard visit; the ? button replays it.
+  const onDashboard = (pathname === '/' || pathname === '/preview') && !!context.organization
+  const tour = useSpotlightTour('dashboard-v1', { autoStart: onDashboard })
   const [drawerOpen, setDrawerOpen] = useState(false)
 
   return (
     <div className="min-h-screen">
       {/* Desktop: icon rail that expands over the content on hover or keyboard focus. */}
       <aside
+        data-tour="sidebar"
         className={cx(
           'group/rail fixed inset-y-0 left-0 z-40 hidden w-[72px] flex-col overflow-hidden border-r border-slate-200 bg-white',
           'transition-[width,box-shadow] duration-200 ease-out hover:w-64 hover:shadow-xl focus-within:w-64 focus-within:shadow-xl md:flex print:hidden',
@@ -204,20 +211,27 @@ export default function AppLayout() {
 
       <div className="flex min-h-screen flex-col md:pl-[72px] print:pl-0">
         <header className="sticky top-0 z-30 flex h-16 items-center gap-2 border-b border-slate-200 bg-white/90 px-3 backdrop-blur sm:gap-3 md:px-8 print:hidden">
-          <button className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 md:hidden" aria-label="Open menu" onClick={() => setDrawerOpen(true)}>
+          <button data-tour="menu-button" className="rounded-lg p-2 text-slate-600 hover:bg-slate-100 md:hidden" aria-label="Open menu" onClick={() => setDrawerOpen(true)}>
             <Menu className="size-5" />
           </button>
           <h1 className="truncate text-base font-semibold text-slate-900 sm:text-lg">{titleFor(pathname)}</h1>
           <div className="ml-auto flex items-center gap-2 md:gap-3">
             {context.organization && (
-              <span className="hidden rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-medium tracking-wider text-slate-600 lg:inline">
+              <span data-tour="org-code" className="hidden rounded-lg bg-slate-100 px-2.5 py-1 font-mono text-xs font-medium tracking-wider text-slate-600 lg:inline">
                 {context.organization.org_code}
               </span>
             )}
-            <UserMenu />
+            {onDashboard && (
+              <button type="button" data-tour="tour-help" onClick={tour.start} aria-label="Replay the dashboard guide" title="Dashboard guide"
+                className="rounded-lg p-2 text-slate-500 hover:bg-slate-100 hover:text-slate-800">
+                <CircleHelp className="size-5" />
+              </button>
+            )}
+            <div data-tour="user-menu"><UserMenu /></div>
           </div>
         </header>
 
+        <SpotlightTour steps={DASHBOARD_TOUR} open={tour.open && onDashboard} onClose={tour.close} />
         <main className="min-w-0 flex-1 p-3 sm:p-4 md:p-8 print:p-0">
           <Outlet />
         </main>

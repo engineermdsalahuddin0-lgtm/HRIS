@@ -215,8 +215,8 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
 - Part 2 deferred: devices (2D) and live tracking (mobile app).
 - §9 assumptions of both docs: treated as accepted (Part 2 #2 confirmed by the user: manager sees their team).
 - Email confirmation is ON in Supabase for self sign-up (portal logins created by HR are pre-confirmed).
-- **Part 3A migration not yet applied on Supabase**: run `20261017000100_part3a_salary_structure.sql`, then
-  `supabase/tests/part3a_salary_structure_test.sql` (expect "ALL PART 3A CHECKS PASSED").
+- Super-admin accounts: create them in Supabase Dashboard → Authentication → Users → Add user (auto-confirm); the
+  allow-list trigger promotes them. Passwords are never stored or shared by the project (bcrypt hashes only).
 - **PMS demo** (user note on §9 #15): a visible manual performance-scoring screen is wanted as a demo before the real
   PMS part — scope (who scores, scale, link to performance bonus?) to be agreed.
 - Overtime hourly divisor (208) and half-day % are placeholders until the company confirms them.
@@ -252,7 +252,7 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   tests); `npm run test:all` runs both. Typecheck + build pass.
 - Verified in the browser (`/preview`): profile dropdown, mobile layout (no horizontal scroll), mobile drawer.
 
-### Part 3A ✅ code complete (2026-10-17) — **not yet applied on Supabase**
+### Part 3A ✅ (2026-10-17) — **applied on Supabase; `part3a_salary_structure_test.sql` passed (2026-10-17)**
 | Area | Migration | UI |
 |---|---|---|
 | 3A salary structure | `20261017000100_part3a_salary_structure.sql` | `/salary` (KPI tiles, Templates builder with live gross preview, Components), `/compensation` (Employee pay + set pay / request change, Increments review with arrears, Bonuses + eligibility preview, Loans & advances with schedule), `/settings/payroll`, Employee profile **Financial** tab (`?tab=financial`) |
@@ -262,7 +262,7 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   `identity.test.ts` covers safe errors). Typecheck + build pass. UI not yet checked against live data.
 - Fixed in passing: profile initials regex `/s+/` → `/\s+/`.
 
-### Platform / landing ✅ code complete (2026-10-17) — **not yet applied on Supabase**
+### Platform / landing ✅ (2026-10-17) — **applied on Supabase; `platform_saas_test.sql` passed**
 | Area | Migration | UI |
 |---|---|---|
 | SaaS platform | `20261018000100_platform_saas.sql` | `/` landing (signed out), `/register` (2-step), `/platform` dashboard, `/platform/applications` (accept / reject with remarks), `/platform/organizations/:id` (volume, subscription, payments, activate/deactivate) |

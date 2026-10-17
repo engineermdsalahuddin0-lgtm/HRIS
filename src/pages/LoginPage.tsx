@@ -66,7 +66,7 @@ export default function LoginPage() {
       </form>
       <p className="mt-6 text-center text-sm text-slate-500">
         New company?{' '}
-        <Link to="/signup" className="font-medium text-primary-600 hover:text-primary-700">
+        <Link to="/register" className="font-medium text-primary-600 hover:text-primary-700">
           Register your organization
         </Link>
       </p>

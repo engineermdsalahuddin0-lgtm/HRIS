@@ -7,7 +7,6 @@ import {
 } from '@/components/guards'
 import { PageLoader } from '@/components/ui'
 import LoginPage from '@/pages/LoginPage'
-import SignupPage from '@/pages/SignupPage'
 import ChangePasswordPage from '@/pages/ChangePasswordPage'
 import OnboardingPage from '@/pages/OnboardingPage'
 import PreviewPage from '@/pages/PreviewPage'
@@ -39,7 +38,8 @@ const COMPENSATION = ['compensation.view', 'increments.approve', 'bonuses.manage
 
 export const router = createBrowserRouter([
   { path: '/login', element: <PublicOnly><LoginPage /></PublicOnly> },
-  { path: '/signup', element: <PublicOnly><SignupPage /></PublicOnly> },
+  { path: '/register', element: <PublicOnly>{page(() => import('@/pages/public/RegisterPage'))}</PublicOnly> },
+  { path: '/signup', element: <Navigate to="/register" replace /> },
   {
     element: <RequireSession />,
     children: [
@@ -75,7 +75,12 @@ export const router = createBrowserRouter([
               guarded(['payroll_settings.manage', 'compensation.view'], '/settings/payroll', page(() => import('@/pages/salary/PayrollSettingsPage'))),
               {
                 element: <RequirePlatformAdmin />,
-                children: [{ path: '/platform/requests', element: page(() => import('@/pages/platform/SignupRequestsPage')) }],
+                children: [
+                  { path: '/platform', element: page(() => import('@/pages/platform/PlatformDashboardPage')) },
+                  { path: '/platform/applications', element: page(() => import('@/pages/platform/ApplicationsPage')) },
+                  { path: '/platform/organizations/:id', element: page(() => import('@/pages/platform/OrganizationDetailsPage')) },
+                  { path: '/platform/requests', element: <Navigate to="/platform/applications" replace /> },
+                ],
               },
             ],
           },

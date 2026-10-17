@@ -135,7 +135,7 @@ export function useSaveStructure(table: string) {
       const { error } = await q
       if (error) throw error
     },
-    onSuccess: () => invalidate('org-structure', 'employees', 'dashboard', 'time-config', 'attendance'),
+    onSuccess: () => invalidate('org-structure', 'employees', 'dashboard', 'time-config', 'attendance', 'salary-config'),
   })
 }
 

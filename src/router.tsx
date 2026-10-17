@@ -34,6 +34,9 @@ const TIME_SETUP = [
   'leave.manage_types', 'overtime.manage_policy', 'attendance.lock_period', 'attendance.qr_display',
 ]
 
+// Part 3A: any money permission opens the Compensation page; its tabs follow the permissions.
+const COMPENSATION = ['compensation.view', 'increments.approve', 'bonuses.manage', 'deductions.manage']
+
 export const router = createBrowserRouter([
   { path: '/login', element: <PublicOnly><LoginPage /></PublicOnly> },
   { path: '/signup', element: <PublicOnly><SignupPage /></PublicOnly> },
@@ -66,6 +69,10 @@ export const router = createBrowserRouter([
               guarded(['leave.request', 'leave.approve', 'leave.view_all'], '/leave', page(() => import('@/pages/leave/LeavePage'))),
               guarded(['overtime.view', 'overtime.approve'], '/overtime', page(() => import('@/pages/overtime/OvertimePage'))),
               guarded(TIME_SETUP, '/time', page(() => import('@/pages/time/TimeSetupPage'))),
+              // Part 3A: salary structure
+              guarded(COMPENSATION, '/compensation', page(() => import('@/pages/salary/CompensationPage'))),
+              guarded(['compensation.view', 'compensation.edit'], '/salary', page(() => import('@/pages/salary/SalaryStructurePage'))),
+              guarded(['payroll_settings.manage', 'compensation.view'], '/settings/payroll', page(() => import('@/pages/salary/PayrollSettingsPage'))),
               {
                 element: <RequirePlatformAdmin />,
                 children: [{ path: '/platform/requests', element: page(() => import('@/pages/platform/SignupRequestsPage')) }],

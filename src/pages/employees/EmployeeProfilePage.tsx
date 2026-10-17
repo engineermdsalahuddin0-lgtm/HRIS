@@ -1,6 +1,6 @@
 import type { ReactNode } from 'react'
 import { useState } from 'react'
-import { Link, Navigate, useNavigate, useParams } from 'react-router-dom'
+import { Link, Navigate, useNavigate, useParams, useSearchParams } from 'react-router-dom'
 import { useQuery } from '@tanstack/react-query'
 import {
   ArrowLeft, ArrowRightLeft, BadgeCheck, CalendarDays, KeyRound, MapPin, Network, Pencil, Phone, Power, TrendingDown,
@@ -20,9 +20,10 @@ import { StatusBadge, Tabs } from '@/components/kit'
 import { useEmployeeFiles } from '@/lib/files'
 import { EmployeeFilesCard } from './EmployeeFiles'
 import { IdCardDialog } from './IdCardDialog'
+import { FinancialTab, canSeeFinancialTab } from './FinancialTab'
 import { EditEmployeeDialog, PortalDialog, ReportingDialog, StatusDialog, TransferDialog } from './profileDialogs'
 
-type Tab = 'personal' | 'history' | 'reporting'
+type Tab = 'personal' | 'history' | 'reporting' | 'financial'
 type DialogKey = 'edit' | 'transfer' | 'reporting' | 'status' | 'portal' | 'idcard' | null
 
 function Field({ label, value }: { label: string; value: ReactNode }) {
@@ -85,7 +86,9 @@ export default function EmployeeProfilePage() {
   const ctx = useMyContext()
   const profile = useEmployeeProfile(id)
   const structure = useOrgStructure()
-  const [tab, setTab] = useState<Tab>('personal')
+  // ?tab=financial opens the Financial tab directly (linked from the Compensation page).
+  const [searchParams] = useSearchParams()
+  const [tab, setTab] = useState<Tab>(searchParams.get('tab') === 'financial' ? 'financial' : 'personal')
   const [dialog, setDialog] = useState<DialogKey>(null)
   const files = useEmployeeFiles(ctx.organization?.id, id)
 
@@ -101,6 +104,7 @@ export default function EmployeeProfilePage() {
   const canReporting = can('employees.reporting') && e.status === 'active'
   const canStatus = can('employees.deactivate') && !e.is_self
   const canPortal = (can('employees.portal_access') || can('users.reset_password')) && (e.status === 'active' || e.has_portal_access)
+  const showFinancial = canSeeFinancialTab(ctx.permissions, e.is_self)
   const close = () => setDialog(null)
 
   return (
@@ -161,6 +165,7 @@ export default function EmployeeProfilePage() {
           { key: 'personal', label: 'Personal info' },
           { key: 'history', label: 'History', count: p.history?.length },
           { key: 'reporting', label: 'Reporting chain' },
+          ...(showFinancial ? [{ key: 'financial' as const, label: 'Financial' }] : []),
         ]}
         value={tab}
         onChange={setTab}
@@ -252,6 +257,10 @@ export default function EmployeeProfilePage() {
             </ol>
           )}
         </Card>
+      )}
+
+      {tab === 'financial' && showFinancial && (
+        <FinancialTab employee={{ id: e.id, full_name: e.full_name, join_date: e.join_date, status: e.status, is_self: e.is_self }} />
       )}
 
       {tab === 'reporting' && (

@@ -86,7 +86,12 @@ function ProductPreview() {
           <p className="text-[11px] font-medium text-slate-500">Weekly attendance</p>
           <div className="mt-3 flex h-24 items-end gap-2">
             {bars.map((height, index) => (
-              <div key={index} className="flex-1 rounded-t-md bg-primary-500/80" style={{ height: `${height}%` }} />
+              <div
+                key={index}
+                className="bar-wave flex-1 rounded-t-md bg-primary-500/80"
+                // Each bar dips to its own level on its own beat, so the row moves like a live chart.
+                style={{ height: `${height}%`, ['--bar-dip' as string]: String(0.45 + ((index * 37) % 40) / 100), animationDelay: `${index * 0.18}s` }}
+              />
             ))}
           </div>
         </div>

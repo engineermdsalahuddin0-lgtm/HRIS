@@ -50,3 +50,25 @@ body {
 .nav-scroll:focus-within {
   scrollbar-color: var(--color-slate-300) transparent;
 }
+
+/* Landing page preview chart: bars rise and fall in a loop. Scaling (not height)
+   keeps the animation on the compositor, so it stays smooth on phones. */
+@keyframes bar-wave {
+  0%,
+  100% {
+    transform: scaleY(1);
+  }
+  50% {
+    transform: scaleY(var(--bar-dip, 0.6));
+  }
+}
+.bar-wave {
+  transform-origin: bottom;
+  animation: bar-wave 2.6s ease-in-out infinite;
+  will-change: transform;
+}
+@media (prefers-reduced-motion: reduce) {
+  .bar-wave {
+    animation: none;
+  }
+}

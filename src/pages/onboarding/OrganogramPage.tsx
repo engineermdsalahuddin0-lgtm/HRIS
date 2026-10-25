@@ -71,7 +71,8 @@ function PositionDialog({ p, grade, chart, onClose }: { p: ChartPosition; grade:
   )
 }
 
-export function Chart({ chart }: { chart: DepartmentChart }) {
+/** onPosition replaces the built-in position dialog (the demo uses its own). */
+export function Chart({ chart, onPosition }: { chart: DepartmentChart; onPosition?: (p: ChartPosition, g: ChartGrade) => void }) {
   const [open, setOpen] = useState<{ p: ChartPosition; g: ChartGrade } | null>(null)
   const levels = chartLevels(chart.grades)
   const counts = stateCounts(chart.grades)
@@ -101,7 +102,7 @@ export function Chart({ chart }: { chart: DepartmentChart }) {
                   <span className="absolute -top-3 left-1/2 -translate-x-1/2 rounded-full bg-white px-3 py-0.5 text-xs font-semibold text-slate-600 ring-1 ring-slate-200">
                     {g.name} · {g.positions.filter((p) => p.employee).length}/{g.planned}</span>
                   <div className="flex max-w-5xl flex-wrap justify-center gap-3">
-                    {g.positions.map((p) => <PositionCard key={p.id} p={p} grade={g} onOpen={() => setOpen({ p, g })} />)}
+                    {g.positions.map((p) => <PositionCard key={p.id} p={p} grade={g} onOpen={() => (onPosition ? onPosition(p, g) : setOpen({ p, g }))} />)}
                   </div>
                 </div>
               </div>

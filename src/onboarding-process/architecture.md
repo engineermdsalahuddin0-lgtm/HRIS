@@ -821,6 +821,18 @@ first; otherwise paste each function in the Supabase Dashboard editor. Secrets a
   running; 23 filled + 2 offers) and HR & Admin (budget 6, blocks after separation, GM being replaced). Shown on the
   Organogram page's **Demo** tab and at `/preview/organogram` (dev, no login). `__tests__/organogramDemo.test.ts`
   checks the demo obeys the rules (slots ≤ budget, planned = slots, extras only when the grade is full).
+- **Interactive demo** (user asked "make dynamic", 2026-10-25): `core/organogramSim.ts` runs the database rules in the
+  browser — `syncPositions` (= steps 2–3 of sync_department_positions), `applyBudget` (save_department_budget checks),
+  `sendOffer` (offer_budget_guard), `joinOffer` (free slot else extra), `leave` (after-separation rule; extra goes),
+  `toggleHold`, `startRecruiting`. The demo seeds (`DEMO_SEEDS`) feed it; the Demo tab edits budget/slots, sends,
+  accepts, joins or declines offers, and each card offers leave / block / open / recruit; Reset reseeds.
+  Tests: `__tests__/organogramSim.test.ts`. `Chart` takes an optional `onPosition` to replace its own dialog.
+- **Fix 2026-10-25** (`20261101000200_organogram_fix_volatile.sql`): `list_organogram_grades` seeds the default grades,
+  so it must be VOLATILE; as STABLE PostgREST ran it read-only and answered 405. `organogram_test.sql` check 9 fails
+  for any STABLE public function whose body inserts, updates, deletes or performs a seeding helper.
+- **Where the headcount budget is raised**: Organogram → department → Budget & slots (headcount.manage / Admin);
+  approving a "new position" vacancy also adds 1 to the budget and the grade slot; saving an R1 designation plan sets the
+  budget to the plan total.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 11. Memory and documentation rules for this module

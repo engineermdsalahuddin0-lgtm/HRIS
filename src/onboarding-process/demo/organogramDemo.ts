@@ -2,7 +2,10 @@
 // Finance & Accounts uses the numbers of the spec: budget 30; ED 1 · GM 3 · DGM 3 · AGM 3 ·
 // Senior Executive 10 · Junior Executive 10. One DGM of three hired (two blocked), five AGM on
 // three slots (two extra), recruitment running for Senior and Junior Executives.
-import type { ChartGrade, ChartPosition, DepartmentCounts, PositionState } from '../core/organogram'
+// The seeds feed the simulator (core/organogramSim), so the demo can be played with.
+import type { ChartGrade, DepartmentCounts } from '../core/organogram'
+import type { SeedCell, SimState } from '../core/organogramSim'
+import { seedState, simChart } from '../core/organogramSim'
 
 export interface DemoChart {
   department: { id: string; name: string; head: { id: string; full_name: string } | null }
@@ -11,84 +14,62 @@ export interface DemoChart {
   counts: DepartmentCounts
   grades: ChartGrade[]
   unmapped: { id: string; full_name: string; designation: string | null }[]
-  story: string
 }
 
 const NAMES = ['Rahim Uddin', 'Karim Ahmed', 'Sadia Islam', 'Nusrat Jahan', 'Tanvir Hasan', 'Farhana Akter', 'Mahmudul Hasan', 'Sharmin Sultana',
   'Arif Hossain', 'Tahmina Begum', 'Rakib Hasan', 'Jannatul Ferdous', 'Shakil Ahmed', 'Mitu Rahman', 'Imran Khan', 'Lamia Chowdhury',
   'Sohel Rana', 'Rumana Afroz', 'Nazmul Huda', 'Sabrina Yasmin', 'Fahim Shahriar', 'Moushumi Das', 'Asif Iqbal', 'Rezaul Karim',
-  'Nadia Hossain', 'Habibur Rahman', 'Shirin Akter', 'Kamrul Islam']
+  'Nadia Hossain', 'Habibur Rahman', 'Shirin Akter', 'Kamrul Islam', 'Tasnim Ara', 'Rafiqul Alam', 'Sumaiya Khatun', 'Jahid Hasan']
 
-let nameAt = 0
-const person = (designation: string, year: number): ChartPosition['employee'] => {
-  const n = nameAt++
-  return { id: `demo-emp-${n}`, full_name: NAMES[n % NAMES.length], card_id: `EMP${String(2600 + n)}`, designation, join_date: `${year}-0${(n % 9) + 1}-01` }
-}
+const rep = (n: number, v: SeedCell): SeedCell[] => Array.from({ length: n }, () => v)
 
-function grade(id: string, code: string, name: string, rank: number, planned: number, designation: string,
-  cells: (PositionState | { state: 'in_recruitment'; stage: string; candidates: number; title: string })[]): ChartGrade {
-  let planNo = 0
-  let extraNo = 0
-  const positions = cells.map((c, i): ChartPosition => {
-    const state = typeof c === 'string' ? c : c.state
-    const kind = state === 'extra' ? 'extra' : 'planned'
-    const slot = kind === 'extra' ? ++extraNo : ++planNo
-    return {
-      id: `${id}-${kind}-${slot}`, slot_no: slot, kind, hold_state: state === 'blocked' ? 'blocked' : 'open', state,
-      employee: state === 'filled' || state === 'extra' ? person(designation, 2016 + (i % 9)) : null,
-      recruitment: typeof c === 'string' ? null : { vacancy_id: `${id}-vac`, post_id: null, title: c.title, candidates: c.candidates, stage: c.stage },
-    }
-  })
-  return { id, code, name, rank, planned, positions }
-}
+export interface DemoSeed { seed: () => SimState; story: string }
 
-function counts(grades: ChartGrade[], budget: number, inProcess: number, accepted: number): DepartmentCounts {
-  const filled = grades.reduce((s, g) => s + g.positions.filter((p) => p.employee).length, 0)
-  return { budget, filled, offers_in_process: inProcess, offers_accepted: accepted, available: budget - filled - inProcess, headroom: budget - filled - accepted }
-}
-
-function finance(): DemoChart {
-  nameAt = 0
-  const grades = [
-    grade('d-ed', 'ED', 'ED', 2, 1, 'Executive Director, Finance', ['filled']),
-    grade('d-gm', 'GM', 'GM', 3, 3, 'GM Finance', ['filled', 'filled', 'blocked']),
-    grade('d-dgm', 'DGM', 'DGM', 4, 3, 'DGM Accounts', ['filled', 'blocked', 'blocked']),
-    grade('d-agm', 'AGM', 'AGM', 5, 3, 'AGM Accounts', ['filled', 'filled', 'filled', 'extra', 'extra']),
-    grade('d-sr', 'SREXEC', 'Senior Executive', 6, 10, 'Senior Executive, Accounts', [
-      'filled', 'filled', 'filled', 'filled', 'filled', 'filled',
-      { state: 'in_recruitment', stage: 'Interviews', candidates: 4, title: 'Senior Executive, Accounts' },
-      { state: 'in_recruitment', stage: 'Interviews', candidates: 4, title: 'Senior Executive, Accounts' }, 'vacant', 'vacant']),
-    grade('d-jr', 'JREXEC', 'Junior Executive', 8, 10, 'Junior Executive, Accounts', [
-      'filled', 'filled', 'filled', 'filled', 'filled', 'filled', 'filled', 'filled',
-      { state: 'in_recruitment', stage: 'Applications', candidates: 12, title: 'Junior Executive, Accounts' }, 'vacant']),
-  ]
-  return {
-    department: { id: 'demo-finance', name: 'Finance & Accounts', head: { id: 'demo-emp-0', full_name: NAMES[0] } },
-    can: { budget: false, toggle: false },
-    budget: { approved_headcount: 30, after_separation: 'vacant', note: null, updated_at: '2026-10-25T00:00:00Z' },
-    counts: counts(grades, 30, 2, 1), grades, unmapped: [],
+export const DEMO_SEEDS: DemoSeed[] = [
+  {
+    seed: () => seedState({
+      department: { id: 'demo-finance', name: 'Finance & Accounts', head: NAMES[0] }, budget: 30, after_separation: 'vacant', names: NAMES,
+      grades: [
+        { id: 'd-ed', code: 'ED', name: 'ED', rank: 2, designation: 'Executive Director, Finance', slots: 1, cells: ['filled'] },
+        { id: 'd-gm', code: 'GM', name: 'GM', rank: 3, designation: 'GM Finance', slots: 3, cells: ['filled', 'filled', 'blocked'] },
+        { id: 'd-dgm', code: 'DGM', name: 'DGM', rank: 4, designation: 'DGM Accounts', slots: 3, cells: ['filled', 'blocked', 'blocked'] },
+        { id: 'd-agm', code: 'AGM', name: 'AGM', rank: 5, designation: 'AGM Accounts', slots: 3, cells: rep(3, 'filled'), extras: 2 },
+        { id: 'd-sr', code: 'SREXEC', name: 'Senior Executive', rank: 6, designation: 'Senior Executive, Accounts', slots: 10,
+          cells: [...rep(6, 'filled'), 'recruiting', 'recruiting', 'vacant', 'vacant'], stage: 'Interviews', candidates: 4 },
+        { id: 'd-jr', code: 'JREXEC', name: 'Junior Executive', rank: 8, designation: 'Junior Executive, Accounts', slots: 10,
+          cells: [...rep(8, 'filled'), 'recruiting', 'vacant'], stage: 'Applications', candidates: 12 },
+      ],
+      offers: [{ code: 'SREXEC', status: 'accepted' }, { code: 'JREXEC', status: 'sent' }],
+    }),
     story: 'Budget 30 with slots ED 1 · GM 3 · DGM 3 · AGM 3 · Sr Exec 10 · Jr Exec 10. Only 1 of 3 DGM hired, the other two slots are blocked; '
       + 'five AGM sit on three slots, so two are extra (allowed because the budget still has room); Senior and Junior Executives are being recruited; '
       + 'two offers are in process, so 23 filled + 2 offers leaves 5 seats free to hire.',
-  }
-}
-
-function hrAdmin(): DemoChart {
-  nameAt = 20
-  const grades = [
-    grade('h-gm', 'GM', 'GM', 3, 1, 'GM HR & Admin', [{ state: 'in_recruitment', stage: 'Offer', candidates: 1, title: 'GM HR & Admin' }]),
-    grade('h-agm', 'AGM', 'AGM', 5, 1, 'AGM HR', ['filled']),
-    grade('h-sr', 'SREXEC', 'Senior Executive', 6, 2, 'Senior Executive, HR', ['filled', 'blocked']),
-    grade('h-ex', 'EXEC', 'Executive', 7, 2, 'Executive, Admin', ['filled', 'filled']),
-  ]
-  return {
-    department: { id: 'demo-hr', name: 'HR & Admin', head: null },
-    can: { budget: false, toggle: false },
-    budget: { approved_headcount: 6, after_separation: 'blocked', note: null, updated_at: '2026-10-25T00:00:00Z' },
-    counts: counts(grades, 6, 1, 1), grades, unmapped: [],
+  },
+  {
+    seed: () => seedState({
+      department: { id: 'demo-hr', name: 'HR & Admin', head: null }, budget: 6, after_separation: 'blocked', names: NAMES.slice(20),
+      grades: [
+        { id: 'h-gm', code: 'GM', name: 'GM', rank: 3, designation: 'GM HR & Admin', slots: 1, cells: ['recruiting'], stage: 'Offer', candidates: 1 },
+        { id: 'h-agm', code: 'AGM', name: 'AGM', rank: 5, designation: 'AGM HR', slots: 1, cells: ['filled'] },
+        { id: 'h-sr', code: 'SREXEC', name: 'Senior Executive', rank: 6, designation: 'Senior Executive, HR', slots: 2, cells: ['filled', 'blocked'] },
+        { id: 'h-ex', code: 'EXEC', name: 'Executive', rank: 7, designation: 'Executive, Admin', slots: 2, cells: ['filled', 'filled'] },
+      ],
+      offers: [{ code: 'GM', status: 'accepted' }],
+    }),
     story: 'Budget 6, fully planned. The GM left and is being replaced (an offer is out). This department blocks a position when someone leaves, '
       + 'so a Senior Executive slot is frozen. 4 filled + 1 offer leaves 1 seat of budget: the blocked slot frees it, so it could be used for one extra hire.',
+  },
+]
+
+/** A simulator state as the chart the real page shows. */
+export function demoChart(s: SimState): DemoChart {
+  const { counts, grades } = simChart(s)
+  return {
+    department: { id: s.department.id, name: s.department.name, head: s.department.head ? { id: `${s.department.id}-head`, full_name: s.department.head } : null },
+    can: { budget: false, toggle: false },
+    budget: { approved_headcount: s.budget, after_separation: s.after_separation, note: null, updated_at: '2026-10-25T00:00:00Z' },
+    counts, grades, unmapped: [],
   }
 }
 
-export const DEMO_ORGANOGRAMS: DemoChart[] = [finance(), hrAdmin()]
+export const DEMO_ORGANOGRAMS: (DemoChart & { story: string })[] = DEMO_SEEDS.map((d) => ({ ...demoChart(d.seed()), story: d.story }))

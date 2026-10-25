@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   Award, Banknote, CircleHelp, BookOpen, Building2, HandCoins, PiggyBank, Receipt, Scale, Star, CalendarClock, CalendarDays, Clock, FileText, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
-  ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X, Gauge, UserPlus, Megaphone,
+  ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X, Gauge, UserPlus, Megaphone, Bot,
 } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
 import { useOrgLogo } from '@/lib/files'
@@ -36,7 +36,8 @@ export const NAV: NavItem[] = [
   { to: '/performance', label: 'Performance', icon: Star, anyOf: ['performance.manage', 'performance.review'] },
   { to: '/workforce', label: 'Workforce', icon: Gauge, anyOf: ['workforce.view', 'workforce.manage', 'headcount.manage'], section: 'Hiring' },
   { to: '/vacancies', label: 'Vacancies', icon: UserPlus, anyOf: ['workforce.view', 'vacancy.request', 'vacancy.review', 'vacancy.approve'] },
-  { to: '/job-posts', label: 'Job posts', icon: Megaphone, anyOf: ['recruit.manage'] },
+  { to: '/job-posts', label: 'Job posts', icon: Megaphone, anyOf: ['recruit.manage', 'recruit.department'] },
+  { to: '/settings/recruitment', label: 'Recruitment settings', icon: Bot, anyOf: ['recruit.manage'] },
   { to: '/payroll', label: 'Payroll runs', icon: Banknote, anyOf: ['payroll.prepare', 'payroll.review', 'payroll.approve', 'payroll.reopen', 'payroll.lock'], section: 'Payroll' },
   { to: '/compensation', label: 'Compensation', icon: Wallet, anyOf: ['compensation.view', 'increments.approve', 'bonuses.manage', 'deductions.manage'] },
   { to: '/salary', label: 'Salary structure', icon: Layers, anyOf: ['compensation.view', 'compensation.edit'] },
@@ -80,6 +81,7 @@ const TITLES: [string, string][] = [
   ['/vacancies', 'Vacancies'],
   ['/preview/workforce', 'Workforce demo'],
   ['/job-posts', 'Job posts'],
+  ['/settings/recruitment', 'Recruitment settings'],
   ['/preview/job-post', 'Job post demo'],
   ['/my-reviews', 'My reviews'],
   ['/compensation', 'Compensation'],

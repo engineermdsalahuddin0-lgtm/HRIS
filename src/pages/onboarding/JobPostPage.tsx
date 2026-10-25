@@ -15,6 +15,7 @@ import { Switch, Tabs, Textarea } from '@/components/kit'
 import { Markdown } from '@/components/Markdown'
 import { JobPoster } from './JobPoster'
 import { ApplicantsPanel } from './ApplicantsPanel'
+import { QuestionPapersPanel } from './QuestionPapersPanel'
 import { postStatusTone } from './JobPostsPage'
 
 type Draft = Pick<JobPost, 'title' | 'description_md' | 'location' | 'show_salary' | 'deadline' | 'has_written_test' | 'public_slug'> & {
@@ -51,7 +52,8 @@ export function JobPostEditor({ post, demo = false }: { post: JobPost; demo?: bo
   const [copied, setCopied] = useState(false)
   const set = <K extends keyof Draft>(key: K, value: Draft[K]) => setDraft((d) => ({ ...d, [key]: value }))
 
-  const editable = post.status === 'draft' || post.status === 'published'
+  // Managers (recruit.department) see the post but do not change it.
+  const editable = (post.status === 'draft' || post.status === 'published') && (post.can?.manage ?? true)
   const salary = { show_salary: draft.show_salary, salary_min: draft.salary_min === '' ? null : Number(draft.salary_min),
     salary_max: draft.salary_max === '' ? null : Number(draft.salary_max) }
   const problems = [
@@ -210,7 +212,22 @@ export function JobPostEditor({ post, demo = false }: { post: JobPost; demo?: bo
         </div>
       </div>
 
-      {!demo && (post.status === 'published' || post.status === 'closed') && <ApplicantsPanel post={post} />}
+      {!demo && post.status !== 'cancelled' && <PostWork post={post} />}
     </div>
+  )
+}
+
+/** Below the post: applicants (once published) and the question papers. */
+function PostWork({ post }: { post: JobPost }) {
+  const live = post.status === 'published' || post.status === 'closed'
+  const [tab, setTab] = useState<'applicants' | 'papers'>(live ? 'applicants' : 'papers')
+  return (
+    <section className="space-y-4">
+      <Tabs value={tab} onChange={setTab} tabs={[
+        ...(live ? [{ key: 'applicants' as const, label: 'Applicants' }] : []),
+        { key: 'papers' as const, label: 'Question papers' },
+      ]} />
+      {tab === 'applicants' && live ? <ApplicantsPanel post={post} /> : <QuestionPapersPanel post={post} />}
+    </section>
   )
 }

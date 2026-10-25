@@ -177,6 +177,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `private.apply_log` (rate limit hashes); private bucket `recruit-cvs/{org}/{post}/{applicant}.pdf|docx`;
   schema `policy_checks` holds only `recruit_cv_pending` (anon storage policy) — anon never gets `private`
 
+**Onboarding R3 — screening** (schema in architecture.md §5)
+- `recruit_settings` (cv_mode basic|ai), `job_posts.cv_mode`, `org_integrations` (AI key encrypted, last4, model),
+  `applicant_profiles` (CV markdown, facts + sources, ATS figures, gate; no row audit), `applicant_decisions`
+  (append-only), `question_bank` (per designation), `question_papers` + `paper_questions` (per post, lockable)
+
 **Performance (manual scoring demo)**
 - `performance_cycles` (draft|open|closed), `performance_criteria` (weight, sum 100), `performance_reviews` (one per
   cycle+employee; draft|submitted|acknowledged, overall_score, rating), `performance_scores` (1-5 + comment)
@@ -223,6 +228,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - **Onboarding R2 (job posts)**: `list_job_profiles`, `save_job_profile`, `list_job_posts`, `create_job_post_from_vacancy`,
   `get_job_post`, `update_job_post`, `publish_job_post`, `close_job_post`, `add_applicants`, `attach_applicant_cv`,
   `list_applicants`; anon: `get_public_careers`, `get_public_job_post`, `submit_job_application`, `confirm_cv_upload`
+- **Onboarding R3 (screening)**: `get/save_recruit_settings`, `save/remove_ai_integration`, `ai_test_context`,
+  `record_ai_test`, `service_ai_key` (service_role only), `set_post_cv_mode`, `claim_cv_reads`, `save_cv_read`,
+  `save_applicant_profile`, `move_applicants`, `get_question_papers`, `save_question_paper`, `delete_question_paper`,
+  `question_ai_context`; R2 `list_job_posts` / `get_job_post` / `list_applicants` redefined for Managers.
+  Edge Function `supabase/functions/recruit-ai` (read_cvs, draft_questions, test_key)
 - **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
   `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
 - 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
@@ -280,7 +290,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - Hiring (onboarding process): `/workforce` (overview, output data, plan & methods, settings, demo cases) ·
   `/vacancies` (review → approve) · `/job-posts` (ready / posts / job profiles) · `/job-posts/:id` (editor, text +
   poster PNG with QR, applicants table → profile modal) · public `/careers/:orgCode[/:slug]` (apply form) · dev
-  `/preview/workforce`, `/preview/job-post`; core logic in `src/onboarding-process/`
+  `/preview/workforce`, `/preview/job-post`; R3: post page tabs Applicants (score, read CVs, shortlist) / Question
+  papers, `/settings/recruitment` (CV mode, Claude key); core logic in `src/onboarding-process/`
 - Visual helpers: `lib/calculationGuide.ts` (explainLine, taxSteps, weightedScore…), `components/references.tsx`
   (SourceBadge, ReferenceChips, ReferenceCard), `components/calcVisuals.tsx` (TaxBreakdown, SlabBar, NetFlow) — plain HTML bars
 - Platform: `/platform` · `/platform/applications` · `/platform/organizations/:id`
@@ -309,7 +320,12 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Part 3B payroll engine** | `20261019000100_part3b_payroll_engine` | ✅ applied, passed 2026-10-17 | `part3b_payroll_engine_test.sql` (12) |
 | **Onboarding R1 workforce** | `20261025000100_recruit_r1_workforce` | ✅ applied, passed 2026-10-25 | `recruit_r1_workforce_test.sql` (9) |
 | **Onboarding R2 job posts** | `20261026000100_recruit_r2_job_posts` | ✅ applied, passed 2026-10-25 | `recruit_r2_job_posts_test.sql` (12) |
-- Local (2026-10-25): all 9 SQL suites pass in PGlite (122 checks); vitest 95 tests; typecheck + build pass.
+| **Onboarding R3 screening** | `20261027000100_recruit_r3_screening` | ⏳ not applied (needs R2); Edge Function `recruit-ai` not deployed | `recruit_r3_screening_test.sql` (10) |
+- Local (2026-10-25): all 10 SQL suites pass in PGlite (132 checks); vitest 105 tests; typecheck + build pass.
+  The R2 test's manager check was changed in R3 (managers may now read their department's posts).
+- No Deno / Supabase CLI on this machine: the Edge Function is not type-checked or run locally.
+- PowerShell 5.1 `Get-Content`/`Set-Content` on UTF-8 files without BOM corrupts non-ASCII (– — •): edit with the
+  Edit tool or Node, never a PowerShell read-replace-write.
 - PGlite stub now grants anon on `storage.objects` (as Supabase does) so the anon CV-upload policy is tested.
 - 2026-10-17: running 3B failed (23503, `compensation.view` missing) because 3A was never applied; 3B now starts
   with a guard that names the missing prerequisite. Always probe with the anon key before trusting "applied".
@@ -646,6 +662,11 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   Admin, HR Manager, Manager (own department); employees nothing. R5: a Manager may assign any employee as interviewer,
   who only scores assigned applicants. Manager actions default (not answered): view + set papers; publish/shortlist =
   HR/Admin. Details: architecture.md §2 #17–19.
+- **R3 built 2026-10-25** (not applied, function not deployed). Choices: no `ai_jobs` queue — the Edge Function claims
+  applicants as the user and saves each result (only `service_ai_key` uses the service role); default model
+  `claude-opus-5-5` (company can pick Sonnet 5.5 / Haiku 5.5), effort low, JSON schema output, server-side refusal
+  fallback; ATS out of 85 when relevance is not set; gate never moves anyone; HR corrections (`mode_used = manual`)
+  survive re-reads; no platform test key (owner pastes own key into the test company); token usage not stored yet.
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

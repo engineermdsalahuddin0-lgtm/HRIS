@@ -3,7 +3,7 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type {
-  Applicant, JobPost, JobPostList, JobProfileRow, PublicCareers, PublicJobPost,
+  Applicant, CvMode, JobPost, JobPostList, JobProfileRow, PublicCareers, PublicJobPost, QuestionPapers, RecruitSettings,
 } from '@/onboarding-process/core/types'
 import type { CvExtension } from '@/onboarding-process/core/jobPost'
 import { CV_TYPES, cvError, cvExtension } from '@/onboarding-process/core/jobPost'
@@ -20,8 +20,58 @@ export function useJobPosts() {
   return useQuery({ queryKey: ['recruit', 'posts'], queryFn: () => callRpc<JobPostList>('list_job_posts') })
 }
 
-export function useJobProfiles() {
-  return useQuery({ queryKey: ['recruit', 'profiles'], queryFn: () => callRpc<JobProfileRow[]>('list_job_profiles') })
+export function useJobProfiles(enabled = true) {
+  return useQuery({ queryKey: ['recruit', 'profiles'], enabled, queryFn: () => callRpc<JobProfileRow[]>('list_job_profiles') })
+}
+
+// ---------------------------------------------------------------------------- R3: screening, papers, AI
+export function useRecruitSettings() {
+  return useQuery({ queryKey: ['recruit', 'settings'], queryFn: () => callRpc<RecruitSettings>('get_recruit_settings') })
+}
+
+export function useQuestionPapers(postId: string | undefined) {
+  return useQuery({
+    queryKey: ['recruit', 'papers', postId],
+    enabled: !!postId,
+    queryFn: () => callRpc<QuestionPapers>('get_question_papers', { p_job_post_id: postId }),
+  })
+}
+
+/** The recruit-ai Edge Function (CV reading, AI question drafts, key test). Errors carry the function's message. */
+export async function callRecruitAi<T>(body: Record<string, unknown>): Promise<T> {
+  const { data, error } = await supabase.functions.invoke('recruit-ai', { body })
+  if (error) {
+    const context = (error as { context?: Response }).context
+    const detail = context && typeof context.json === 'function' ? await context.json().catch(() => null) : null
+    throw new Error(detail?.error ?? (error.message.includes('Failed to send') ? 'The recruit-ai function is not deployed yet' : error.message))
+  }
+  return data as T
+}
+
+export interface CvReadResult { mode: CvMode; ai_ready: boolean; started_at: string; read: number; results: { applicant_id: string; status: string; error?: string }[] }
+
+/** Reads CVs in rounds of 5 until a round finds none left (`since` keeps a re-read from repeating a CV). */
+export function useReadCvs(postId: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: async ({ again, onRound }: { again: boolean; onRound?: (total: number) => void }) => {
+      // The database's clock of the first round marks where a re-read started.
+      let since: string | null = null
+      let total = 0
+      let failed = 0
+      for (let round = 0; round < 40; round += 1) {
+        const r: CvReadResult = await callRecruitAi<CvReadResult>({ action: 'read_cvs', job_post_id: postId, again, since })
+        since = since ?? r.started_at
+        total += r.read
+        failed += r.results.filter((x) => x.status === 'failed').length
+        onRound?.(total)
+        await qc.invalidateQueries({ queryKey: ['recruit', 'applicants', postId] })
+        if (r.read === 0) break
+      }
+      return { total, failed }
+    },
+    onSuccess: () => qc.invalidateQueries({ queryKey: ['recruit'] }),
+  })
 }
 
 export function useJobPost(id: string | undefined) {

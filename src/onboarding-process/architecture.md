@@ -5,7 +5,7 @@
 > this file owns the details of this module and `memory.md` points here.
 
 Status: **R1 built** (2026-10-25; applied on Supabase, test passed). **R2 built** (2026-10-25; applied on Supabase, test passed).
-R3–R7 designed.
+**R3 built** (2026-10-25; migration not applied, Edge Function `recruit-ai` not deployed). R4–R7 designed.
 Final settlement is a **separate module, built later**.
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -29,7 +29,7 @@ generated pre-filled for printing and signing, and a named joining-day feedback 
 |---|---|---|
 | **R1** | Headcount plan, workload (4 methods, (?) tooltips), vacancy draft + approval, workforce dashboard, 10 demo cases | ✅ applied, `recruit_r1_workforce_test.sql` passed on Supabase |
 | **R2** | Job profiles → job post (text + poster) → careers page + apply form + temporary CV storage | ✅ applied, `recruit_r2_job_posts_test.sql` passed on Supabase |
-| **R3** | CV reading (AI or Basic/markdown), must-have gate, ATS score, profile modal, shortlist, question bank + per-post papers, Settings → AI key | ⏳ |
+| **R3** | CV reading (AI or Basic/markdown), must-have gate, ATS score, profile modal, shortlist, question bank + per-post papers, Settings → AI key | ✅ code done, tests pass locally; ⏳ apply `20261027000100_recruit_r3_screening.sql`, run `recruit_r3_screening_test.sql`, deploy `recruit-ai` |
 | **R4** | Online objective test (own page), written-test marks entry, interview scheduling | ⏳ |
 | **R5** | Email (now) / SMS (coded, off), pre-interview form, interviewer kit, panel scoring, composite result | ⏳ |
 | **R6** | Offer (maker-checker) / reject email, pre-joining form (NID, photo, nominee, bank) | ⏳ |
@@ -86,7 +86,8 @@ src/onboarding-process/                 ← core of the module (import as @/onbo
     jobPost.ts                          ✅ labels, salary text ("Negotiable"), deadline, weights, CV rules, pasted applicants
     markdown.ts                         ✅ safe Markdown subset (## / - / **bold**) → blocks; section items for the poster
     poster.ts                           ✅ poster content (facts, requirements, salary, deadline, URL) + word wrap
-    ats.ts                              ⏳ must-have gate + ATS score breakdown (mirror of SQL)
+    ats.ts                              ✅ must-have gate + ATS score breakdown (mirror of private.ats_figures)
+    questions.ts                        ✅ sections, question checks, Excel paste parser, total marks
     assessment.ts                       ⏳ objective scoring, written normalisation
     composite.ts                        ⏳ composite score, weight renormalisation, interviewer spread flag
     schedule.ts                         ⏳ 15-day window, slot proposal around leave/holiday/weekly off
@@ -98,9 +99,11 @@ src/onboarding-process/                 ← core of the module (import as @/onbo
   __tests__/
     workload.test.ts                    ✅ golden numbers = SQL test numbers
     jobPost.test.ts                     ✅ salary toggle, deadline, weights, CV rules, pasted rows, markdown, poster
+    screening.test.ts                   ✅ the 5 ATS cases + Alpha applicants (= SQL test), question checks, Excel paste
 
 src/lib/onboarding.ts                   ✅ React Query hooks (dashboard, vacancies, any workforce RPC)
-src/lib/recruit.ts                      ✅ hooks: posts, profiles, applicants, CV upload/open, public careers + apply
+src/lib/recruit.ts                      ✅ hooks: posts, profiles, applicants, CV upload/open, public careers + apply;
+                                           R3: settings, papers, callRecruitAi (Edge Function), useReadCvs (rounds of 5)
 src/components/InfoTip.tsx              ✅ the (?) popover (formula, working, references)
 src/components/Markdown.tsx             ✅ renders core/markdown.ts blocks as elements (never raw HTML)
 src/pages/onboarding/
@@ -115,9 +118,12 @@ src/pages/onboarding/
   JobPostPage.tsx                       ✅ /job-posts/:id editor (salary toggle, deadline, link, weights), text/poster
                                            preview, publish/close, apply link; JobPostDemoPage = /preview/job-post
   JobPoster.tsx                         ✅ canvas poster 1080×1350, 4 themes, QR, PNG download
-  ApplicantsPanel.tsx                   ✅ applicants report table (sort, source filter), row → profile modal
+  ApplicantsPanel.tsx                   ✅ applicants table (score + gate, filters), CV reading bar, shortlist / screen out
+  QuestionPapersPanel.tsx               ✅ objective / written papers: bank, blank, Excel paste, AI draft, editor, save to bank
+  RecruitmentSettingsPage.tsx           ✅ /settings/recruitment: CV reading mode, Claude key (Admin)
   dialogs/JobProfileDialog.tsx          ✅ experience, education + subjects, skills, duties, employment type
-  dialogs/ApplicantDialog.tsx           ✅ applicant profile modal: contact, consent, note, CV open/upload, history
+  dialogs/ApplicantDialog.tsx           ✅ applicant profile modal: contact, CV, ATS bars + formula, gate reasons,
+                                           AI summary, HR "Correct" form, CV text, history
   dialogs/AddApplicantsDialog.tsx       ✅ paste rows from email / LinkedIn / Bdjobs / referral
   (R3+)                                 ⏳ Assessments, Interviews, Offers, Onboarding
 src/pages/public/careers/CareersPages.tsx ✅ /careers/:orgCode list · /careers/:orgCode/:slug detail + apply form
@@ -128,7 +134,10 @@ supabase/migrations/20261025000100_recruit_r1_workforce.sql   ✅ R1
 supabase/migrations/20261026000100_recruit_r2_job_posts.sql   ✅ R2
 supabase/tests/recruit_r1_workforce_test.sql                  ✅ R1 golden test (9 checks)
 supabase/tests/recruit_r2_job_posts_test.sql                  ✅ R2 test (12 checks)
-supabase/functions/recruit-ai|recruit-notify/                 ⏳ R3 / R5 (apply needs none, decision 16)
+supabase/migrations/20261027000100_recruit_r3_screening.sql   ✅ R3
+supabase/tests/recruit_r3_screening_test.sql                  ✅ R3 test (10 checks)
+supabase/functions/recruit-ai/index.ts                        ✅ R3 Edge Function (read CVs, draft questions, test key)
+supabase/functions/recruit-notify/                            ⏳ R5 (apply needs none, decision 16)
 ```
 Also touched in R1: `statutory_references` gains category `industry_practice` and area `workforce`
 (`src/lib/statutory.ts`, `components/references.tsx`, `ReferencesPage.tsx`); nav section **Hiring** in `AppLayout.tsx`;
@@ -303,17 +312,30 @@ money `numeric(12,2)`, dates in org timezone.
   asked for exactly this path, not confirmed yet, < 1 hour old); HR with `recruit.manage` read/write files of their own
   org's applicants (`private.recruit_cv_access`).
 
-**R3 — screening**
-- `applicant_profiles`: applicant_id, `parsed` jsonb (years, education, skills, roles), `markdown`,
-  `must_have_pass`, `must_have_reasons` jsonb, `ats_score`, `ats_breakdown` jsonb, `parsed_by` ai|manual, `ai_job_id`.
-- `ai_jobs`: `kind` parse_cv|relevance|gen_questions|interview_questions, `status`, `input_ref` jsonb,
-  `output` jsonb (validated against a schema), `model`, `input_tokens`, `output_tokens`, `error`, `key_source` org|platform.
+**R3 — screening, question papers, AI key (built)**
+- `recruit_settings` (pk org_id): `cv_mode` basic|ai (default basic). `job_posts.cv_mode` (null = company setting).
+- `org_integrations` (unique org + kind 'ai'): provider anthropic, `enabled`, `model`
+  claude-opus-5-5 (default) | claude-sonnet-5-5 | claude-haiku-5-5, `secret_enc` (`private.encrypt_secret`, the
+  payment-account key), `secret_last4`, `tested_at/test_status/test_message`. No row audit (the RPCs log the event
+  without the key).
+- `applicant_profiles` (pk applicant_id): `status` reading|done|failed, `mode_used` ai|basic|manual, `markdown` (CV
+  text), `summary` (AI), `years` + `years_source` ai|estimate|hr, `education_level` + source, `skills_found` (AI),
+  `matched_required`, `matched_nice`, `subject_matched`, `relevance` 0–15 + reason + source ai|hr, `figures` jsonb
+  (= `private.ats_figures` output), `ats_score`, `gate` pass|fail|review, `ai_model`, `ai_error`, `error`,
+  `claimed_at`, `read_at`. Personal data → no row audit; RPCs log ids, score and gate only.
+- `applicant_decisions` (append-only): from/to status, gate at the time, note (reason), actor.
+- `question_bank` (per designation, kind objective|written, position, `section`
+  aptitude|job_knowledge|language|situational|general, `stem`, `options` jsonb, `correct_index`, `model_answer`,
+  `marks`): replaced as a set when a paper is saved with "also update the bank". Audited.
+- `question_papers` (unique post + kind): `duration_minutes` (objective required), `pass_percent`, `total_marks`,
+  `question_count`, `version`, `locked_at` (set by R4 when the test starts; locked papers refuse changes).
+- `paper_questions` (paper, position, same question fields; replaced as a set on save).
+- No `ai_jobs` queue (planned earlier): the Edge Function claims applicants (`claim_cv_reads`) and saves each result
+  directly (`save_cv_read`); token usage is not stored yet.
 
 **R4 — assessments and scheduling**
-- `question_bank`: designation_id (nullable = general), `kind` objective|written, `section`
-  aptitude|job_knowledge|language|situational, `stem`, `options` jsonb, `answer_key` (closed column, never in views
-  for applicants), `marks`, `difficulty`, `status` draft|approved, `reviewed_by` (AI drafts are unusable until approved).
-- `assessments`: job_post_id, `kind`, `question_ids` uuid[], `duration_minutes`, `total_marks`, `pass_percent`,
+- Papers come from R3 (`question_papers` / `paper_questions`).
+- `assessments`: job_post_id, `kind`, paper version, `duration_minutes`, `total_marks`, `pass_percent`,
   `negative_marking` bool (default false).
 - `assessment_invites`: applicant_id, assessment_id, `token_hash` (sha-256; raw token only in the link),
   `expires_at`, `started_at`, `submitted_at` (one attempt; server-side timer = started_at + duration + 60 s grace).
@@ -411,15 +433,24 @@ during the build and marked `needs_confirmation` until then — never typed from
 - **Demo cases** are calculated in the browser only (`WorkforceDemo.tsx`); nothing is stored in a company's data.
 
 ### 6.5 Screening and selection scores
-- **Must-have gate**: experience ≥ `experience_min_years` and education level ≥ required. Fail → `screened_out`
-  (HR can override with a reason, audited).
-- **ATS score (0–100)** = skills 40 + experience 25 + education 20 + relevance 15
-  - skills = 40 × matched required ÷ total required (+ up to 5 bonus for nice-to-have, capped at 40)
-  - experience = 25 inside the range or above it (no over-qualification penalty — it can act as an age proxy);
-    below the minimum is already a gate fail
-  - education = 15 for the required level + 5 for a listed subject
-  - relevance = 0–15 from the AI judgement of past roles vs duties, with a one-line reason; manual mode = HR enters it
+- **Must-have gate** (as built): experience ok = min 0, or years ≥ min; education ok = "any", or level ≥ required
+  (ssc < hsc < diploma < bachelor < masters < phd). Any false → `fail`; any unknown → `review`; else `pass`.
+  **Nobody is moved automatically**: HR shortlists or screens out; shortlisting a non-pass needs a reason (audited
+  in `applicant_decisions`).
+- **ATS score** (as built, `private.ats_figures` = `core/ats.ts`):
+  - skills = min(40, 40 × matched required ÷ total required (40 when none required) + 5 × matched nice ÷ total nice)
+  - experience = 25 when min is 0 or years ≥ min; below: 25 × years ÷ min; unknown years: 0 (no over-qualification
+    penalty — it can act as an age proxy)
+  - education = 20 when "any"; level met: 15 + 5 (subject found, or no subjects listed); below / unknown: 0
+  - relevance = 0–15: AI judgement of past roles vs duties with a one-line reason; Basic mode: HR enters it
+  - **score = (skills + experience + education + relevance) ÷ max × 100**, 1 decimal; max = 100, or **85 when
+    relevance is not set** (so Basic-mode applicants are not punished for the missing AI mark). Components 2 decimals.
+  - Golden cases (SQL test A + vitest): 97.0 pass · 78.4 pass (no relevance) · 30.8 fail · 47.1 review · 52.9 pass.
   - Never scored: gender, age, religion, marital status, photo, address.
+- **Basic reading** (no AI): skills = whole-word match of each profile skill in the CV text; years = work date ranges
+  ("2019 - 2022", "Jan 2022 – Present") merged where they overlap, lines about education skipped, else "N years of
+  experience", else unknown; education = highest degree name found (BBA/B.Sc/Honours → bachelor, MBA/M.Sc → masters,
+  HSC/A level, SSC/O level/Dakhil …). Rough by design — HR corrects with "Correct" and the correction survives re-reads.
 - **Objective %** = Σ correct marks (− wrong × penalty if negative marking) ÷ total × 100; plus per-section %.
 - **Written %** = Σ entered marks ÷ total × 100.
 - **Interview %**: each interviewer's mean of the 5 categories → panel mean m (1–5) → `(m − 1) ÷ 4 × 100`.
@@ -478,8 +509,27 @@ during the build and marked `needs_confirmation` until then — never typed from
   Private: `job_post_markdown`, `job_post_slug`, `education_label`, `text_list`, `clean_applicant`, `cv_extension`,
   `cv_path`, `applicant_event`, `public_post_json`, `recruit_cv_access`; `policy_checks.recruit_cv_pending`.
   Not built (not needed yet): `get_applicant` (the list carries everything the modal shows).
-- **R3**: `queue_cv_parse`, `save_manual_profile`, `override_must_have`, `shortlist_applicants`, `get_ats_report`.
-- **R4**: `queue_question_generation`, `review_question`, `save_assessment`, `invite_to_assessment`,
+- **R3 (built)**:
+  - Settings: `get_recruit_settings()` / `save_recruit_settings(p)` (recruit.manage); `save_ai_integration(p)`
+    (Admin; key write-only, format `sk-ant-…`), `remove_ai_integration()`, `ai_test_context()`, `record_ai_test(ok,
+    msg)` (Admin); `service_ai_key(org)` (**service_role only** — the decrypted key for the Edge Function);
+    `set_post_cv_mode(post, mode|null)`.
+  - Reading: `claim_cv_reads(post, limit, again, since)` → {org_id, mode, ai_ready, started_at, job, items}
+    (recruit.manage; stuck reads retried after 10 min; `since` stops a re-read from repeating a CV);
+    `save_cv_read(applicant, p)` (AI facts or basic markdown → estimate → score; empty text → failed);
+    `save_applicant_profile(applicant, p)` (HR correction, `mode_used = manual`, survives re-reads).
+  - Decisions: `move_applicants(post, ids, shortlisted|screened_out|applied, note)` (recruit.manage; reason needed to
+    screen out, and to shortlist anyone whose gate is not pass).
+  - Papers: `get_question_papers(post)` → {papers, bank, ai_available}, `save_question_paper(post, kind, p,
+    update_bank)`, `delete_question_paper(post, kind)`, `question_ai_context(post)` (scope: recruit.manage or the
+    Manager of the post's department).
+  - R2 readers redefined for Managers: `list_job_posts` (+ `can.manage`, shortlisted count; ready list only for HR),
+    `get_job_post` (+ cv_mode_effective, ai_ready, can), `list_applicants` (+ profile, decisions).
+  - Private: `ats_figures` (pure, mirrored in `core/ats.ts`), `education_rank`, `text_has_term`, `detect_education`,
+    `estimate_years`, `score_applicant_profile`, `recruit_scope`, `recruit_post`, `post_cv_mode`, `ai_ready`,
+    `question_json`, `clean_question`.
+  - Edge Function `recruit-ai`: actions `read_cvs`, `draft_questions` (returns drafts, never saves), `test_key`.
+- **R4**: `save_assessment`, `invite_to_assessment`,
   anon-by-token `start_assessment(token)`, `submit_assessment(token, answers)`, `enter_written_marks`,
   `propose_interview`, `save_interview_schedule`, `cancel_interview`.
 - **R5**: `send_message(template, applicants)`, anon-by-token `submit_preinterview_form`, `get_interviewer_kit`,
@@ -505,7 +555,9 @@ during the build and marked `needs_confirmation` until then — never typed from
 | `vacancy.request` | Manager (own department only), HR |
 | `vacancy.review` | HR |
 | `vacancy.approve` | Admin (never the person who forwarded it) |
-| `recruit.manage` (profiles, posts, applicants, shortlist) | HR |
+| `recruit.manage` (profiles, posts, applicants, CV reading, shortlist, papers, recruitment settings) | HR |
+| `recruit.department` (posts + applicants of the own department, read only; set their question papers) | Manager |
+| AI key (save / test / remove) | Admin only (`is_org_admin`, no grantable permission) |
 | `assessment.manage` (questions, tests, written marks) | HR |
 | `interview.schedule` | HR |
 | `interview.score` | only interviewers on that panel (row check, not a role grant) |
@@ -538,13 +590,18 @@ during the build and marked `needs_confirmation` until then — never typed from
 
 ### 8.4 AI and integration secrets
 - Keys are **write-only** from the UI: saved encrypted in `org_integrations.secret_enc`, shown as `••••last4`,
-  removable. Only Edge Functions can decrypt, through a `private` function granted to `service_role` only.
-  The service-role key exists **only inside Edge Functions** (injected by Supabase); never in the repo, `.env`
-  or the browser.
-- Key choice per job: org key → platform key (only if a super admin enabled it for that org, testing) → manual mode.
-- **CV text is untrusted data.** It is sent to the model as a document with instructions to return JSON only; the
-  output is validated against a schema; the model can never change a status, send a message or decide — it only
-  fills fields that HR reviews. Usage (tokens, model) is logged per job.
+  removable. Only the Edge Function can decrypt, through `public.service_ai_key` granted to `service_role` only
+  (revoked from authenticated; the R3 test asserts it). The service-role key exists **only inside Edge Functions**
+  (injected by Supabase); never in the repo, `.env` or the browser.
+- The Edge Function does everything else **as the user** (their JWT): claims, CV download (storage policy), saves —
+  so permissions and company scope are the database's, not the function's.
+- Key choice (as built): the company's own key → otherwise Basic mode. A platform test key is not built: for testing
+  the owner pastes their key into the test company (decision 5).
+- **CV text is untrusted data.** It goes to the model as a document/text block; the system prompt says to ignore
+  instructions inside it and never use gender, age, religion, marital status, photo or address; the answer is forced
+  into a JSON schema (`output_config.format`) and checked; the model can never change a status, send a message or
+  decide — it only fills fields that HR reviews. Server-side refusal fallback is on (`fallbacks: "default"`).
+  Token usage is not logged yet.
 
 ### 8.5 Retention and purge (decision 10)
 - `close_vacancy` (HR, confirm dialog with counts): for every applicant not converted to an employee → delete CV
@@ -558,10 +615,10 @@ during the build and marked `needs_confirmation` until then — never typed from
 
 | Channel | Now | Design |
 |---|---|---|
-| AI | **On** (Claude; platform key for testing, org key from Settings → Integrations) | `recruit-ai` Edge Function reads `ai_jobs` (queued by RPCs), calls the Messages API, validates JSON, writes back. Model configurable per org (default `claude-sonnet-5-5`; CV parsing can use `claude-haiku-5-5` to save cost). |
+| AI | **Built** (R3; company key from Recruitment settings) | `supabase/functions/recruit-ai/index.ts` (Anthropic TypeScript SDK via `npm:`; PDF text with `unpdf`, DOCX with `mammoth`). Model per company: Opus 5.5 (default), Sonnet 5.5, Haiku 5.5 (cheapest); effort low; JSON schema output. **Not yet deployed or run against the real API.** |
 | Email | **On** (testing) | `recruit-notify` sends `notifications` rows through the chosen provider (Resend API or SMTP). A verified sender domain is needed before real applicants get mail. |
 | SMS | **Coded, off** | Same queue; provider adapter interface (`send(to, text) → provider_ref`) with a generic HTTP adapter for BD gateways; needs a gateway account and a registered sender ID before switching on. |
-| Captcha | On with apply | Verified inside `recruit-apply`. |
+| Captcha | Later | Honeypot + rate limit for now (decision 16). |
 | Scheduled jobs | pg_cron | monthly snapshot (1st of month), 15-day interview reminder, token expiry, purge. Until pg_cron is set, HR has "Run now" buttons. |
 
 Deploying Edge Functions: the terminal blocks database ports, but HTTPS works — try `supabase functions deploy`
@@ -580,15 +637,22 @@ first; otherwise paste each function in the Supabase Dashboard editor. Secrets a
   dialog first), Posts (status, deadline, applicants), Job profiles. `/job-posts/:id`: details form (title, location,
   deadline, salary toggle → "Negotiable", link, description, weights, written test), Text / Poster preview (4 colours,
   PNG download, QR), Save / Publish / Close, apply link with Copy. Dev: `/preview/job-post`.
-- **Applicants** (built, below the post): report table (sort by name/source/date, source filter); **row click → profile
-  modal** (contact, consent, note, CV open/upload, history); "Add applicants" (paste rows). R3 adds the markdown profile,
-  ATS breakdown and shortlist; later steps add test and interview scores.
+- **Applicants** tab (built, below the post): report table (sort by score/name/source/date, status + source filters,
+  score + gate badge), CV reading bar (mode for this post, "Read N new CVs" in rounds of 5, "Read again"),
+  select → Shortlist / Screen out / Back to applied (reason dialog); **row click → profile modal** (contact, consent,
+  note, CV open/upload, CV text, ATS bars with the formula filled in, gate reasons, AI summary, "Correct" form,
+  history + decision notes); "Add applicants". Managers: read only.
+- **Question papers** tab (built): objective and written cards; start from bank / blank / Excel paste / AI draft;
+  question editor (section, stem, options with the correct one, marks, model answer, reorder); time, pass mark, total;
+  "Also save to the bank"; locked badge. Managers may edit their department's papers.
+- **Recruitment settings** `/settings/recruitment` (built, recruit.manage): CV reading mode cards; Claude key card
+  (Admin: password field, model, Save / Test / Remove; others see "ends in ••••").
 - **Assessments**, **Interviews** (calendar + list, edit/delete), **Interviewer kit** (panel members only),
   **Offers**, **Onboarding cases** (checklist, documents, signed uploads).
 - **Dashboard (Admin)**: funnel per vacancy (applied → screened → shortlisted → test → interview → offer → joined),
   time-to-fill, open vacancies, top candidates.
 - **Public** `/careers/:orgCode`, `/careers/:orgCode/:slug` (apply) — built; `/t/:token` (test), `/f/:token` (forms).
-- **Settings → Integrations** `/settings/integrations` (Admin).
+- Email / SMS settings: later (R5), next to the AI key on Recruitment settings.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 11. Memory and documentation rules for this module

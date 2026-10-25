@@ -42,6 +42,8 @@ const REFERENCES = ['compensation.view', 'payroll.prepare', 'payroll.approve', '
 // Onboarding process: the dashboard needs workforce rights; vacancies also open for requesters.
 const WORKFORCE = ['workforce.view', 'workforce.manage', 'headcount.manage']
 const VACANCIES = ['workforce.view', 'vacancy.request', 'vacancy.review', 'vacancy.approve']
+// Recruitment: Admin / HR (recruit.manage) everything, Manager (recruit.department) own department.
+const RECRUIT = ['recruit.manage', 'recruit.department']
 
 export const router = createBrowserRouter([
   { path: '/login', element: <PublicOnly><LoginPage /></PublicOnly> },
@@ -100,8 +102,9 @@ export const router = createBrowserRouter([
               guarded(WORKFORCE, '/workforce', page(() => import('@/pages/onboarding/WorkforcePage'))),
               guarded(VACANCIES, '/vacancies', page(() => import('@/pages/onboarding/VacanciesPage'))),
               // R2: job profiles, posts, applicants
-              guarded('recruit.manage', '/job-posts', page(() => import('@/pages/onboarding/JobPostsPage'))),
-              guarded('recruit.manage', '/job-posts/:id', page(() => import('@/pages/onboarding/JobPostPage'))),
+              guarded(RECRUIT, '/job-posts', page(() => import('@/pages/onboarding/JobPostsPage'))),
+              guarded(RECRUIT, '/job-posts/:id', page(() => import('@/pages/onboarding/JobPostPage'))),
+              guarded('recruit.manage', '/settings/recruitment', page(() => import('@/pages/onboarding/RecruitmentSettingsPage'))),
               {
                 element: <RequirePlatformAdmin />,
                 children: [

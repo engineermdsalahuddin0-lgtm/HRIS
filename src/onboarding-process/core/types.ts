@@ -123,7 +123,7 @@ export interface SalaryFields { show_salary: boolean; salary_min: number | null;
 export interface JobPostSummary extends SalaryFields {
   id: string; vacancy_id: string; title: string; status: JobPostStatus; deadline: string; public_slug: string
   department_name: string; designation_name: string; seats: number
-  published_at: string | null; created_at: string; applicants: number; with_cv: number
+  published_at: string | null; created_at: string; applicants: number; with_cv: number; shortlisted?: number
 }
 
 export interface ReadyVacancy {
@@ -131,7 +131,7 @@ export interface ReadyVacancy {
   grade_code: string; seats: number; reason: VacancyReason; decided_at: string | null; has_profile: boolean
 }
 
-export interface JobPostList { org_code: string; posts: JobPostSummary[]; ready: ReadyVacancy[] }
+export interface JobPostList { org_code: string; can?: { manage: boolean }; posts: JobPostSummary[]; ready: ReadyVacancy[] }
 
 export interface JobPost extends SalaryFields {
   id: string; vacancy_id: string; department_id: string; designation_id: string
@@ -141,6 +141,8 @@ export interface JobPost extends SalaryFields {
   status: JobPostStatus; published_at: string | null; closed_at: string | null; close_note: string | null
   department_name: string; designation_name: string; grade_code: string; org_code: string; org_name: string
   vacancy_status: VacancyStatus; vacancy_reason: VacancyReason; today: string
+  /** R3 */
+  cv_mode?: CvMode | null; cv_mode_effective?: CvMode; ai_ready?: boolean; can?: { manage: boolean }
 }
 
 export type ApplicantSource = 'form' | 'email' | 'linkedin' | 'bdjobs' | 'referral' | 'other'
@@ -154,6 +156,9 @@ export interface Applicant {
   status: ApplicantStatus; has_cv: boolean; cv_path: string | null; cover_note: string | null
   consent_at: string | null; is_internal: boolean; created_at: string
   events: { event: string; from_status: string | null; to_status: string | null; actor_name: string | null; created_at: string }[]
+  /** R3 */
+  profile?: ApplicantProfile | null
+  decisions?: { from_status: string; to_status: string; gate: string | null; note: string | null; actor_name: string | null; created_at: string }[]
 }
 
 /** What the public careers page receives (no internal fields). */
@@ -164,3 +169,45 @@ export interface PublicJobPost extends SalaryFields {
 }
 
 export interface PublicCareers { organization: { name: string; org_code: string }; posts: PublicJobPost[] }
+
+// ----------------------------------------------------------------------------- R3
+export type CvMode = 'basic' | 'ai'
+export type AiModel = 'claude-opus-5-5' | 'claude-sonnet-5-5' | 'claude-haiku-5-5'
+type Level = Exclude<EducationLevel, 'any'>
+
+export interface ApplicantProfile {
+  status: 'reading' | 'done' | 'failed'; mode_used: CvMode | 'manual' | null
+  markdown: string | null; summary: string | null
+  years: number | null; years_source: 'ai' | 'estimate' | 'hr' | null
+  education_level: Level | null; education_source: 'ai' | 'estimate' | 'hr' | null
+  skills_found: string[]; matched_required: string[]; matched_nice: string[]; subject_matched: boolean
+  relevance: number | null; relevance_reason: string | null; relevance_source: 'ai' | 'hr' | null
+  figures: import('./ats').AtsFigures | null; ats_score: number | null; gate: import('./ats').Gate | null
+  ai_model: string | null; ai_error: string | null; error: string | null; read_at: string | null; updated_at: string
+}
+
+export interface RecruitSettings {
+  cv_mode: CvMode; is_admin: boolean
+  ai: { configured: boolean; enabled: boolean; model: AiModel; last4: string | null; tested_at: string | null
+        test_status: 'ok' | 'failed' | null; test_message: string | null; updated_at: string } | null
+}
+
+export type PaperKind = 'objective' | 'written'
+export type QuestionSection = 'aptitude' | 'job_knowledge' | 'language' | 'situational' | 'general'
+
+export interface Question {
+  section: QuestionSection; stem: string; options: string[] | null; correct_index: number | null
+  model_answer: string | null; marks: number
+}
+
+export interface QuestionPaper {
+  id: string; job_post_id: string; kind: PaperKind; duration_minutes: number | null; pass_percent: number | null
+  total_marks: number; question_count: number; version: number; locked_at: string | null; updated_at: string
+  questions: Question[]
+}
+
+export interface QuestionPapers {
+  job_post_id: string; title: string; designation_id: string; designation_name: string; ai_available: boolean
+  papers: Record<PaperKind, QuestionPaper | null>
+  bank: Record<PaperKind, Question[]>
+}

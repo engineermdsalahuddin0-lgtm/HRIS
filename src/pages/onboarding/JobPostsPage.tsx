@@ -21,10 +21,13 @@ const localToday = () => new Date().toLocaleDateString('en-CA')
 /** Approved vacancies become job posts filled from the designation's job profile. */
 export default function JobPostsPage() {
   const posts = useJobPosts()
-  const profiles = useJobProfiles()
+  // Managers (recruit.department) see their department's posts only: no ready list, no profiles.
+  const manage = posts.data?.can?.manage ?? false
+  const profiles = useJobProfiles(manage)
   const navigate = useNavigate()
   const create = useRecruitAction<{ p_vacancy_id: string }, string>('create_job_post_from_vacancy')
-  const [tab, setTab] = useState<Tab>('ready')
+  const [chosenTab, setTab] = useState<Tab>('ready')
+  const tab: Tab = manage ? chosenTab : 'posts'
   const [editing, setEditing] = useState<{ row: JobProfileRow; then?: ReadyVacancy } | null>(null)
 
   const createPost = (vacancy: ReadyVacancy) =>
@@ -36,10 +39,11 @@ export default function JobPostsPage() {
     if (row) setEditing({ row, then: vacancy })
   }
 
-  if (posts.isPending || profiles.isPending) return <PageLoader />
+  if (posts.isPending || (manage && profiles.isPending)) return <PageLoader />
   if (posts.isError) return <Alert>{errorMessage(posts.error)}</Alert>
   if (profiles.isError) return <Alert>{errorMessage(profiles.error)}</Alert>
   const data = posts.data
+  const profileRows = profiles.data ?? []
   const today = localToday()
 
   return (
@@ -50,11 +54,11 @@ export default function JobPostsPage() {
           className="inline-flex items-center gap-2 rounded-xl px-4 py-2.5 text-sm font-medium text-slate-700 ring-1 ring-slate-300 hover:bg-slate-50">
           <ExternalLink className="size-4" />Careers page</a>} />
       {create.isError && <Alert>{errorMessage(create.error)}</Alert>}
-      <Tabs value={tab} onChange={setTab} tabs={[
+      <Tabs value={tab} onChange={setTab} tabs={manage ? [
         { key: 'ready', label: 'Ready to post', count: data.ready.length },
         { key: 'posts', label: 'Posts', count: data.posts.length },
-        { key: 'profiles', label: 'Job profiles', count: profiles.data.filter((r) => r.profile).length },
-      ]} />
+        { key: 'profiles', label: 'Job profiles', count: profileRows.filter((r) => r.profile).length },
+      ] : [{ key: 'posts', label: 'Posts of my department', count: data.posts.length }]} />
 
       {tab === 'ready' && (data.ready.length === 0 ? (
         <EmptyState title="No approved vacancy is waiting">
@@ -99,20 +103,20 @@ export default function JobPostsPage() {
               <td className={td}><Badge tone={postStatusTone(p.status)}>{POST_STATUS_LABEL[p.status]}</Badge></td>
               <td className={td}>{formatDate(p.deadline)}
                 {p.status === 'published' && <p className="text-xs text-slate-400">{deadlineText(p.deadline, today)}</p>}</td>
-              <td className={`${td} tabular-nums`}>{p.applicants}<span className="text-xs text-slate-400"> · {p.with_cv} with CV</span></td>
+              <td className={`${td} tabular-nums`}>{p.applicants}<span className="text-xs text-slate-400"> · {p.with_cv} with CV{p.shortlisted ? ` · ${p.shortlisted} shortlisted` : ''}</span></td>
               <td className={td}>{formatDate(p.created_at)}</td>
             </tr>
           ))}
         </Table>
       ))}
 
-      {tab === 'profiles' && (profiles.data.length === 0 ? (
+      {tab === 'profiles' && (profileRows.length === 0 ? (
         <EmptyState title="No designations yet">Add designations on the Organization page first.</EmptyState>
       ) : (
         <Table minWidth={640} head={(
           <tr><th className={th}>Designation</th><th className={th}>Profile</th><th className={th}>Last change</th><th className={th} /></tr>
         )}>
-          {profiles.data.map((row) => (
+          {profileRows.map((row) => (
             <tr key={row.designation_id}>
               <td className={td}><p className="font-medium text-slate-900">{row.designation_name}</p>
                 <p className="text-xs text-slate-400">{row.department_name} · {row.grade_code}</p></td>

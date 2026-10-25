@@ -592,9 +592,14 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
 - **Vacancy**: auto-drafted (separation or overload), a person approves.
 - **Workload**: link output data, not only attendance/OT; methods per department (hours / output×SMV / volume×standard
   time / staffing ratio); every formula and source shown on a (?) hover; sources verified, never from memory.
-- Demo: 10 seeded workload/vacancy cases (proposal in the 2026-10-25 discussion).
-- Pending user decisions: Edge Functions or pg_net for AI/SMS/email/Google Forms; SMS gateway; Google Form vs built-in
-  test; score weights ("IQ" → aptitude test); thresholds; CV retention; approval chain; salary range on posts.
+- **Module handbook: `src/onboarding-process/architecture.md`** (core code folder; SQL stays in supabase/migrations,
+  Edge Functions in supabase/functions). Read it before any recruitment work; it holds schema, formulas, flow graph,
+  security, the 10 demo cases and the build steps R1–R7.
+- Second round of answers (2026-10-25): Claude API now + per-company API key input (Settings → Integrations);
+  email now, SMS adapter coded but off; own recruitment test page (no Google Form); aptitude section, "confidence" is
+  an interviewer-scored category; no CV retention after close (rejected purged, selected → employee); applicant row →
+  profile modal; salary toggle per post (off = "Negotiable"); joining feedback named. Edge Functions accepted for
+  AI/email/apply only; service-role key only inside Edge Functions. Approval chain still a default (HR → Admin).
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

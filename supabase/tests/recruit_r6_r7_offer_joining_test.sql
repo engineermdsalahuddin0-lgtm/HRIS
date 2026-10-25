@@ -442,8 +442,11 @@ begin
   exception when invalid_parameter_value then null;
   end;
 end $$;
+-- Stand-in for the app deleting the files through the Storage API: Supabase forbids deleting storage rows in SQL
+-- (storage.protect_delete), so the test moves them out of the post's folder instead (all rolled back at the end).
 reset role;
-delete from storage.objects where bucket_id in ('recruit-cvs', 'prehire-files') and name like current_setting('t.org_id') || '/%';
+update storage.objects set name = 'purge-test/' || id::text
+ where bucket_id in ('recruit-cvs', 'prehire-files') and name like current_setting('t.org_id') || '/%';
 set local role authenticated;
 select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('t.u_hr')), true);
 do $$

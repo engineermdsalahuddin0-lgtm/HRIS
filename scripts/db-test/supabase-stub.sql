@@ -31,6 +31,12 @@ create table storage.buckets (id text primary key, name text, public boolean, fi
 create table storage.objects (id uuid primary key default gen_random_uuid(), bucket_id text references storage.buckets (id),
   name text, owner uuid, created_at timestamptz default now(), unique (bucket_id, name));
 alter table storage.objects enable row level security;
+-- Like Supabase (storage.protect_delete): storage rows are deleted through the Storage API only, never in SQL.
+create function storage.protect_delete() returns trigger language plpgsql as $$
+begin
+  raise exception 'Direct deletion from storage tables is not allowed. Use the Storage API instead.' using errcode = '42501';
+end $$;
+create trigger protect_objects_delete before delete on storage.objects for each row execute function storage.protect_delete();
 
 grant usage on schema auth, storage to anon, authenticated;
 grant execute on function auth.uid() to anon, authenticated;

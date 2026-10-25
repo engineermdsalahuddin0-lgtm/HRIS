@@ -34,5 +34,5 @@ alter table storage.objects enable row level security;
 
 grant usage on schema auth, storage to anon, authenticated;
 grant execute on function auth.uid() to anon, authenticated;
-grant usage on schema public to anon, authenticated;
+grant usage on schema public to anon, authenticated, service_role;
 grant select, insert, update, delete on storage.objects to anon, authenticated;

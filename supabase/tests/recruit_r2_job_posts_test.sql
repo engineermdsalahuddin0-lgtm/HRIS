@@ -333,21 +333,21 @@ begin
   raise notice 'PASS: HR sees applicants, adds LinkedIn applicants (duplicates skipped) and uploads their CV';
 end $$;
 
--- Manager: no recruitment rights.
+-- Manager: may look at the own department's posts (R3) but not change posts or applicants.
 select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('t.u_mgr')), true);
 do $$
 begin
   begin
-    perform public.list_job_posts();
-    raise exception 'FAIL: manager opened job posts';
+    perform public.update_job_post(current_setting('t.post')::uuid, '{"title":"Changed by manager"}'::jsonb);
+    raise exception 'FAIL: manager edited a job post';
   exception when insufficient_privilege then null;
   end;
   begin
-    perform public.list_applicants(current_setting('t.post')::uuid);
-    raise exception 'FAIL: manager listed applicants';
+    perform public.add_applicants(current_setting('t.post')::uuid, '[{"full_name":"Some One","email":"one@example.com"}]'::jsonb, 'email');
+    raise exception 'FAIL: manager added applicants';
   exception when insufficient_privilege then null;
   end;
-  raise notice 'PASS: recruitment needs recruit.manage';
+  raise notice 'PASS: changing posts and applicants needs recruit.manage';
 end $$;
 
 -- Beta sees nothing of Alpha.

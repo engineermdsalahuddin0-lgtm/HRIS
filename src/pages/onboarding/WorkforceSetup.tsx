@@ -1,6 +1,7 @@
 // Workforce setup tabs: output / volume figures per month, the headcount plan
 // with workload methods and budgets, and the company thresholds.
 import { useEffect, useMemo, useState } from 'react'
+import { Link } from 'react-router-dom'
 import { Plus, Save, Trash2, Upload } from 'lucide-react'
 import type { DepartmentWorkforce, WorkforceDashboard, WorkloadInputRow, WorkloadMethod } from '@/onboarding-process/core/types'
 import { inputHours, METHOD_LABEL } from '@/onboarding-process/core/workload'
@@ -104,8 +105,9 @@ export function PlanPanel({ data }: { data: WorkforceDashboard }) {
   return (
     <div className="space-y-4">
       <Alert tone="info">
-        Sanctioned positions and budgets are set by the Admin (headcount rights). Workload methods are set by HR.
-        {!data.can.money && ' Budgets are hidden because your role cannot see salary figures.'}
+        The department's approved headcount now lives in the <Link to="/organogram" className="font-medium underline">Organogram</Link> (budget + slots per grade).
+        Saving a designation plan here sets that budget to the plan's total. Workload methods are set by HR.
+        {!data.can.money && ' Salary budgets are hidden because your role cannot see salary figures.'}
       </Alert>
       {data.departments.map((department) => (
         <DepartmentPlan key={department.id} department={department} can={data.can} />

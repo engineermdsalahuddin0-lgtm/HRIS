@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   Award, Banknote, CircleHelp, BookOpen, Building2, HandCoins, PiggyBank, Receipt, Scale, Star, CalendarClock, CalendarDays, Clock, FileText, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
-  ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X, Gauge, UserPlus, Megaphone, Bot, MessagesSquare,
+  ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X, Gauge, UserPlus, Megaphone, Bot, MessagesSquare, Network,
 } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
 import { useOrgLogo } from '@/lib/files'
@@ -36,6 +36,7 @@ export const NAV: NavItem[] = [
   { to: '/employees', label: 'Employees', icon: Users, anyOf: ['employees.view'] },
   { to: '/performance', label: 'Performance', icon: Star, anyOf: ['performance.manage', 'performance.review'] },
   { to: '/workforce', label: 'Workforce', icon: Gauge, anyOf: ['workforce.view', 'workforce.manage', 'headcount.manage'], section: 'Hiring' },
+  { to: '/organogram', label: 'Organogram', icon: Network, anyOf: ['workforce.view', 'workforce.manage', 'headcount.manage', 'recruit.manage', 'vacancy.request', 'recruit.department'] },
   { to: '/vacancies', label: 'Vacancies', icon: UserPlus, anyOf: ['workforce.view', 'vacancy.request', 'vacancy.review', 'vacancy.approve'] },
   { to: '/job-posts', label: 'Job posts', icon: Megaphone, anyOf: ['recruit.manage', 'recruit.department'] },
   { to: '/settings/recruitment', label: 'Recruitment settings', icon: Bot, anyOf: ['recruit.manage'] },
@@ -80,6 +81,7 @@ const TITLES: [string, string][] = [
   ['/performance', 'Performance'],
   ['/workforce', 'Workforce planning'],
   ['/vacancies', 'Vacancies'],
+  ['/organogram', 'Organogram'],
   ['/preview/workforce', 'Workforce demo'],
   ['/job-posts', 'Job posts'],
   ['/settings/recruitment', 'Recruitment settings'],

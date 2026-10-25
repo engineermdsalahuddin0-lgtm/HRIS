@@ -68,6 +68,8 @@ build, commit, update this file and `memory.md` A9.
 | 21 | Interview scoring (R5 build, 2026-10-25) | Five categories 1–5 (job knowledge, communication, problem solving, **confidence**, team & culture fit) + recommendation + comment. Interviewers see others' scores only after scoring. Interview done when the whole panel has scored. Suggested questions are built from the profile and the gaps (no AI). |
 | 22 | Offer and pre-joining (R6 build, 2026-10-25) | Decision on the Results tab (selected within the seats / waitlist / not selected with optional email). Offer: HR prepares, a holder of `offer.approve` (Admin by default) who did not prepare it approves; one link `/offer/<token>` to accept and then fill the pre-joining form. **No email OTP** (planned earlier): the link goes only to the applicant's email, and NID / account numbers are write-only (never shown back), so a leaked link cannot read them. |
 | 23 | Joining and purge (R7 build, 2026-10-25) | HR converts after verifying the form (no automatic conversion on the date yet — pg_cron later). Starting pay is written from the approved offer (the approval is the maker-checker; `compensation.edit` is not asked again). Documents are printed from the browser; signed scans uploaded. Close hiring: the app deletes the CV / photo files through Storage (Supabase blocks deleting storage rows in SQL), then the database clears every applicant's personal data. |
+| 24 | Organogram grades (2026-10-25) | **Separate organogram grade table** (CEO > ED > GM > DGM > AGM > Senior Executive > Executive > Junior Executive by default, editable per company, rank 1 = top), linked from each designation (`designations.organogram_grade_id`); pay grades (EM / MS) stay for salary. |
+| 25 | Headcount source (2026-10-25) | The **department budget + grade slots** are the single source of sanctioned headcount: R1 workload, vacancy drafting / approval read the budget (`private.department_sanctioned`); approving a new position raises the budget and the grade slot. Designation plans stay only as a breakdown (saving one sets the budget to its total). Existing plans were copied once into budgets. |
 | 16 | Apply without an Edge Function (R2 build, 2026-10-25) | The apply form works with anon RPCs and a direct upload to the private bucket (only the returned path, within 1 hour, once, then token confirm). Honeypot + rate limit for now; captcha moves into an Edge Function when R3 brings the first one. |
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -775,6 +777,45 @@ first; otherwise paste each function in the Supabase Dashboard editor. Secrets a
   time-to-fill, open vacancies, top candidates.
 - **Public** `/careers/:orgCode`, `/careers/:orgCode/:slug` (apply), `/t/:token` (test), `/f/:token` (pre-interview
   form), `/offer/:token`, `/joining-feedback/:token` — built.
+
+---------------------------------------------------------------------------------------------------------------------
+## 10b. Department organogram (built 2026-10-25, migration `20261101000100_organogram.sql`, not applied)
+
+- **Tables**: `organogram_grades` (code, name, rank, status), `designations.organogram_grade_id`, `department_budgets`
+  (approved_headcount, after_separation vacant|blocked, note), `grade_slots` (department + grade → planned),
+  `positions` (department, grade, slot_no, kind planned|extra, hold_state open|blocked, employee_id unique,
+  filled_since). Positions are rows the database keeps in step; extras exist only while filled.
+- **States** (computed in `get_department_organogram`): filled (planned + person), extra (person above the slots,
+  dashed), vacant (planned, open, empty), in_recruitment (the first N vacant open slots of a grade, N = seats of
+  approved vacancies of designations of that grade not yet joined; with stage Requisition approved / Job post draft /
+  Applications … Offer / Joining and active candidates), blocked (planned, empty, frozen; dashed, lock).
+- **Sync** `private.sync_department_positions(dept)` (triggers on employees insert / status / department / designation,
+  on designation grade change, and after every budget / slot / hold change): release leavers (planned → after-separation
+  state, extra → removed) → planned positions = slots (surplus empty removed, surplus filled become extra) → extras move
+  into a free open planned slot → unplaced people of the department with a mapped grade fill open planned slots by join
+  date, else an extra position. People with an unmapped designation are listed as "unmapped".
+- **Hard rule**: `private.department_counts` = budget, filled (active employees of the department), offers in process
+  (approved / sent / accepted without an onboarding case), accepted; available = budget − filled − in process; headroom =
+  budget − filled − accepted. Trigger `offer_budget_guard` refuses creating an offer or moving it to approved / sent /
+  accepted when available < 1 (23514, clear message). `save_department_budget` refuses slots > budget and a budget below
+  filled + in process. Direct employee creation is not blocked (setting up existing staff); hiring through offers is.
+- **Separation**: the freed planned position becomes vacant or blocked by the department's after-separation setting;
+  R1's replacement vacancy is drafted only when it becomes vacant.
+- **R1 functions re-created**: `department_workload` (sanctioned from the budget), `save_headcount_plan` (sets the budget
+  to the plan total), `on_employee_separation`, `decide_vacancy` (new position raises budget + slot), `draft_vacancy` and
+  `draft_vacancies_from_snapshot` (open seats from `private.open_replacement_seats`: open positions of the grade, else the
+  budget gap, else the designation plan).
+- **RPCs**: `list_organogram_grades`, `save_organogram_grade` (headcount.manage; not deactivating a grade in use),
+  `set_designation_organogram_grade`, `list_department_budgets`, `get_department_organogram`, `save_department_budget`
+  (headcount.manage), `set_position_hold` (one empty planned slot vacant ↔ blocked), `set_department_holds` (bulk per
+  grade / department) — toggles need headcount.manage or workforce.manage. Viewing: workforce / headcount / recruit
+  rights, or a manager / requester for their own department.
+- **UI** `/organogram` (Hiring → Organogram): department picker with "x of y filled", tabs Chart (legend with counts,
+  department root card, one row per grade top to bottom with planned/filled, colour-coded cards; click → details,
+  toggle, links to the employee / job post; refreshes every 30 s), Budget & slots (approved budget, after-separation,
+  slots per grade with filled / open / blocked, bulk Block open / Open blocked, live check), Grades & designations
+  (edit the ladder, map each designation). Core: `core/organogram.ts` (+ `__tests__/organogram.test.ts`), hooks
+  `src/lib/organogram.ts`. Test: `supabase/tests/organogram_test.sql` (8 checks).
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 11. Memory and documentation rules for this module

@@ -44,6 +44,8 @@ const WORKFORCE = ['workforce.view', 'workforce.manage', 'headcount.manage']
 const VACANCIES = ['workforce.view', 'vacancy.request', 'vacancy.review', 'vacancy.approve']
 // Recruitment: Admin / HR (recruit.manage) everything, Manager (recruit.department) own department.
 const RECRUIT = ['recruit.manage', 'recruit.department']
+// Organogram: anyone who plans or hires; managers see their own department (the database checks it).
+const ORGANOGRAM = ['workforce.view', 'workforce.manage', 'headcount.manage', 'recruit.manage', 'vacancy.request', 'recruit.department']
 
 export const router = createBrowserRouter([
   { path: '/login', element: <PublicOnly><LoginPage /></PublicOnly> },
@@ -108,6 +110,7 @@ export const router = createBrowserRouter([
               // Onboarding process R1: workforce planning and vacancies
               guarded(WORKFORCE, '/workforce', page(() => import('@/pages/onboarding/WorkforcePage'))),
               guarded(VACANCIES, '/vacancies', page(() => import('@/pages/onboarding/VacanciesPage'))),
+              guarded(ORGANOGRAM, '/organogram', page(() => import('@/pages/onboarding/OrganogramPage'))),
               // R2: job profiles, posts, applicants
               guarded(RECRUIT, '/job-posts', page(() => import('@/pages/onboarding/JobPostsPage'))),
               guarded(RECRUIT, '/job-posts/:id', page(() => import('@/pages/onboarding/JobPostPage'))),

@@ -355,8 +355,13 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Onboarding R5 messages & interviews** | `20261029000100_recruit_r5_messages_interviews` | ✅ applied (probe 2026-10-25: `get_preinterview_form` answers; test run not confirmed); Edge Function `recruit-notify` ✅ deployed (probe: "Unknown action") | `recruit_r5_messages_interviews_test.sql` (8) |
 | **Onboarding R6 offers** | `20261030000100_recruit_r6_offers` | ⏳ not applied (needs R5) | `recruit_r6_r7_offer_joining_test.sql` (9, needs R7 too) |
 | **Onboarding R7 joining** | `20261031000100_recruit_r7_joining` | ⏳ not applied (needs R6) | (same test) |
-- Local (2026-10-25): all 13 SQL suites pass in PGlite (158 checks); vitest 122 tests; typecheck + build pass.
-- Apply order for the pending recruit steps: R6 → R7, then the R6+R7 test (each file checks the previous one exists).
+| **Department organogram** | `20261101000100_organogram` | ⏳ not applied (needs R7) | `organogram_test.sql` (8) |
+- Local (2026-10-25): all 14 SQL suites pass in PGlite (166 checks); vitest 125 tests; typecheck + build pass.
+- Apply order for the pending steps: R6 → R7 → organogram (each file checks the previous one exists).
+- **Organogram (2026-10-25, user spec)**: separate organogram grade table (user chose it over extending pay grades);
+  department budget + grade slots = the single source of sanctioned headcount (user choice), R1 re-reads it; positions
+  table kept in step by triggers; offers refused when filled + offers in process would pass the budget. Details:
+  architecture.md §10b and decisions 24–25.
 - Probing from the terminal works over HTTPS with the anon key from `.env`: `POST {url}/rest/v1/rpc/<fn>` (missing
   function → PGRST202) and `POST {url}/functions/v1/<name>` with `{"action":"ping"}` (deployed → "Unknown action",
   missing → 404). PostgREST returns HTTP 500 for P0002 raises; the JSON message is still right.

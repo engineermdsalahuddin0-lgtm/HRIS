@@ -356,5 +356,19 @@ begin
   raise notice 'PASS: grades editable (not while in use), transfers free positions, budget is Admin-only, company isolation';
 end $$;
 
+-- Supabase runs STABLE / IMMUTABLE functions read-only (a write inside fails with HTTP 405).
+reset role;
+do $$
+declare
+  v_bad text;
+begin
+  select string_agg(p.proname, ', ' order by p.proname) into v_bad
+  from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+  where n.nspname = 'public' and p.provolatile in ('s', 'i')
+    and p.prosrc ~* '(insert\s+into|update\s+public\.|delete\s+from|perform\s+private\.(seed_|close_overdue|score_invite|sync_department))';
+  assert v_bad is null, 'read-only (stable) API functions that write: ' || coalesce(v_bad, '');
+  raise notice 'PASS: no read-only API function writes';
+end $$;
+
 select '==== ALL ORGANOGRAM CHECKS PASSED ====' as result;
 rollback;

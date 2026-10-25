@@ -355,8 +355,12 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Onboarding R5 messages & interviews** | `20261029000100_recruit_r5_messages_interviews` | ✅ applied (probe 2026-10-25: `get_preinterview_form` answers; test run not confirmed); Edge Function `recruit-notify` ✅ deployed (probe: "Unknown action") | `recruit_r5_messages_interviews_test.sql` (8) |
 | **Onboarding R6 offers** | `20261030000100_recruit_r6_offers` | ⏳ not applied (needs R5) | `recruit_r6_r7_offer_joining_test.sql` (9, needs R7 too) |
 | **Onboarding R7 joining** | `20261031000100_recruit_r7_joining` | ⏳ not applied (needs R6) | (same test) |
-| **Department organogram** | `20261101000100_organogram` | ⏳ not applied (needs R7) | `organogram_test.sql` (8) |
-- Local (2026-10-25): all 14 SQL suites pass in PGlite (166 checks); vitest 125 tests; typecheck + build pass.
+| **Onboarding R6 + R7 (live)** | — | ✅ applied on Supabase (the organogram RPCs answer, so R6/R7 below them exist); R6+R7 test re-run not confirmed | |
+| **Department organogram** | `20261101000100_organogram` | ✅ applied (UI calls reach `list_organogram_grades`); test run not confirmed | `organogram_test.sql` (9) |
+| **Organogram fix** | `20261101000200_organogram_fix_volatile` | ⏳ run in the SQL Editor: `list_organogram_grades` was STABLE but seeds grades (INSERT) → HTTP 405 on the Budget and Grades tabs | (organogram test check 9: no STABLE public function writes) |
+- Local (2026-10-25): all 14 SQL suites pass in PGlite; vitest 133 tests; typecheck + build pass.
+- **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405
+  on Supabase but passes in PGlite. A function that seeds or logs must stay VOLATILE (the organogram test lints this).
 - Apply order for the pending steps: R6 → R7 → organogram (each file checks the previous one exists).
 - **Organogram (2026-10-25, user spec)**: separate organogram grade table (user chose it over extending pay grades);
   department budget + grade slots = the single source of sanctioned headcount (user choice), R1 re-reads it; positions

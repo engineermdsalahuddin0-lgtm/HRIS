@@ -308,7 +308,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **PMS manual scoring demo** | `20261020000200_pms_manual_scoring` | ✅ applied (R1 guard needs it; test not confirmed) | (same test) |
 | **Part 3B payroll engine** | `20261019000100_part3b_payroll_engine` | ✅ applied, passed 2026-10-17 | `part3b_payroll_engine_test.sql` (12) |
 | **Onboarding R1 workforce** | `20261025000100_recruit_r1_workforce` | ✅ applied, passed 2026-10-25 | `recruit_r1_workforce_test.sql` (9) |
-| **Onboarding R2 job posts** | `20261026000100_recruit_r2_job_posts` | ⏳ not applied (needs R1) | `recruit_r2_job_posts_test.sql` (12) |
+| **Onboarding R2 job posts** | `20261026000100_recruit_r2_job_posts` | ✅ applied, passed 2026-10-25 | `recruit_r2_job_posts_test.sql` (12) |
 - Local (2026-10-25): all 9 SQL suites pass in PGlite (122 checks); vitest 95 tests; typecheck + build pass.
 - PGlite stub now grants anon on `storage.objects` (as Supabase does) so the anon CV-upload policy is tested.
 - 2026-10-17: running 3B failed (23503, `compensation.view` missing) because 3A was never applied; 3B now starts
@@ -630,7 +630,7 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   `department_workforce`; capacity = one company figure × availability (roster-based later); vacancies drafted only
   from the current/previous month; demo cases are browser-only (never stored); budget/cost hidden without
   `compensation.view`; `statutory_references` gains `industry_practice` / `workforce`.
-- **R2 built 2026-10-25** (not applied yet). Choices: apply form = anon RPC + direct upload to the private bucket
+- **R2 built 2026-10-25** (applied on Supabase, test passed the same day). Choices: apply form = anon RPC + direct upload to the private bucket
   (policy allows only the returned path, 1 hour, once) + token confirm — no Edge Function yet; honeypot field and rate
   limit (10 per network / 5 per email per hour) instead of captcha for now; file checked by extension + declared type +
   size (content/magic-byte check comes with CV parsing in R3); one post per vacancy; deadline default +14 days (max 90);

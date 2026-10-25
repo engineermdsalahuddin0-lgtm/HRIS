@@ -4,7 +4,7 @@
 > (status table §1, file map §3, schema §5, RPCs §7). The project-wide handbook is `memory.md` (repo root);
 > this file owns the details of this module and `memory.md` points here.
 
-Status: **R1 built** (2026-10-25; applied on Supabase, test passed). **R2 built** (2026-10-25; not yet applied).
+Status: **R1 built** (2026-10-25; applied on Supabase, test passed). **R2 built** (2026-10-25; applied on Supabase, test passed).
 R3–R7 designed.
 Final settlement is a **separate module, built later**.
 
@@ -28,7 +28,7 @@ generated pre-filled for printing and signing, and a named joining-day feedback 
 | Step | Content | Status |
 |---|---|---|
 | **R1** | Headcount plan, workload (4 methods, (?) tooltips), vacancy draft + approval, workforce dashboard, 10 demo cases | ✅ applied, `recruit_r1_workforce_test.sql` passed on Supabase |
-| **R2** | Job profiles → job post (text + poster) → careers page + apply form + temporary CV storage | ✅ code done, tests pass locally; ⏳ apply `20261026000100_recruit_r2_job_posts.sql` + run `recruit_r2_job_posts_test.sql` |
+| **R2** | Job profiles → job post (text + poster) → careers page + apply form + temporary CV storage | ✅ applied, `recruit_r2_job_posts_test.sql` passed on Supabase |
 | **R3** | CV parsing (AI), ATS gate + score, markdown profile, report table, profile modal | ⏳ |
 | **R4** | Question generation + review, online objective test (own page), written-test marks entry, interview scheduling | ⏳ |
 | **R5** | Email (now) / SMS (coded, off), pre-interview form, interviewer kit, panel scoring, composite result | ⏳ |

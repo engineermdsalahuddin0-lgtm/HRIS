@@ -16,7 +16,7 @@ Password: 1234Nabidbhuia
 2. Read the architecture doc of the part you work on: `docs/Part01Architecture.md`, `Part02Architecture.md`,
    `Part03Architecture.md` (titled "AIHR BD"; the product name is **Olympus HRIS**). User answers to the docs'
    "assumptions to confirm" are recorded in Part B and **override** the docs.
-3. `git log --oneline | head -20` and `git status` to see where work stopped.
+3. `git log --oneline | head -20` and `git status` to see where work stopped; read **A9a Handoff** for open items.
 4. Before coding, run `npm run test:all` (unit + database tests) to confirm a green baseline.
 5. Language: the user writes Bangla/Banglish → answer in Bangla, technical terms in English. The user wants visible
    UI early, a commit per step, and this file updated after every step.
@@ -361,7 +361,21 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - Local (2026-10-25): all 14 SQL suites pass in PGlite; vitest 133 tests; typecheck + build pass.
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405
   on Supabase but passes in PGlite. A function that seeds or logs must stay VOLATILE (the organogram test lints this).
-- Apply order for the pending steps: R6 → R7 → organogram (each file checks the previous one exists).
+- R6 → R7 → organogram are applied; only the organogram fix file above is still to run.
+
+### A9a. Handoff — where work stopped (2026-10-25, last commit `ec84577`, tree clean)
+- **Finished**: recruitment/onboarding R1–R7 (full hiring cycle) + Department Organogram + interactive organogram demo.
+  Handbook for all of it: `src/onboarding-process/architecture.md` (§1 status, §2 decisions 1–25, §10b organogram).
+- **Waiting on the user** (ask at the start of the next session, do not redo):
+  1. Run `20261101000200_organogram_fix_volatile.sql` in the SQL Editor, then check that Organogram → Budget & slots /
+     Grades & designations open (they gave HTTP 405 before the fix).
+  2. Confirm on Supabase: `recruit_r6_r7_offer_joining_test.sql` and `organogram_test.sql` pass (R3–R5 tests also never
+     confirmed, only probed).
+  3. Hand test with real keys: AI CV reading / question drafting (`recruit-ai`), email/SMS (`recruit-notify`).
+- **Known, not investigated**: `set_pf_membership` returns HTTP 400 in the browser console (Part 3C PF page).
+- **Next feature**: the user will name it in the next chat. Candidates already noted: Part 3D (hours compliance,
+  grievance box, committees), final settlement module, pg_cron jobs (monthly snapshot, auto-convert on joining date,
+  reminders, forgotten-post purge, daily close, audit purge), hiring funnel dashboard, PMS score for internal candidates.
 - **Organogram (2026-10-25, user spec)**: separate organogram grade table (user chose it over extending pay grades);
   department budget + grade slots = the single source of sanctioned headcount (user choice), R1 re-reads it; positions
   table kept in step by triggers; offers refused when filled + offers in process would pass the budget. Details:
@@ -818,7 +832,7 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
 - Note: in tests the org owner joins on the approval day, so owners are not in back-dated payroll months.
 
 ### Next steps
-(Single source: see **A9 Status board**.) In order:
+(Single source: see **A9 Status board** and **A9a Handoff** — the list below is the 2026-10-17 history.) In order:
 1. Done 2026-10-17: 3A + 3B applied, tests passed on Supabase. Hand test a run
    with two people (HR prepares, Admin approves), payslip EN/বাংলা, payment sheet CSV, lock.
 2. Part 3C: tax/TDS, PF, gratuity (statutory values from verified sources, confirmed by the user).

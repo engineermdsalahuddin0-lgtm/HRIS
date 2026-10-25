@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   Award, Banknote, CircleHelp, BookOpen, Building2, HandCoins, PiggyBank, Receipt, Scale, Star, CalendarClock, CalendarDays, Clock, FileText, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
-  ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X, Gauge, UserPlus, Megaphone, Bot, MessagesSquare, Network,
+  ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X, Gauge, UserPlus, Megaphone, Bot, MessagesSquare, Network, PlayCircle,
 } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
 import { useOrgLogo } from '@/lib/files'
@@ -40,6 +40,8 @@ export const NAV: NavItem[] = [
   { to: '/vacancies', label: 'Vacancies', icon: UserPlus, anyOf: ['workforce.view', 'vacancy.request', 'vacancy.review', 'vacancy.approve'] },
   { to: '/job-posts', label: 'Job posts', icon: Megaphone, anyOf: ['recruit.manage', 'recruit.department'] },
   { to: '/settings/recruitment', label: 'Recruitment settings', icon: Bot, anyOf: ['recruit.manage'] },
+  // DEMO (src/demo, remove with the folder)
+  { to: '/demo/hiring-flow', label: 'Hiring flow demo', icon: PlayCircle, anyOf: ['workforce.view', 'workforce.manage', 'headcount.manage', 'recruit.manage', 'vacancy.request', 'recruit.department'] },
   { to: '/payroll', label: 'Payroll runs', icon: Banknote, anyOf: ['payroll.prepare', 'payroll.review', 'payroll.approve', 'payroll.reopen', 'payroll.lock'], section: 'Payroll' },
   { to: '/compensation', label: 'Compensation', icon: Wallet, anyOf: ['compensation.view', 'increments.approve', 'bonuses.manage', 'deductions.manage'] },
   { to: '/salary', label: 'Salary structure', icon: Layers, anyOf: ['compensation.view', 'compensation.edit'] },
@@ -87,6 +89,8 @@ const TITLES: [string, string][] = [
   ['/job-posts', 'Job posts'],
   ['/settings/recruitment', 'Recruitment settings'],
   ['/preview/job-post', 'Job post demo'],
+  ['/demo/hiring-flow', 'Hiring flow demo'],
+  ['/preview/hiring-flow', 'Hiring flow demo'],
   ['/my-reviews', 'My reviews'],
   ['/my-interviews', 'My interviews'],
   ['/compensation', 'Compensation'],

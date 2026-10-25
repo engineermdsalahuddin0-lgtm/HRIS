@@ -830,6 +830,9 @@ first; otherwise paste each function in the Supabase Dashboard editor. Secrets a
 - **Fix 2026-10-25** (`20261101000200_organogram_fix_volatile.sql`): `list_organogram_grades` seeds the default grades,
   so it must be VOLATILE; as STABLE PostgREST ran it read-only and answered 405. `organogram_test.sql` check 9 fails
   for any STABLE public function whose body inserts, updates, deletes or performs a seeding helper.
+- **Hiring flow demo** (2026-10-25, temporary): `src/demo/hiring-flow/` walks R1 → R7 for one Senior Executive
+  (workload 1,150 h vs 1,000 h → back-fill 1; 5 applicants, 3 pass the gate; tests; interview sliders re-rank the
+  composite; offer maker-checker; joining fills the organogram slot). Route `/demo/hiring-flow`; delete per `src/demo/README.md`.
 - **Where the headcount budget is raised**: Organogram → department → Budget & slots (headcount.manage / Admin);
   approving a "new position" vacancy also adds 1 to the budget and the grade slot; saving an R1 designation plan sets the
   budget to the plan total.

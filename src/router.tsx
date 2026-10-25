@@ -115,6 +115,8 @@ export const router = createBrowserRouter([
               guarded(RECRUIT, '/job-posts', page(() => import('@/pages/onboarding/JobPostsPage'))),
               guarded(RECRUIT, '/job-posts/:id', page(() => import('@/pages/onboarding/JobPostPage'))),
               guarded('recruit.manage', '/settings/recruitment', page(() => import('@/pages/onboarding/RecruitmentSettingsPage'))),
+              // DEMO (src/demo, remove with the folder): the whole hiring flow with sample data.
+              guarded([...ORGANOGRAM, 'recruit.manage'], '/demo/hiring-flow', page(() => import('@/demo/hiring-flow/HiringFlowDemo'))),
               // R5: any employee on an interview panel (the database checks the panel).
               { path: '/my-interviews', element: page(() => import('@/pages/interviews/MyInterviewsPage')) },
               { path: '/my-interviews/:id', element: page(() => import('@/pages/interviews/InterviewKitPage')) },
@@ -140,6 +142,7 @@ export const router = createBrowserRouter([
         { path: 'workforce', element: named(() => import('@/pages/onboarding/WorkforceDemo'), 'WorkforceDemoPage') },
         { path: 'job-post', element: named(() => import('@/pages/onboarding/JobPostPage'), 'JobPostDemoPage') },
         { path: 'organogram', element: named(() => import('@/pages/onboarding/OrganogramDemo'), 'OrganogramDemoPage') },
+        { path: 'hiring-flow', element: page(() => import('@/demo/hiring-flow/HiringFlowDemo')) }, // DEMO
       ] }]
     : []),
   { path: '*', element: <Navigate to="/" replace /> },

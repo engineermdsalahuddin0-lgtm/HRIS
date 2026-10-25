@@ -371,6 +371,10 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
      Organogram → Budget & slots / Grades & designations open (they gave HTTP 405 before the fix).
   2. Done 2026-10-25: `recruit_r6_r7_offer_joining_test.sql` passed on Supabase. (R3–R5 tests never run there, only probed.)
   3. Hand test with real keys: AI CV reading / question drafting (`recruit-ai`), email/SMS (`recruit-notify`).
+- **Demo folder (temporary, user 2026-10-25: "pore remove kore dibo")**: `src/demo/` — browser-only demos the user will
+  delete later; removal steps in `src/demo/README.md` (lines marked `DEMO` in router.tsx and AppLayout.tsx). Now holds the
+  **Hiring flow demo** (`/demo/hiring-flow`, dev `/preview/hiring-flow`): R1 → R7 as one clickable story using the real core
+  calculations (`flow.ts` + `flow.test.ts`). Put any new demo in this folder, not next to the real pages.
 - **Known, not investigated**: `set_pf_membership` returns HTTP 400 in the browser console (Part 3C PF page).
 - **Next feature**: the user will name it in the next chat. Candidates already noted: Part 3D (hours compliance,
   grievance box, committees), final settlement module, pg_cron jobs (monthly snapshot, auto-convert on joining date,

@@ -6,7 +6,8 @@
 
 Status: **R1 built** (2026-10-25; applied on Supabase, test passed). **R2 built** (2026-10-25; applied on Supabase, test passed).
 **R3 built** (2026-10-25; migration not applied, Edge Function `recruit-ai` not deployed).
-**R4 built** (2026-10-25; migration not applied). R5–R7 designed.
+**R4 built** (2026-10-25; migration not applied). **R5 built** (2026-10-25; migration not applied, Edge Function
+`recruit-notify` not deployed). R6–R7 designed.
 Final settlement is a **separate module, built later**.
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -32,7 +33,7 @@ generated pre-filled for printing and signing, and a named joining-day feedback 
 | **R2** | Job profiles → job post (text + poster) → careers page + apply form + temporary CV storage | ✅ applied, `recruit_r2_job_posts_test.sql` passed on Supabase |
 | **R3** | CV reading (AI or Basic/markdown), must-have gate, ATS score, profile modal, shortlist, question bank + per-post papers, Settings → AI key | ✅ code done, tests pass locally; ⏳ apply `20261027000100_recruit_r3_screening.sql`, run `recruit_r3_screening_test.sql`, deploy `recruit-ai` |
 | **R4** | Online objective test (own page), written-test marks entry, interview scheduling | ✅ code done, tests pass locally; ⏳ apply `20261028000100_recruit_r4_tests_interviews.sql` + run `recruit_r4_tests_interviews_test.sql` |
-| **R5** | Email (now) / SMS (coded, off), pre-interview form, interviewer kit, panel scoring, composite result | ⏳ |
+| **R5** | Email (now) / SMS (coded, off), pre-interview form, interviewer kit, panel scoring, composite result | ✅ code done, tests pass locally; ⏳ apply `20261029000100_recruit_r5_messages_interviews.sql`, run its test, deploy `recruit-notify` |
 | **R6** | Offer (maker-checker) / reject email, pre-joining form (NID, photo, nominee, bank) | ⏳ |
 | **R7** | Joining automation (pre-hire → employee), documents to print and sign, joining feedback, data purge | ⏳ |
 | Later | Final settlement (separate module) | — |
@@ -63,6 +64,8 @@ build, commit, update this file and `memory.md` A9.
 | 17 | CV reading (2026-10-25) | Per company (post can override): **AI mode** (Claude extracts years, education, skills, roles + relevance) or **Basic mode** (no AI: PDF/DOCX → markdown with JavaScript libraries inside the Edge Function, MarkItDown-like, no Python server; skills by keyword match against the job profile, years estimated from dates, relevance entered by HR). AI mode falls back to Basic when no key / error. HR can correct every profile; AI never rejects anyone. Scanned PDFs in Basic mode → HR enters the data. |
 | 18 | Question papers (2026-10-25) | Per post: objective, written or both (question, options, correct answer, marks, section; written: marks + model answer). Saved to a **question bank per designation**; the next post for that designation starts from it. Editable per post; on save the user picks "this post only" or "also update the bank". Sources: typed in the system, Excel paste, or AI draft (AI mode only, needs approval). Paper locks once a test starts (changes → new version). Answer key never reaches the applicant. Moved from R4 into R3. |
 | 19 | Who may do recruitment (2026-10-25) | Only **Admin, HR Manager, Manager**; employees see nothing. Manager: **own department only**; default (unanswered): Manager may view and set question papers, publish / shortlist stay with HR and Admin. Interview panel (R5): a Manager may assign any employee as interviewer; that employee can only score the applicants assigned to them. |
+| 20 | Email provider (R5 build, 2026-10-25) | Not answered → **Resend** (HTTPS API, works from Edge Functions; the company verifies its domain there). SMS: generic HTTP gateway adapter (field names configurable), off until the Admin enables it. |
+| 21 | Interview scoring (R5 build, 2026-10-25) | Five categories 1–5 (job knowledge, communication, problem solving, **confidence**, team & culture fit) + recommendation + comment. Interviewers see others' scores only after scoring. Interview done when the whole panel has scored. Suggested questions are built from the profile and the gaps (no AI). |
 | 16 | Apply without an Edge Function (R2 build, 2026-10-25) | The apply form works with anon RPCs and a direct upload to the private bucket (only the returned path, within 1 hour, once, then token confirm). Honeypot + rate limit for now; captcha moves into an Edge Function when R3 brings the first one. |
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -90,6 +93,8 @@ src/onboarding-process/                 ← core of the module (import as @/onbo
     ats.ts                              ✅ must-have gate + ATS score breakdown (mirror of private.ats_figures)
     questions.ts                        ✅ sections, question checks, Excel paste parser, total marks
     assessment.ts                       ✅ objective scoring by section (mirror of score_invite), written %, timer, time zones
+    composite.ts                        ✅ composite + interview % + spread flag (mirror of private.composite_figures)
+    interview.ts                        ✅ categories, scale, recommendations, templates + placeholders, suggested questions
     composite.ts                        ⏳ composite score, weight renormalisation, interviewer spread flag
     schedule.ts                         ⏳ 15-day window, slot proposal around leave/holiday/weekly off
   demo/
@@ -102,6 +107,7 @@ src/onboarding-process/                 ← core of the module (import as @/onbo
     jobPost.test.ts                     ✅ salary toggle, deadline, weights, CV rules, pasted rows, markdown, poster
     screening.test.ts                   ✅ the 5 ATS cases + Alpha applicants (= SQL test), question checks, Excel paste
     assessment.test.ts                  ✅ Rahim 60.0 % / Karim 40.0 % (= R4 SQL test), written 70.0 %, clock, Dhaka time
+    interview.test.ts                   ✅ composite 76.2 / 79.0 / spread / Rahim 73.06 (= R5 SQL test), templates, questions
 
 src/lib/onboarding.ts                   ✅ React Query hooks (dashboard, vacancies, any workforce RPC)
 src/lib/recruit.ts                      ✅ hooks: posts, profiles, applicants, CV upload/open, public careers + apply;
@@ -126,7 +132,13 @@ src/pages/onboarding/
   TestsPanel.tsx                        ✅ Tests & interviews board: links, scores by section, written marks, interviews
   dialogs/InviteLinksDialog.tsx         ✅ create test links (shown once): copy / ready email
   dialogs/WrittenMarksDialog.tsx        ✅ marks per question with marking points
-  dialogs/InterviewDialog.tsx           ✅ panel 1–4, "Propose a time", date/time in the org time zone, mode, cancel
+  dialogs/InterviewDialog.tsx           ✅ panel 1–4, "Propose a time", date/time in the org time zone, mode, cancel,
+                                           "Save and send invitation" (R5)
+  ResultsPanel.tsx                      ✅ Results tab: composite ranking, components × effective weight, panel, spread flag
+  OutboxPanel.tsx                       ✅ Messages tab: email/SMS status, errors, Send now, Retry
+  MessagingSettings.tsx                 ✅ Email (Resend) / SMS (gateway) cards with test send; template editor
+src/pages/interviews/MyInterviewsPage.tsx ✅ /my-interviews: interviews where I am on the panel (any employee)
+src/pages/interviews/InterviewKitPage.tsx ✅ /my-interviews/:id: results so far, form answers, questions, scoring form
   dialogs/JobProfileDialog.tsx          ✅ experience, education + subjects, skills, duties, employment type
   dialogs/ApplicantDialog.tsx           ✅ applicant profile modal: contact, CV, ATS bars + formula, gate reasons,
                                            AI summary, HR "Correct" form, CV text, history
@@ -134,7 +146,7 @@ src/pages/onboarding/
   (R3+)                                 ⏳ Assessments, Interviews, Offers, Onboarding
 src/pages/public/careers/CareersPages.tsx ✅ /careers/:orgCode list · /careers/:orgCode/:slug detail + apply form
 src/pages/public/careers/TestPage.tsx   ✅ /t/:token online test: start screen, server timer, autosave, submit
-                                        ⏳ forms (R5+)
+src/pages/public/careers/PreinterviewFormPage.tsx ✅ /f/:token pre-interview form (attendance, notice, salary, questions)
 src/pages/settings/IntegrationsPage.tsx ⏳ AI key / email / SMS settings (admin only)
 
 supabase/migrations/20261025000100_recruit_r1_workforce.sql   ✅ R1
@@ -146,7 +158,9 @@ supabase/tests/recruit_r3_screening_test.sql                  ✅ R3 test (10 ch
 supabase/functions/recruit-ai/index.ts                        ✅ R3 Edge Function (read CVs, draft questions, test key)
 supabase/migrations/20261028000100_recruit_r4_tests_interviews.sql ✅ R4
 supabase/tests/recruit_r4_tests_interviews_test.sql           ✅ R4 test (9 checks)
-supabase/functions/recruit-notify/                            ⏳ R5 (apply needs none, decision 16)
+supabase/migrations/20261029000100_recruit_r5_messages_interviews.sql ✅ R5
+supabase/tests/recruit_r5_messages_interviews_test.sql        ✅ R5 test (8 checks)
+supabase/functions/recruit-notify/index.ts                    ✅ R5 Edge Function (send queue: Resend / SMS gateway; test send)
 ```
 Also touched in R1: `statutory_references` gains category `industry_practice` and area `workforce`
 (`src/lib/statutory.ts`, `components/references.tsx`, `ReferencesPage.tsx`); nav section **Hiring** in `AppLayout.tsx`;
@@ -361,15 +375,22 @@ money `numeric(12,2)`, dates in org timezone.
 - Applicant status: shortlisted → test_invited (link) → test_done (submit / time up) → written_done (marks) →
   interview_scheduled. Steps can be skipped (written-only post, interview straight after shortlist).
 
-**R5 — messaging and interview**
-- `message_templates` (key, channel, language en|bn, subject, body with `{placeholders}`).
-- `notifications` (queue): channel email|sms, template_key, `to`, payload jsonb, `status`, `provider_ref`, `error`,
-  `attempts`. Never stores secrets.
-- `preinterview_forms`: applicant_id, token_hash, answers jsonb, submitted_at.
-- `interview_scores`: schedule_id, interviewer (employee), category scores 1–5 (`job_knowledge`, `communication`,
-  `problem_solving`, `confidence`, `culture_fit`), `comment`, `submitted_at`. Unique (schedule, interviewer).
-- `candidate_results`: applicant_id, `components` jsonb (each % and weight), `composite`, `spread`, `spread_flag`,
-  `decision` selected|rejected|waitlist, decided_by.
+**R5 — messaging and interview (built)**
+- `org_messaging` (unique org + channel): email = provider `resend` (config from_name, from_address), sms = `http`
+  (config url, method, to/text/key/sender field names, sender_id); `enabled` (SMS off by default), `secret_enc`,
+  `secret_last4`, test result. No row audit (RPCs log without the key).
+- `message_templates` (unique org + key + channel; keys test_invite, interview_invite, rejection, offer; email needs a
+  subject; `{placeholders}`). Defaults seeded in English for every company (`private.seed_message_templates`).
+- `notifications` (outbox): applicant, post, template_key, channel, `to_address`, rendered `subject` / `body`, `status`
+  queued|sending|sent|failed, `provider_ref`, `error`, `attempts`, `claimed_at`, `sent_at`. Holds names and links: no
+  row audit; purged in R7. SMS rows are only created while SMS is enabled.
+- `preinterview_forms` (one per interview): token_hash, `expires_at` (= interview start), `answers` {can_attend,
+  current_employer, current_designation, notice_period_days 0–180, current_salary, expected_salary, questions},
+  `submitted_at` (editable until the interview).
+- `interview_scores` (unique interview + employee): `scores` {job_knowledge, communication, problem_solving,
+  confidence, culture_fit} each 1–5, `mean` (2 decimals), `recommendation` strong_yes|yes|no|strong_no, `comment`.
+  Audited. Panel complete → interview `done`, applicant `interviewed`.
+- No `candidate_results` table: `get_candidate_results` computes the composite live; the decision is stored in R6.
 
 **R6 — offer and pre-joining**
 - `offers`: applicant_id, designation/grade/office, `salary_template_id`, `gross`, `joining_date`, `expires_at`,
@@ -474,7 +495,10 @@ during the build and marked `needs_confirmation` until then — never typed from
   `spread` = max − min of interviewer means; **spread_flag** when > 1.5.
 - **Composite** = Σ weight_i × component_i ÷ Σ weights of the components present (a post without a written test
   renormalises). Internal candidates add **PMS** (latest acknowledged review, `(score − 1) ÷ 4 × 100`) with weight 15,
-  the other weights scaled by 0.85.
+  the other weights scaled by 0.85 — **not built yet** (no internal candidates in R2–R5).
+- As built (R5): interviewer mean = average of the 5 categories (2 decimals); interview % from the unrounded panel mean,
+  rounded to 2; composite 2 decimals; a missing component (no CV read, no test) is left out, never counted as 0.
+  Golden: 76.2 · 79.0 (no written) · 70 with spread 1.6 flagged · Rahim 60 / 70 / panel 4, 5, 3.8 → 81.67 → **73.06**.
 - Worked example (external): ATS 72, Objective 80, Written 65, Interview mean 4.2 → 80 →
   0.10×72 + 0.25×80 + 0.20×65 + 0.45×80 = 7.2 + 20 + 13 + 36 = **76.2**.
 - Worked example (internal, PMS 4.0 → 75): 0.085×72 + 0.2125×80 + 0.17×65 + 0.3825×80 + 0.15×75
@@ -557,8 +581,25 @@ during the build and marked `needs_confirmation` until then — never typed from
   Anon by token: `get_test`, `start_test`, `save_test_answer(token, position, choice)`, `submit_test`.
   Private: `score_invite`, `close_overdue_tests`, `interview_due_by`, `first_free_slot`, `clean_panel`,
   `invite_by_token`, `test_state`.
-- **R5**: `send_message(template, applicants)`, anon-by-token `submit_preinterview_form`, `get_interviewer_kit`,
-  `submit_interview_score`, `get_candidate_results`, `decide_candidate`.
+- **R5 (built)**:
+  - Messaging: `get_messaging_settings()` (recruit.manage; no keys), `save_messaging_channel(channel, p)` /
+    `remove_messaging_channel(channel)` / `messaging_test_context` / `record_messaging_test` (Admin),
+    `save_message_template(key, channel, subject, body)` (recruit.manage), `service_messaging_config(org, channel)`
+    (**service_role only**).
+  - Outbox: `list_notifications(post)`, `claim_notifications(limit)` (only channels set up + enabled; stuck "sending"
+    retried after 10 min), `mark_notification(id, ok, ref, error)`, `retry_notification(id)`.
+  - Sending: `invite_to_test(post, ids, days, base_url, send)` (R4 function re-created with two more parameters; queues
+    test_invite with the link), `send_interview_invite(interview, base_url)` (new form token, queues interview_invite).
+  - Anon by token: `get_preinterview_form`, `submit_preinterview_form`.
+  - Interviewers: `list_my_interviews()` (any employee), `get_interviewer_kit(id)` (panel or HR / department Manager),
+    `submit_interview_score(id, p)` (panel only; from 1 hour before the start).
+  - Results: `get_candidate_results(post)`; `get_assessment_board` re-created (keeps interviewed, latest interview
+    with scores_in / invite_sent / form_submitted, `email_ready`).
+  - Private: `render_template`, `composite_figures` (pure, mirrored in `core/composite.ts`), `queue_message`,
+    `seed_message_templates`, `clean_base_url`, `local_text`, `form_by_token`, `interview_access`.
+  - Edge Function `recruit-notify`: actions `send` (up to 20 per call; the app calls it right after queuing; "Send
+    now" on the Messages tab), `test` (Admin).
+  - Decision (`decide_candidate`) moves to R6 with the offer / rejection emails.
 - **R6**: `prepare_offer`, `approve_offer`, `send_offer`, anon-by-token `respond_offer`, `submit_prejoining_form`,
   `verify_prejoining`.
 - **R7**: `convert_prehire_to_employee` (reuses `create_employee`, `set_initial_compensation`, roster/leave defaults,
@@ -643,8 +684,8 @@ during the build and marked `needs_confirmation` until then — never typed from
 | Channel | Now | Design |
 |---|---|---|
 | AI | **Built** (R3; company key from Recruitment settings) | `supabase/functions/recruit-ai/index.ts` (Anthropic TypeScript SDK via `npm:`; PDF text with `unpdf`, DOCX with `mammoth`). Model per company: Opus 5.5 (default), Sonnet 5.5, Haiku 5.5 (cheapest); effort low; JSON schema output. **Not yet deployed or run against the real API.** |
-| Email | **On** (testing) | `recruit-notify` sends `notifications` rows through the chosen provider (Resend API or SMTP). A verified sender domain is needed before real applicants get mail. |
-| SMS | **Coded, off** | Same queue; provider adapter interface (`send(to, text) → provider_ref`) with a generic HTTP adapter for BD gateways; needs a gateway account and a registered sender ID before switching on. |
+| Email | **Built** (R5), Resend | `supabase/functions/recruit-notify` sends `notifications` through Resend (`POST https://api.resend.com/emails`, plain text). The company verifies its sender domain at Resend. Until email is set up, messages wait in the outbox and HR copies links by hand. **Not deployed or run against Resend yet.** |
+| SMS | **Coded, off** | Same queue; generic HTTP adapter (GET or form POST; number as 8801…, text, key and sender fields configurable) for BD gateways; needs a gateway account and a BTRC-approved sender ID before the Admin switches it on. |
 | Captcha | Later | Honeypot + rate limit for now (decision 16). |
 | Scheduled jobs | pg_cron | monthly snapshot (1st of month), 15-day interview reminder, token expiry, purge. Until pg_cron is set, HR has "Run now" buttons. |
 
@@ -679,10 +720,18 @@ first; otherwise paste each function in the Supabase Dashboard editor. Secrets a
   (overdue flag); select → "Send test links" (links shown once: copy all / per person / ready email); refreshes every
   30 s. Public `/t/:token` test page (start screen with rules, sticky timer, question grid, one question per screen,
   autosave with "not saved" warning, submit / auto-submit, thank-you).
-- **Interviewer kit** (panel members only), calendar view, **Offers**, **Onboarding cases**: later steps.
+- **Results** tab (built, R5): ranking by composite, components (% × effective weight = points), each interviewer's
+  mean + recommendation, panel mean → interview %, spread flag. **Messages** tab: outbox with status, errors, Send now,
+  Retry. Test links and interview dialogs offer "email it" (sent at once when email is set up).
+- **My interviews** `/my-interviews` (built, every employee) → **Interviewer kit** `/my-interviews/:id`: ATS / test /
+  written results, CV summary, pre-interview answers, suggested questions, scoring form (5 × 1–5, recommendation,
+  comment), panel scores after own submission. Public `/f/:token` pre-interview form.
+- Recruitment settings add Email and SMS cards (Admin, test send) and the template editor (HR).
+- Calendar view, **Offers**, **Onboarding cases**: later steps.
 - **Dashboard (Admin)**: funnel per vacancy (applied → screened → shortlisted → test → interview → offer → joined),
   time-to-fill, open vacancies, top candidates.
-- **Public** `/careers/:orgCode`, `/careers/:orgCode/:slug` (apply), `/t/:token` (test) — built; `/f/:token` (forms, R5+).
+- **Public** `/careers/:orgCode`, `/careers/:orgCode/:slug` (apply), `/t/:token` (test), `/f/:token` (pre-interview
+  form) — built; offer response and pre-joining forms in R6.
 - Email / SMS settings: later (R5), next to the AI key on Recruitment settings.
 
 ---------------------------------------------------------------------------------------------------------------------

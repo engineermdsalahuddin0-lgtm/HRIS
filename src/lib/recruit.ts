@@ -3,7 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type {
-  Applicant, AssessmentBoard, CvMode, InterviewerOption, JobPost, JobPostList, JobProfileRow, PublicCareers, PublicJobPost,
+  Applicant, AssessmentBoard, CandidateResults, Channel, CvMode, InterviewerKit, InterviewerOption, JobPost, JobPostList,
+  JobProfileRow, MessagingSettings, MyInterview, NotificationRow, PreinterviewForm, PublicCareers, PublicJobPost,
   QuestionPapers, RecruitSettings, TestState,
 } from '@/onboarding-process/core/types'
 import type { CvExtension } from '@/onboarding-process/core/jobPost'
@@ -64,6 +65,62 @@ export const testApi = {
   answer: (token: string, position: number, choice: number) =>
     callRpc<void>('save_test_answer', { p_token: token, p_position: position, p_choice: choice }),
   submit: (token: string) => callRpc<{ status: string }>('submit_test', { p_token: token }),
+}
+
+// ---------------------------------------------------------------------------- R5: messages, forms, interviewers, results
+export function useMessagingSettings() {
+  return useQuery({ queryKey: ['recruit', 'messaging'], queryFn: () => callRpc<MessagingSettings>('get_messaging_settings') })
+}
+
+export function useNotifications(postId: string) {
+  return useQuery({ queryKey: ['recruit', 'outbox', postId], queryFn: () => callRpc<NotificationRow[]>('list_notifications', { p_job_post_id: postId }) })
+}
+
+export function useCandidateResults(postId: string) {
+  return useQuery({ queryKey: ['recruit', 'results', postId], queryFn: () => callRpc<CandidateResults>('get_candidate_results', { p_job_post_id: postId }) })
+}
+
+export function useMyInterviews() {
+  return useQuery({ queryKey: ['interviews', 'mine'], queryFn: () => callRpc<MyInterview[]>('list_my_interviews') })
+}
+
+export function useInterviewerKit(id: string | undefined) {
+  return useQuery({ queryKey: ['interviews', 'kit', id], enabled: !!id, queryFn: () => callRpc<InterviewerKit>('get_interviewer_kit', { p_interview_id: id }) })
+}
+
+export function useSubmitInterviewScore(id: string) {
+  const qc = useQueryClient()
+  return useMutation({
+    mutationFn: (p: Record<string, unknown>) => callRpc<{ mean: number; panel_complete: boolean }>('submit_interview_score', { p_interview_id: id, p }),
+    onSuccess: () => Promise.all([qc.invalidateQueries({ queryKey: ['interviews'] }), qc.invalidateQueries({ queryKey: ['recruit'] })]),
+  })
+}
+
+/** Sends what is queued (Edge Function recruit-notify). Quietly does nothing when it is not deployed or set up. */
+export async function sendQueuedMessages(): Promise<{ sent: number; failed: number } | { error: string }> {
+  const { data, error } = await supabase.functions.invoke('recruit-notify', { body: { action: 'send' } })
+  if (error) {
+    const context = (error as { context?: Response }).context
+    const detail = context && typeof context.json === 'function' ? await context.json().catch(() => null) : null
+    return { error: detail?.error ?? (error.message.includes('Failed to send') ? 'The recruit-notify function is not deployed yet' : error.message) }
+  }
+  return data
+}
+
+export async function testMessaging(channel: Channel, to: string): Promise<{ ok: boolean; message: string }> {
+  const { data, error } = await supabase.functions.invoke('recruit-notify', { body: { action: 'test', channel, to } })
+  if (error) {
+    const context = (error as { context?: Response }).context
+    const detail = context && typeof context.json === 'function' ? await context.json().catch(() => null) : null
+    return { ok: false, message: detail?.error ?? (error.message.includes('Failed to send') ? 'The recruit-notify function is not deployed yet' : error.message) }
+  }
+  return data
+}
+
+/** The public pre-interview form. */
+export const formApi = {
+  get: (token: string) => callRpc<PreinterviewForm>('get_preinterview_form', { p_token: token }),
+  submit: (token: string, p: Record<string, unknown>) => callRpc<void>('submit_preinterview_form', { p_token: token, p }),
 }
 
 /** The recruit-ai Edge Function (CV reading, AI question drafts, key test). Errors carry the function's message. */

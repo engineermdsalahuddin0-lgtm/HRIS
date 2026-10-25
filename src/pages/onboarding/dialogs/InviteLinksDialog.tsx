@@ -1,22 +1,33 @@
-// Sends online-test links to the selected applicants. The links are shown once
-// (only their fingerprint is stored): copy them or open a ready email.
+// Sends online-test links to the selected applicants: emailed through the company's
+// provider (R5), and shown once (only their fingerprint is stored) to copy or mail by hand.
 import { useState } from 'react'
 import { Check, Copy, Mail } from 'lucide-react'
 import { testPath } from '@/onboarding-process/core/assessment'
-import { useRecruitAction } from '@/lib/recruit'
+import { sendQueuedMessages, useRecruitAction } from '@/lib/recruit'
 import { errorMessage } from '@/lib/identity'
 import { Alert, Button } from '@/components/ui'
-import { Modal, Select } from '@/components/kit'
+import { Checkbox, Modal, Select } from '@/components/kit'
 
 type Link = { applicant_id: string; full_name: string; email: string; token: string }
 
-export function InviteLinksDialog({ postId, postTitle, orgName, applicants, durationMinutes, onClose }: {
+export function InviteLinksDialog({ postId, postTitle, orgName, applicants, durationMinutes, emailReady, onClose }: {
   postId: string; postTitle: string; orgName: string; applicants: { id: string; full_name: string }[]
-  durationMinutes: number | null; onClose: () => void
+  durationMinutes: number | null; emailReady: boolean; onClose: () => void
 }) {
-  const invite = useRecruitAction<{ p_job_post_id: string; p_ids: string[]; p_valid_days: number }, Link[]>('invite_to_test')
+  const invite = useRecruitAction<{ p_job_post_id: string; p_ids: string[]; p_valid_days: number; p_base_url: string; p_send: boolean }, Link[]>('invite_to_test')
   const [days, setDays] = useState(3)
+  const [send, setSend] = useState(emailReady)
+  const [sending, setSending] = useState<string | null>(null)
   const [copied, setCopied] = useState<string | null>(null)
+  const create = () => invite.mutate(
+    { p_job_post_id: postId, p_ids: applicants.map((a) => a.id), p_valid_days: days, p_base_url: window.location.origin, p_send: send },
+    { onSuccess: async () => {
+      if (!send) return
+      setSending('Sending emails…')
+      const r = await sendQueuedMessages()
+      setSending('error' in r ? `Links created; the emails are queued (${r.error}).` : `Sent ${r.sent} message${r.sent === 1 ? '' : 's'}${r.failed ? `, ${r.failed} failed (see Messages)` : ''}.`)
+    } },
+  )
   const url = (token: string) => `${window.location.origin}${testPath(token)}`
   const copy = async (key: string, text: string) => {
     await navigator.clipboard.writeText(text)
@@ -32,15 +43,14 @@ export function InviteLinksDialog({ postId, postTitle, orgName, applicants, dura
 
   return (
     <Modal open onClose={onClose} size="lg" title="Send online test links"
-      description={`${applicants.length} applicant${applicants.length === 1 ? '' : 's'} · email sending comes in the next step; for now copy the links or open a ready email.`}
+      description={`${applicants.length} applicant${applicants.length === 1 ? '' : 's'}`}
       footer={invite.isSuccess ? <Button onClick={onClose}>Done</Button> : <>
         <Button variant="secondary" onClick={onClose}>Cancel</Button>
-        <Button loading={invite.isPending} onClick={() => invite.mutate({ p_job_post_id: postId, p_ids: applicants.map((a) => a.id), p_valid_days: days })}>
-          Create links
-        </Button>
+        <Button loading={invite.isPending} onClick={create}>{send ? 'Create and email links' : 'Create links'}</Button>
       </>}>
       {invite.isSuccess ? (
         <div className="space-y-3">
+          {sending && <Alert tone="success">{sending}</Alert>}
           <Alert tone="info">These links are shown only now. Copy them before closing; you can always create a new link later (the old one stops working).</Alert>
           <Button variant="secondary" onClick={() => copy('all', invite.data.map((l) => `${l.full_name} <${l.email}>: ${url(l.token)}`).join('\n'))}>
             {copied === 'all' ? <Check className="size-4" /> : <Copy className="size-4" />}Copy all
@@ -67,6 +77,8 @@ export function InviteLinksDialog({ postId, postTitle, orgName, applicants, dura
           <p className="text-sm text-slate-600">{applicants.map((a) => a.full_name).join(', ')}</p>
           <Select label="The link stays valid for" value={String(days)} onChange={(e) => setDays(Number(e.target.value))}
             options={[1, 2, 3, 5, 7, 14].map((d) => ({ value: String(d), label: `${d} day${d === 1 ? '' : 's'}` }))} />
+          <Checkbox label={emailReady ? 'Email the links now (and SMS if it is switched on)' : 'Queue the emails (they go out once the Admin sets up email)'}
+            checked={send} onChange={setSend} />
           <p className="text-xs text-slate-500">Sending the first link locks the objective paper so everyone gets the same questions (in a shuffled order).</p>
         </div>
       )}

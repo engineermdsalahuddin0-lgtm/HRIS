@@ -54,6 +54,8 @@ export const router = createBrowserRouter([
   { path: '/careers/:orgCode/:slug', element: named(() => import('@/pages/public/careers/CareersPages'), 'JobApplyPage') },
   // R4: the online test; the link's token is the only key.
   { path: '/t/:token', element: named(() => import('@/pages/public/careers/TestPage'), 'TestPage') },
+  // R5: the pre-interview form link from the interview email.
+  { path: '/f/:token', element: named(() => import('@/pages/public/careers/PreinterviewFormPage'), 'PreinterviewFormPage') },
   {
     element: <RequireSession />,
     children: [
@@ -107,6 +109,9 @@ export const router = createBrowserRouter([
               guarded(RECRUIT, '/job-posts', page(() => import('@/pages/onboarding/JobPostsPage'))),
               guarded(RECRUIT, '/job-posts/:id', page(() => import('@/pages/onboarding/JobPostPage'))),
               guarded('recruit.manage', '/settings/recruitment', page(() => import('@/pages/onboarding/RecruitmentSettingsPage'))),
+              // R5: any employee on an interview panel (the database checks the panel).
+              { path: '/my-interviews', element: page(() => import('@/pages/interviews/MyInterviewsPage')) },
+              { path: '/my-interviews/:id', element: page(() => import('@/pages/interviews/InterviewKitPage')) },
               {
                 element: <RequirePlatformAdmin />,
                 children: [

@@ -110,11 +110,17 @@ export function TestsPanel({ post }: { post: JobPost }) {
                   <div className="space-y-0.5">
                     <p className="font-medium text-slate-900">{when(r.interview.starts_at)}</p>
                     <p className="text-[11px] text-slate-500">{r.interview.mode === 'online' ? 'Online' : r.interview.location} · {(r.interview.panel_names ?? []).join(', ')}</p>
+                    <p className="text-[11px] text-slate-500">
+                      {r.interview.status === 'done' ? 'Interview done' : `${r.interview.scores_in ?? 0}/${r.interview.panel.length} scored`}
+                      {' · '}{r.interview.form_submitted ? 'form filled' : r.interview.invite_sent ? 'invited, form pending' : 'not invited yet'}
+                    </p>
                     {r.interview.late_reason && <p className="text-[11px] text-amber-700">After the due date: {r.interview.late_reason}</p>}
                   </div>
                 ) : <p className="text-xs text-slate-500">Due by {formatDate(r.due_by)}{r.due_by < b.today ? ' (overdue)' : ''}</p>}
-                <button type="button" className="mt-1 inline-flex items-center gap-1 text-xs text-primary-700 hover:underline" onClick={() => setScheduling(r)}>
-                  <CalendarClock className="size-3" />{r.interview ? 'Change' : 'Schedule'}</button>
+                {r.interview?.status !== 'done' && (
+                  <button type="button" className="mt-1 inline-flex items-center gap-1 text-xs text-primary-700 hover:underline" onClick={() => setScheduling(r)}>
+                    <CalendarClock className="size-3" />{r.interview ? 'Change' : 'Schedule'}</button>
+                )}
               </td>
               <td className={td}><Badge tone={r.status === 'interview_scheduled' ? 'green' : 'slate'}>{APPLICANT_STATUS_LABEL[r.status]}</Badge></td>
             </tr>
@@ -125,6 +131,7 @@ export function TestsPanel({ post }: { post: JobPost }) {
 
       {inviting && objective && (
         <InviteLinksDialog postId={post.id} postTitle={post.title} orgName={post.org_name} durationMinutes={objective.duration_minutes}
+          emailReady={!!b.email_ready}
           applicants={invitable.map((r) => ({ id: r.applicant_id, full_name: r.full_name }))}
           onClose={() => { setInviting(false); setSelected(new Set()) }} />
       )}

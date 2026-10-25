@@ -3,7 +3,7 @@ import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   Award, Banknote, CircleHelp, BookOpen, Building2, HandCoins, PiggyBank, Receipt, Scale, Star, CalendarClock, CalendarDays, Clock, FileText, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
-  ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X, Gauge, UserPlus, Megaphone, Bot,
+  ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X, Gauge, UserPlus, Megaphone, Bot, MessagesSquare,
 } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
 import { useOrgLogo } from '@/lib/files'
@@ -30,6 +30,7 @@ export const NAV: NavItem[] = [
   { to: '/leave', label: 'Leave', icon: CalendarDays, anyOf: ['leave.request', 'leave.approve', 'leave.view_all'] },
   { to: '/payslips', label: 'My payslips', icon: FileText, anyOf: ['payroll.view_own'] },
   { to: '/my-reviews', label: 'My reviews', icon: Award },
+  { to: '/my-interviews', label: 'My interviews', icon: MessagesSquare },
   { to: '/attendance', label: 'Attendance', icon: Clock, anyOf: ['attendance.view_team', 'attendance.view_all'], section: 'Team' },
   { to: '/overtime', label: 'Overtime', icon: Timer, anyOf: ['overtime.view', 'overtime.approve'] },
   { to: '/employees', label: 'Employees', icon: Users, anyOf: ['employees.view'] },
@@ -84,6 +85,7 @@ const TITLES: [string, string][] = [
   ['/settings/recruitment', 'Recruitment settings'],
   ['/preview/job-post', 'Job post demo'],
   ['/my-reviews', 'My reviews'],
+  ['/my-interviews', 'My interviews'],
   ['/compensation', 'Compensation'],
   ['/payroll', 'Payroll'],
   ['/payslips', 'My payslips'],

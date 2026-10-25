@@ -8,6 +8,7 @@ import { errorMessage } from '@/lib/identity'
 import { formatDateTime } from '@/lib/options'
 import { Alert, Badge, Button, Card, Input, PageLoader, cx } from '@/components/ui'
 import { PageHeader, Select } from '@/components/kit'
+import { MessagingSettings } from './MessagingSettings'
 
 const MODELS: { value: AiModel; label: string }[] = [
   { value: 'claude-opus-5-5', label: 'Claude Opus 5.5 — most accurate (default)' },
@@ -50,7 +51,7 @@ export default function RecruitmentSettingsPage() {
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
-      <PageHeader title="Recruitment settings" description="How CVs are read, and the AI key your company pays for." />
+      <PageHeader title="Recruitment settings" description="How CVs are read, the AI key, email / SMS and message templates." />
 
       <Card className="space-y-4">
         <h3 className="font-semibold text-slate-900">Reading CVs</h3>
@@ -110,6 +111,8 @@ export default function RecruitmentSettingsPage() {
           </>
         )}
       </Card>
+
+      <MessagingSettings />
     </div>
   )
 }

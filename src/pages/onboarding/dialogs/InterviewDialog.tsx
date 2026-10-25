@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { Sparkles } from 'lucide-react'
 import type { BoardRow } from '@/onboarding-process/core/types'
 import { isoToZoned, zonedToIso } from '@/onboarding-process/core/assessment'
-import { useInterviewerOptions, useRecruitAction } from '@/lib/recruit'
+import { sendQueuedMessages, useInterviewerOptions, useRecruitAction } from '@/lib/recruit'
 import { supabase } from '@/lib/supabase'
 import { errorMessage } from '@/lib/identity'
 import { formatDate } from '@/lib/options'
@@ -14,7 +14,10 @@ import { Checkbox, Modal, Select, Textarea } from '@/components/kit'
 export function InterviewDialog({ postId, row, timezone, onClose }: { postId: string; row: BoardRow; timezone: string; onClose: () => void }) {
   const current = row.interview
   const options = useInterviewerOptions(postId, true)
-  const save = useRecruitAction<{ p_applicant_id: string; p: Record<string, unknown> }>('save_interview')
+  const save = useRecruitAction<{ p_applicant_id: string; p: Record<string, unknown> }, string>('save_interview')
+  const invite = useRecruitAction<{ p_interview_id: string; p_base_url: string }>('send_interview_invite')
+  const [notify, setNotify] = useState(!current?.invite_sent)
+  const [after, setAfter] = useState<string | null>(null)
   const cancel = useRecruitAction<{ p_interview_id: string; p_reason: string }>('cancel_interview')
   const start = current ? isoToZoned(current.starts_at, timezone) : { date: '', time: '10:00' }
   const [panel, setPanel] = useState<Set<string>>(new Set(current?.panel ?? []))
@@ -65,10 +68,18 @@ export function InterviewDialog({ postId, row, timezone, onClose }: { postId: st
       </> : <>
         {current && <Button variant="ghost" className="mr-auto" onClick={() => setCancelling(true)}>Cancel interview</Button>}
         <Button variant="secondary" onClick={onClose}>Close</Button>
-        <Button loading={save.isPending} disabled={!ready} onClick={() => save.mutate({ p_applicant_id: row.applicant_id, p: {
-          starts_at: zonedToIso(date, time, timezone), duration_minutes: minutes, mode, location, online_link: link,
-          panel: [...panel], note, late_reason: isLate ? late : null, proposed_by: proposedBy,
-        } }, { onSuccess: onClose })}>Save</Button>
+        {after ? <Button onClick={onClose}>Done</Button> : (
+          <Button loading={save.isPending || invite.isPending} disabled={!ready} onClick={() => save.mutate({ p_applicant_id: row.applicant_id, p: {
+            starts_at: zonedToIso(date, time, timezone), duration_minutes: minutes, mode, location, online_link: link,
+            panel: [...panel], note, late_reason: isLate ? late : null, proposed_by: proposedBy,
+          } }, { onSuccess: (id) => {
+            if (!notify) return onClose()
+            invite.mutate({ p_interview_id: id, p_base_url: window.location.origin }, { onSuccess: async () => {
+              const r = await sendQueuedMessages()
+              setAfter('error' in r ? `Saved. The invitation is queued (${r.error}).` : `Saved and sent ${r.sent} message${r.sent === 1 ? '' : 's'}${r.failed ? `, ${r.failed} failed (see Messages)` : ''}.`)
+            } })
+          } })}>{notify ? 'Save and send invitation' : 'Save'}</Button>
+        )}
       </>}>
       {cancelling ? (
         <div className="space-y-3">
@@ -113,6 +124,10 @@ export function InterviewDialog({ postId, row, timezone, onClose }: { postId: st
               : <Input label="Place" placeholder="Head Office, 3rd floor meeting room" value={location} onChange={(e) => setLocation(e.target.value)} />}
           </div>
           <Textarea label="Note for the panel (optional)" value={note} maxLength={500} onChange={(e) => setNote(e.target.value)} />
+          <Checkbox label={current?.invite_sent ? 'Send the invitation again (new form link)' : 'Email the applicant the invitation with the pre-interview form'}
+            checked={notify} onChange={setNotify} />
+          {invite.isError && <Alert>{errorMessage(invite.error)}</Alert>}
+          {after && <Alert tone="success">{after}</Alert>}
         </div>
       )}
     </Modal>

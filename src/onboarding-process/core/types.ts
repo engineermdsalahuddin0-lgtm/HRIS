@@ -225,6 +225,8 @@ export interface Interview {
   id: string; starts_at: string; duration_minutes: number; mode: 'in_person' | 'online'
   location: string | null; online_link: string | null; panel: string[]; panel_names: string[] | null
   due_by: string; late_reason: string | null; note: string | null; proposed_by: 'system' | 'user'
+  /** R5 */
+  status?: 'scheduled' | 'done' | 'cancelled'; scores_in?: number; invite_sent?: boolean; form_submitted?: boolean
 }
 
 export interface BoardRow {
@@ -241,7 +243,7 @@ export interface BoardRow {
 }
 
 export interface AssessmentBoard {
-  can: { manage: boolean; schedule: boolean }; today: string; timezone: string
+  can: { manage: boolean; schedule: boolean }; today: string; timezone: string; email_ready?: boolean
   papers: Partial<Record<PaperKind, BoardPaper>>
   rows: BoardRow[]
 }
@@ -256,3 +258,67 @@ export interface TestState {
   questions: { position: number; section: QuestionSection; stem: string; options: string[]; marks: number }[] | null
   answers: Record<string, number> | null
 }
+
+// ----------------------------------------------------------------------------- R5
+export type Channel = 'email' | 'sms'
+
+export interface MessagingChannel {
+  provider: 'resend' | 'http'; enabled: boolean; configured: boolean; last4: string | null
+  config: Record<string, string | null>
+  tested_at: string | null; test_status: 'ok' | 'failed' | null; test_message: string | null
+}
+
+export interface MessageTemplate { key: import('./interview').TemplateKey; channel: Channel; subject: string | null; body: string; updated_at: string }
+
+export interface MessagingSettings { is_admin: boolean; channels: Partial<Record<Channel, MessagingChannel>>; templates: MessageTemplate[] }
+
+export interface NotificationRow {
+  id: string; applicant_id: string; full_name: string; template_key: string; channel: Channel; to_address: string
+  subject: string | null; status: 'queued' | 'sending' | 'sent' | 'failed'; error: string | null; attempts: number
+  created_at: string; sent_at: string | null
+}
+
+export interface PreinterviewAnswers {
+  can_attend: boolean; current_employer: string | null; current_designation: string | null
+  notice_period_days: number | null; current_salary: number | null; expected_salary: number | null; questions: string | null
+}
+
+export interface PreinterviewForm {
+  organization: string; job_title: string; first_name: string; interview_time: string; interview_place: string
+  online_link: string | null; status: 'open' | 'submitted' | 'closed' | 'cancelled'; answers: PreinterviewAnswers | null
+}
+
+export interface MyInterview {
+  id: string; starts_at: string; duration_minutes: number; mode: 'in_person' | 'online'; location: string | null
+  online_link: string | null; status: 'scheduled' | 'done'; applicant_name: string; job_title: string; scored: boolean; timezone: string
+}
+
+export interface PanelScore {
+  full_name: string; scores: Record<import('./interview').Category, number>; mean: number
+  recommendation: import('./interview').Recommendation; comment: string | null
+}
+
+export interface InterviewerKit {
+  access: 'panel' | 'hr'; timezone: string
+  interview: { id: string; starts_at: string; duration_minutes: number; mode: 'in_person' | 'online'; location: string | null
+               online_link: string | null; status: 'scheduled' | 'done' | 'cancelled'; note: string | null
+               panel: { employee_id: string; full_name: string; scored: boolean }[] }
+  applicant: { id: string; full_name: string; email: string; phone: string | null; source: ApplicantSource; cover_note: string | null }
+  job: { title: string; department_name: string; profile: Omit<JobProfile, 'id' | 'updated_at'> }
+  screening: { ats_score: number | null; gate: import('./ats').Gate | null; years: number | null; education_level: string | null
+               matched_required: string[] | null; matched_nice: string[] | null; summary: string | null } | null
+  objective: { percent: number; score: number; total: number; passed: boolean | null; sections: Record<string, { percent: number | null }> } | null
+  written: { percent: number; score: number; total: number; passed: boolean | null } | null
+  form: { answers: PreinterviewAnswers | null; submitted_at: string | null } | null
+  my_score: { scores: Record<import('./interview').Category, number>; recommendation: import('./interview').Recommendation
+              comment: string | null; submitted_at: string } | null
+  all_scores: PanelScore[] | null
+}
+
+export interface CandidateResult {
+  applicant_id: string; full_name: string; status: ApplicantStatus; interview_status: 'scheduled' | 'done'; panel_size: number
+  scores: { full_name: string; mean: number; recommendation: import('./interview').Recommendation }[]
+  figures: import('./composite').CompositeFigures
+}
+
+export interface CandidateResults { weights: Weights; has_written_test: boolean; rows: CandidateResult[] }

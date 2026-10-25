@@ -186,6 +186,10 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - `assessment_invites` (token sha-256, shuffled order, server deadline), `assessment_answers`, `assessment_results`
   (by section), `written_marks`, `interview_schedules` (panel 1–4, due_by, prev_status)
 
+**Onboarding R5 — messages & interviews** (schema in architecture.md §5)
+- `org_messaging` (email Resend / SMS gateway, keys encrypted), `message_templates`, `notifications` (outbox, no
+  audit), `preinterview_forms` (token), `interview_scores` (5 × 1–5, recommendation)
+
 **Performance (manual scoring demo)**
 - `performance_cycles` (draft|open|closed), `performance_criteria` (weight, sum 100), `performance_reviews` (one per
   cycle+employee; draft|submitted|acknowledged, overall_score, rating), `performance_scores` (1-5 + comment)
@@ -240,6 +244,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - **Onboarding R4 (tests & interviews)**: `get_assessment_board`, `invite_to_test`, `cancel_test_invite`,
   `save_written_marks`, `list_interviewer_options`, `propose_interview_slot`, `save_interview`, `cancel_interview`,
   `move_applicants` (redefined); anon by token: `get_test`, `start_test`, `save_test_answer`, `submit_test`
+- **Onboarding R5 (messages & interviews)**: `get_messaging_settings`, `save/remove_messaging_channel`,
+  `save_message_template`, `messaging_test_context`, `record_messaging_test`, `service_messaging_config` (service_role),
+  `list_notifications`, `claim_notifications`, `mark_notification`, `retry_notification`, `invite_to_test` (5 args now),
+  `send_interview_invite`, anon `get/submit_preinterview_form`, `list_my_interviews`, `get_interviewer_kit`,
+  `submit_interview_score`, `get_candidate_results`, `get_assessment_board` (re-created). Edge Function `recruit-notify`
 - **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
   `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
 - 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
@@ -299,7 +308,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   poster PNG with QR, applicants table → profile modal) · public `/careers/:orgCode[/:slug]` (apply form) · dev
   `/preview/workforce`, `/preview/job-post`; R3: post page tabs Applicants (score, read CVs, shortlist) / Question
   papers, `/settings/recruitment` (CV mode, Claude key); R4: post tab Tests & interviews (links, scores, written
-  marks, interview dialog with "Propose a time"), public `/t/:token` test page; core logic in `src/onboarding-process/`
+  marks, interview dialog with "Propose a time"), public `/t/:token` test page; R5: post tabs Results / Messages,
+  `/my-interviews` + kit (every employee), public `/f/:token` form, email/SMS/templates on Recruitment settings;
+  core logic in `src/onboarding-process/`
 - Visual helpers: `lib/calculationGuide.ts` (explainLine, taxSteps, weightedScore…), `components/references.tsx`
   (SourceBadge, ReferenceChips, ReferenceCard), `components/calcVisuals.tsx` (TaxBreakdown, SlabBar, NetFlow) — plain HTML bars
 - Platform: `/platform` · `/platform/applications` · `/platform/organizations/:id`
@@ -330,7 +341,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Onboarding R2 job posts** | `20261026000100_recruit_r2_job_posts` | ✅ applied, passed 2026-10-25 | `recruit_r2_job_posts_test.sql` (12) |
 | **Onboarding R3 screening** | `20261027000100_recruit_r3_screening` | ⏳ not applied (needs R2); Edge Function `recruit-ai` not deployed | `recruit_r3_screening_test.sql` (10) |
 | **Onboarding R4 tests & interviews** | `20261028000100_recruit_r4_tests_interviews` | ⏳ not applied (needs R3) | `recruit_r4_tests_interviews_test.sql` (9) |
-- Local (2026-10-25): all 11 SQL suites pass in PGlite (141 checks); vitest 111 tests; typecheck + build pass.
+| **Onboarding R5 messages & interviews** | `20261029000100_recruit_r5_messages_interviews` | ⏳ not applied (needs R4); Edge Function `recruit-notify` not deployed | `recruit_r5_messages_interviews_test.sql` (8) |
+- Local (2026-10-25): all 12 SQL suites pass in PGlite (149 checks); vitest 118 tests; typecheck + build pass.
+- Apply order for the pending recruit steps: R3 → R4 → R5 (each file checks the previous one exists).
   The R2 test's manager check was changed in R3 (managers may now read their department's posts).
 - No Deno / Supabase CLI on this machine: the Edge Function is not type-checked or run locally.
 - PowerShell 5.1 `Get-Content`/`Set-Content` on UTF-8 files without BOM corrupts non-ASCII (– — •): edit with the
@@ -683,6 +696,13 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   + 15 days, later needs a reason; HR or department Manager schedules; test links / marks are HR only; screening out
   after tests cancels open links and the interview. JS `String.replace` with `$$` in the replacement writes `$` — use
   a function replacement when editing SQL with Node.
+- **R5 built 2026-10-25** (not applied, `recruit-notify` not deployed). Choices: email provider Resend (user did not
+  answer), SMS generic gateway adapter off by default; English default templates editable (Bangla allowed); links
+  carry `window.location.origin` as base URL; messages wait in the outbox until email is set up; the app sends right
+  after queuing (no pg_cron yet); interview scoring 5 categories incl. confidence, from 1 h before the start, others'
+  scores hidden until one scores; suggested questions without AI; composite computed live (no table), PMS for
+  internal candidates not built; selection decision moved to R6. plpgsql: wrap `CASE … THEN` inside an `IF`
+  condition in parentheses (bit us twice).
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

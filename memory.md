@@ -1,3 +1,5 @@
+Admin ID: nabidbhuia313@gmail.com 
+Password: 1234Nabidbhuia
 # Olympus HRIS — Project memory (handbook + decision log)
 
 > **Every new session: read Part A fully before doing anything.** It is the single source of truth for how the
@@ -291,10 +293,10 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | Part 2 time & attendance + files | `20261016000100…0400` | ✅ applied, passed | `part2_attendance_test.sql` (21) |
 | Part 3A salary structure | `20261017000100_part3a_salary_structure` | ✅ applied 2026-10-17 | `part3a_salary_structure_test.sql` (11) |
 | Platform SaaS / landing | `20261018000100_platform_saas` | ✅ applied, passed | `platform_saas_test.sql` (7) |
-| **Part 3C tax/PF/gratuity + refs** | `20261020000100_part3c_tax_pf_gratuity` | ⏳ not applied | `part3c_tax_pf_gratuity_pms_test.sql` (14, covers PMS too) |
-| **PMS manual scoring demo** | `20261020000200_pms_manual_scoring` | ⏳ not applied | (same test) |
+| **Part 3C tax/PF/gratuity + refs** | `20261020000100_part3c_tax_pf_gratuity` | ✅ applied (R1 ran on top of it; own test run not confirmed) | `part3c_tax_pf_gratuity_pms_test.sql` (14, covers PMS too) |
+| **PMS manual scoring demo** | `20261020000200_pms_manual_scoring` | ✅ applied (R1 guard needs it; test not confirmed) | (same test) |
 | **Part 3B payroll engine** | `20261019000100_part3b_payroll_engine` | ✅ applied, passed 2026-10-17 | `part3b_payroll_engine_test.sql` (12) |
-| **Onboarding R1 workforce** | `20261025000100_recruit_r1_workforce` | ⏳ not applied (needs 3C + PMS first) | `recruit_r1_workforce_test.sql` (9) |
+| **Onboarding R1 workforce** | `20261025000100_recruit_r1_workforce` | ✅ applied, passed 2026-10-25 | `recruit_r1_workforce_test.sql` (9) |
 - Local (2026-10-25): all 8 SQL suites pass in PGlite (110 checks); vitest 82 tests; typecheck + build pass.
 - 2026-10-17: running 3B failed (23503, `compensation.view` missing) because 3A was never applied; 3B now starts
   with a guard that names the missing prerequisite. Always probe with the anon key before trusting "applied".
@@ -610,7 +612,7 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   an interviewer-scored category; no CV retention after close (rejected purged, selected → employee); applicant row →
   profile modal; salary toggle per post (off = "Negotiable"); joining feedback named. Edge Functions accepted for
   AI/email/apply only; service-role key only inside Edge Functions. Approval chain still a default (HR → Admin).
-- **R1 built 2026-10-25** (backend + UI, all local tests pass; not applied on Supabase). Choices made while building:
+- **R1 built 2026-10-25** (backend + UI; applied on Supabase and its test passed the same day). Choices made while building:
   plan per designation (no office level, no versioning — snapshots keep history); method + budget in
   `department_workforce`; capacity = one company figure × availability (roster-based later); vacancies drafted only
   from the current/previous month; demo cases are browser-only (never stored); budget/cost hidden without

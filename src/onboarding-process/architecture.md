@@ -4,7 +4,7 @@
 > (status table §1, file map §3, schema §5, RPCs §7). The project-wide handbook is `memory.md` (repo root);
 > this file owns the details of this module and `memory.md` points here.
 
-Status: **R1 built** (2026-10-25: migration + golden test + core + UI; not yet applied on Supabase). R2–R7 designed.
+Status: **R1 built** (2026-10-25: migration + golden test + core + UI; applied on Supabase, test passed). R2–R7 designed.
 Final settlement is a **separate module, built later**.
 
 ---------------------------------------------------------------------------------------------------------------------

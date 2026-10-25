@@ -11,8 +11,9 @@ import { errorMessage } from '@/lib/identity'
 import { formatDate } from '@/lib/options'
 import { Alert, Badge, Button, Card, EmptyState, Input, PageLoader, Spinner, cx } from '@/components/ui'
 import { Modal, PageHeader, Select, Table, Tabs, Textarea, td, th } from '@/components/kit'
+import { OrganogramDemo } from './OrganogramDemo'
 
-type Tab = 'chart' | 'budget' | 'grades'
+type Tab = 'chart' | 'budget' | 'grades' | 'demo'
 
 function PositionCard({ p, grade, onOpen }: { p: ChartPosition; grade: ChartGrade; onOpen: () => void }) {
   const meta = STATE_META[p.state]
@@ -70,7 +71,7 @@ function PositionDialog({ p, grade, chart, onClose }: { p: ChartPosition; grade:
   )
 }
 
-function Chart({ chart }: { chart: DepartmentChart }) {
+export function Chart({ chart }: { chart: DepartmentChart }) {
   const [open, setOpen] = useState<{ p: ChartPosition; g: ChartGrade } | null>(null)
   const levels = chartLevels(chart.grades)
   const counts = stateCounts(chart.grades)
@@ -261,8 +262,9 @@ export default function OrganogramPage() {
               </div>
             )}
           </div>
-          <Tabs value={tab} onChange={setTab} tabs={[{ key: 'chart', label: 'Chart' }, { key: 'budget', label: 'Budget & slots' }, { key: 'grades', label: 'Grades & designations' }]} />
-          {tab === 'grades' ? <GradesPanel />
+          <Tabs value={tab} onChange={setTab} tabs={[{ key: 'chart', label: 'Chart' }, { key: 'budget', label: 'Budget & slots' },
+            { key: 'grades', label: 'Grades & designations' }, { key: 'demo', label: 'Demo' }]} />
+          {tab === 'demo' ? <OrganogramDemo /> : tab === 'grades' ? <GradesPanel />
             : chart.isPending ? <PageLoader /> : chart.isError ? <Alert>{errorMessage(chart.error)}</Alert>
               : tab === 'chart' ? <Chart chart={chart.data} />
                 : grades.data ? <BudgetForm key={`${chart.data.department.id}-${chart.data.budget?.updated_at ?? ''}`} chart={chart.data} grades={grades.data.grades} /> : <Spinner />}

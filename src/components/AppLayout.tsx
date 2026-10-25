@@ -82,6 +82,7 @@ const TITLES: [string, string][] = [
   ['/workforce', 'Workforce planning'],
   ['/vacancies', 'Vacancies'],
   ['/organogram', 'Organogram'],
+  ['/preview/organogram', 'Organogram demo'],
   ['/preview/workforce', 'Workforce demo'],
   ['/job-posts', 'Job posts'],
   ['/settings/recruitment', 'Recruitment settings'],

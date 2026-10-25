@@ -816,6 +816,11 @@ first; otherwise paste each function in the Supabase Dashboard editor. Secrets a
   slots per grade with filled / open / blocked, bulk Block open / Open blocked, live check), Grades & designations
   (edit the ladder, map each designation). Core: `core/organogram.ts` (+ `__tests__/organogram.test.ts`), hooks
   `src/lib/organogram.ts`. Test: `supabase/tests/organogram_test.sql` (8 checks).
+- **Demo** (browser only, never stored): `demo/organogramDemo.ts` — Finance & Accounts with the spec numbers (budget 30;
+  ED 1, GM 3, DGM 3 with 1 hired + 2 blocked, AGM 3 with 5 people → 2 extra, Sr Exec 10 and Jr Exec 10 with recruitment
+  running; 23 filled + 2 offers) and HR & Admin (budget 6, blocks after separation, GM being replaced). Shown on the
+  Organogram page's **Demo** tab and at `/preview/organogram` (dev, no login). `__tests__/organogramDemo.test.ts`
+  checks the demo obeys the rules (slots ≤ budget, planned = slots, extras only when the grade is full).
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 11. Memory and documentation rules for this module

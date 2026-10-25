@@ -139,6 +139,7 @@ export const router = createBrowserRouter([
         { index: true, element: page(() => import('@/pages/DashboardPage')) },
         { path: 'workforce', element: named(() => import('@/pages/onboarding/WorkforceDemo'), 'WorkforceDemoPage') },
         { path: 'job-post', element: named(() => import('@/pages/onboarding/JobPostPage'), 'JobPostDemoPage') },
+        { path: 'organogram', element: named(() => import('@/pages/onboarding/OrganogramDemo'), 'OrganogramDemoPage') },
       ] }]
     : []),
   { path: '*', element: <Navigate to="/" replace /> },

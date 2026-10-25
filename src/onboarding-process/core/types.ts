@@ -1,4 +1,4 @@
-// Shared types of the onboarding-process module (R1: workforce planning).
+// Shared types of the onboarding-process module (R1: workforce planning; R2: job posts, applicants).
 // Field names match the JSON the database returns (snake_case).
 
 export type WorkloadMethod = 'hours' | 'output_smv' | 'volume_std' | 'ratio'
@@ -95,3 +95,72 @@ export interface Vacancy {
   hr_reviewed_at: string | null; decided_by_name: string | null; decided_at: string | null
   events: VacancyEvent[]
 }
+
+// ----------------------------------------------------------------------------- R2
+export type EducationLevel = 'any' | 'ssc' | 'hsc' | 'diploma' | 'bachelor' | 'masters' | 'phd'
+export type EmploymentType = 'permanent' | 'contract' | 'probation' | 'intern' | 'part_time'
+
+export interface JobProfile {
+  id: string; designation_id: string; department_id: string
+  experience_min_years: number; experience_max_years: number | null
+  education_level: EducationLevel; education_subjects: string[]
+  required_skills: string[]; nice_skills: string[]; duties: string
+  employment_type: EmploymentType; version: number; updated_at: string
+}
+
+export interface JobProfileRow {
+  designation_id: string; designation_name: string; department_id: string; department_name: string
+  grade_code: string; profile: JobProfile | null
+}
+
+export type JobPostStatus = 'draft' | 'published' | 'closed' | 'cancelled'
+export type PosterTheme = 'orange' | 'navy' | 'green' | 'maroon'
+export interface Weights { ats: number; objective: number; written: number; interview: number }
+
+/** Salary fields shared by the HR and public views of a post. */
+export interface SalaryFields { show_salary: boolean; salary_min: number | null; salary_max: number | null }
+
+export interface JobPostSummary extends SalaryFields {
+  id: string; vacancy_id: string; title: string; status: JobPostStatus; deadline: string; public_slug: string
+  department_name: string; designation_name: string; seats: number
+  published_at: string | null; created_at: string; applicants: number; with_cv: number
+}
+
+export interface ReadyVacancy {
+  vacancy_id: string; department_name: string; designation_id: string; designation_name: string
+  grade_code: string; seats: number; reason: VacancyReason; decided_at: string | null; has_profile: boolean
+}
+
+export interface JobPostList { org_code: string; posts: JobPostSummary[]; ready: ReadyVacancy[] }
+
+export interface JobPost extends SalaryFields {
+  id: string; vacancy_id: string; department_id: string; designation_id: string
+  profile: Omit<JobProfile, 'id' | 'updated_at'>; profile_version: number; profile_current_version: number | null
+  title: string; description_md: string; location: string | null; seats: number; employment_type: EmploymentType
+  deadline: string; public_slug: string; poster: { theme: PosterTheme }; weights: Weights; has_written_test: boolean
+  status: JobPostStatus; published_at: string | null; closed_at: string | null; close_note: string | null
+  department_name: string; designation_name: string; grade_code: string; org_code: string; org_name: string
+  vacancy_status: VacancyStatus; vacancy_reason: VacancyReason; today: string
+}
+
+export type ApplicantSource = 'form' | 'email' | 'linkedin' | 'bdjobs' | 'referral' | 'other'
+export type ApplicantStatus =
+  | 'applied' | 'screened_out' | 'shortlisted' | 'test_invited' | 'test_done' | 'written_done'
+  | 'interview_scheduled' | 'interviewed' | 'selected' | 'rejected' | 'offer_sent' | 'offer_accepted'
+  | 'offer_declined' | 'prejoining_done' | 'joined' | 'purged'
+
+export interface Applicant {
+  id: string; full_name: string; email: string; phone: string | null; source: ApplicantSource
+  status: ApplicantStatus; has_cv: boolean; cv_path: string | null; cover_note: string | null
+  consent_at: string | null; is_internal: boolean; created_at: string
+  events: { event: string; from_status: string | null; to_status: string | null; actor_name: string | null; created_at: string }[]
+}
+
+/** What the public careers page receives (no internal fields). */
+export interface PublicJobPost extends SalaryFields {
+  slug: string; title: string; location: string | null; seats: number; employment_type: EmploymentType
+  deadline: string; published_at: string | null; department_name: string; is_open: boolean
+  description_md?: string; organization?: { name: string; org_code: string }
+}
+
+export interface PublicCareers { organization: { name: string; org_code: string }; posts: PublicJobPost[] }

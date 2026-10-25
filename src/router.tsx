@@ -47,6 +47,9 @@ export const router = createBrowserRouter([
   { path: '/login', element: <PublicOnly><LoginPage /></PublicOnly> },
   { path: '/register', element: <PublicOnly>{page(() => import('@/pages/public/RegisterPage'))}</PublicOnly> },
   { path: '/signup', element: <Navigate to="/register" replace /> },
+  // Public careers page and apply form (no login, signed-in visitors too).
+  { path: '/careers/:orgCode', element: named(() => import('@/pages/public/careers/CareersPages'), 'CareersPage') },
+  { path: '/careers/:orgCode/:slug', element: named(() => import('@/pages/public/careers/CareersPages'), 'JobApplyPage') },
   {
     element: <RequireSession />,
     children: [
@@ -96,6 +99,9 @@ export const router = createBrowserRouter([
               // Onboarding process R1: workforce planning and vacancies
               guarded(WORKFORCE, '/workforce', page(() => import('@/pages/onboarding/WorkforcePage'))),
               guarded(VACANCIES, '/vacancies', page(() => import('@/pages/onboarding/VacanciesPage'))),
+              // R2: job profiles, posts, applicants
+              guarded('recruit.manage', '/job-posts', page(() => import('@/pages/onboarding/JobPostsPage'))),
+              guarded('recruit.manage', '/job-posts/:id', page(() => import('@/pages/onboarding/JobPostPage'))),
               {
                 element: <RequirePlatformAdmin />,
                 children: [
@@ -116,6 +122,7 @@ export const router = createBrowserRouter([
     ? [{ path: '/preview', element: <PreviewPage />, children: [
         { index: true, element: page(() => import('@/pages/DashboardPage')) },
         { path: 'workforce', element: named(() => import('@/pages/onboarding/WorkforceDemo'), 'WorkforceDemoPage') },
+        { path: 'job-post', element: named(() => import('@/pages/onboarding/JobPostPage'), 'JobPostDemoPage') },
       ] }]
     : []),
   { path: '*', element: <Navigate to="/" replace /> },

@@ -4,7 +4,8 @@
 > (status table §1, file map §3, schema §5, RPCs §7). The project-wide handbook is `memory.md` (repo root);
 > this file owns the details of this module and `memory.md` points here.
 
-Status: **R1 built** (2026-10-25: migration + golden test + core + UI; applied on Supabase, test passed). R2–R7 designed.
+Status: **R1 built** (2026-10-25; applied on Supabase, test passed). **R2 built** (2026-10-25; not yet applied).
+R3–R7 designed.
 Final settlement is a **separate module, built later**.
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -26,8 +27,8 @@ generated pre-filled for printing and signing, and a named joining-day feedback 
 
 | Step | Content | Status |
 |---|---|---|
-| **R1** | Headcount plan, workload (4 methods, (?) tooltips), vacancy draft + approval, workforce dashboard, 10 demo cases | ✅ code done, tests pass locally; ⏳ apply `20261025000100_recruit_r1_workforce.sql` + run `recruit_r1_workforce_test.sql` |
-| **R2** | Job profiles → job post (text + poster) → careers page + apply form + temporary CV storage | ⏳ |
+| **R1** | Headcount plan, workload (4 methods, (?) tooltips), vacancy draft + approval, workforce dashboard, 10 demo cases | ✅ applied, `recruit_r1_workforce_test.sql` passed on Supabase |
+| **R2** | Job profiles → job post (text + poster) → careers page + apply form + temporary CV storage | ✅ code done, tests pass locally; ⏳ apply `20261026000100_recruit_r2_job_posts.sql` + run `recruit_r2_job_posts_test.sql` |
 | **R3** | CV parsing (AI), ATS gate + score, markdown profile, report table, profile modal | ⏳ |
 | **R4** | Question generation + review, online objective test (own page), written-test marks entry, interview scheduling | ⏳ |
 | **R5** | Email (now) / SMS (coded, off), pre-interview form, interviewer kit, panel scoring, composite result | ⏳ |
@@ -58,6 +59,7 @@ build, commit, update this file and `memory.md` A9.
 | 13 | Joining feedback | **Named**, not anonymous. |
 | 14 | Approval chain | *Default until the user says otherwise*: vacancy = drafted (system/Manager) → HR review → Admin approve (budget); offer = HR prepares → Admin approves (preparer ≠ approver). |
 | 15 | Architecture | Recruitment needs outside calls (AI, email, SMS, captcha) → **Supabase Edge Functions** for those three jobs only (§9). Everything else stays in Postgres RPCs. |
+| 16 | Apply without an Edge Function (R2 build, 2026-10-25) | The apply form works with anon RPCs and a direct upload to the private bucket (only the returned path, within 1 hour, once, then token confirm). Honeypot + rate limit for now; captcha moves into an Edge Function when R3 brings the first one. |
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 3. Where things live (file map)
@@ -68,30 +70,36 @@ the tooling expects them there:
   and the manual SQL-Editor apply order read only those folders).
 - Edge Functions → `supabase/functions/<name>/` (Supabase's required layout).
 
-✅ = exists (R1), ⏳ = planned.
+✅ = exists (R1, R2), ⏳ = planned.
 ```
 src/onboarding-process/                 ← core of the module (import as @/onboarding-process/...)
   architecture.md                       ✅ this file
   core/
-    types.ts                            ✅ shared types (figures, dashboard, vacancy …; R2+ adds JobPost, Applicant …)
+    types.ts                            ✅ shared types (figures, dashboard, vacancy, job profile/post, applicant, public post)
     workload.ts                         ✅ capacity, index, required FTE, gap, attrition, suggestion rules (mirror of SQL)
     explain.ts                          ✅ text for every (?) tooltip: formula, numbers filled in, reference keys
     workflow.ts                         ✅ vacancy status labels + which actions a viewer gets (maker-checker)
     inputCsv.ts                         ✅ pasted spreadsheet rows → output / volume figures
-    jobPost.ts                          ⏳ fill post from job profile, salary text ("Negotiable"), deadline
+    jobPost.ts                          ✅ labels, salary text ("Negotiable"), deadline, weights, CV rules, pasted applicants
+    markdown.ts                         ✅ safe Markdown subset (## / - / **bold**) → blocks; section items for the poster
+    poster.ts                           ✅ poster content (facts, requirements, salary, deadline, URL) + word wrap
     ats.ts                              ⏳ must-have gate + ATS score breakdown (mirror of SQL)
     assessment.ts                       ⏳ objective scoring, written normalisation
     composite.ts                        ⏳ composite score, weight renormalisation, interviewer spread flag
     schedule.ts                         ⏳ 15-day window, slot proposal around leave/holiday/weekly off
   demo/
     workloadCases.ts                    ✅ the 10 demo cases + expected results (§6.7)
+    jobPostDemo.ts                      ✅ sample post (demo case 5) for /preview/job-post
   integrations/
     providers.ts                        ⏳ provider ids and config shapes (ai: claude; email: resend|smtp; sms: …)
   __tests__/
     workload.test.ts                    ✅ golden numbers = SQL test numbers
+    jobPost.test.ts                     ✅ salary toggle, deadline, weights, CV rules, pasted rows, markdown, poster
 
 src/lib/onboarding.ts                   ✅ React Query hooks (dashboard, vacancies, any workforce RPC)
+src/lib/recruit.ts                      ✅ hooks: posts, profiles, applicants, CV upload/open, public careers + apply
 src/components/InfoTip.tsx              ✅ the (?) popover (formula, working, references)
+src/components/Markdown.tsx             ✅ renders core/markdown.ts blocks as elements (never raw HTML)
 src/pages/onboarding/
   WorkforcePage.tsx                     ✅ /workforce: month, Build, KPIs, department cards, tabs
   WorkforceSetup.tsx                    ✅ tabs Output data · Plan & methods · Settings
@@ -100,17 +108,29 @@ src/pages/onboarding/
   VacanciesPage.tsx                     ✅ /vacancies: needs my action / open / closed
   dialogs/VacancyDialog.tsx             ✅ detail, workload, history, review / approve actions
   dialogs/DraftVacancyDialog.tsx        ✅ manual request
-  (R2+)                                 ⏳ JobProfiles, JobPosts, Applicants, Assessments, Interviews, Offers, Onboarding
-src/pages/public/careers/               ⏳ careers list, job detail + apply, test page, forms
+  JobPostsPage.tsx                      ✅ /job-posts: Ready to post · Posts · Job profiles
+  JobPostPage.tsx                       ✅ /job-posts/:id editor (salary toggle, deadline, link, weights), text/poster
+                                           preview, publish/close, apply link; JobPostDemoPage = /preview/job-post
+  JobPoster.tsx                         ✅ canvas poster 1080×1350, 4 themes, QR, PNG download
+  ApplicantsPanel.tsx                   ✅ applicants report table (sort, source filter), row → profile modal
+  dialogs/JobProfileDialog.tsx          ✅ experience, education + subjects, skills, duties, employment type
+  dialogs/ApplicantDialog.tsx           ✅ applicant profile modal: contact, consent, note, CV open/upload, history
+  dialogs/AddApplicantsDialog.tsx       ✅ paste rows from email / LinkedIn / Bdjobs / referral
+  (R3+)                                 ⏳ Assessments, Interviews, Offers, Onboarding
+src/pages/public/careers/CareersPages.tsx ✅ /careers/:orgCode list · /careers/:orgCode/:slug detail + apply form
+                                        ⏳ test page, forms (R4+)
 src/pages/settings/IntegrationsPage.tsx ⏳ AI key / email / SMS settings (admin only)
 
 supabase/migrations/20261025000100_recruit_r1_workforce.sql   ✅ R1
+supabase/migrations/20261026000100_recruit_r2_job_posts.sql   ✅ R2
 supabase/tests/recruit_r1_workforce_test.sql                  ✅ R1 golden test (9 checks)
-supabase/functions/recruit-apply|recruit-ai|recruit-notify/   ⏳ R2 / R3 / R5
+supabase/tests/recruit_r2_job_posts_test.sql                  ✅ R2 test (12 checks)
+supabase/functions/recruit-ai|recruit-notify/                 ⏳ R3 / R5 (apply needs none, decision 16)
 ```
 Also touched in R1: `statutory_references` gains category `industry_practice` and area `workforce`
 (`src/lib/statutory.ts`, `components/references.tsx`, `ReferencesPage.tsx`); nav section **Hiring** in `AppLayout.tsx`;
-routes in `router.tsx`.
+routes in `router.tsx`. R2: nav item Job posts, public `/careers/…` routes, `scripts/db-test/supabase-stub.sql`
+grants anon on `storage.objects` (as Supabase does).
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 4. Process flow
@@ -256,19 +276,29 @@ money `numeric(12,2)`, dates in org timezone.
   `note`, `status` (§4.2), `hr_reviewed_by/at`, `decided_by/at`, `decision_note`; `created_by` null = system.
 - `vacancy_events` (append-only: event, from/to status, note, actor).
 
-**R2 — job profiles, posts, applicants**
-- `job_profiles` (one current version per designation): `experience_min/max_years`, `education` jsonb
-  (`[{level: "honours", subjects: ["Accounting","Finance"]}]`), `required_skills` text[], `nice_skills` text[],
-  `duties` text, `employment_type`, `version`, effective_from.
-- `job_posts`: vacancy_id, profile snapshot jsonb (post never changes when the profile changes later), `title`,
-  `description_md`, `show_salary` bool, `salary_min/max` (required when show_salary), `deadline` (default +14 days),
-  `public_slug`, `poster` jsonb (template id, colours), `weights` jsonb (default 10/25/20/45),
-  `has_written_test` bool, `status`.
-- `applicants`: job_post_id, `full_name`, `email`, `phone` (+880…), `source` form|email|linkedin|bdjobs|other,
-  `consent_at`, `cv_path` (storage), `is_internal` + `employee_id` (internal candidates), `status` (§4.2),
-  `purged_at`. Unique (job_post_id, lower(email)).
-- `applicant_events` (append-only; ids and status only, no personal data).
-- Storage bucket `recruit-cvs/{org}/{job_post}/{applicant}.pdf|docx` (private, ≤ 5 MB, PDF/DOCX only).
+**R2 — job profiles, posts, applicants (built)**
+- `job_profiles` (one per designation, `designation_id` unique): `experience_min_years` (0–50),
+  `experience_max_years` (optional), `education_level` any|ssc|hsc|diploma|bachelor|masters|phd,
+  `education_subjects` text[], `required_skills` text[] (≤ 20), `nice_skills` text[], `duties` (10–4,000 chars, one per
+  line), `employment_type`, `version` (+1 on every save). History through the audit log.
+- `job_posts` (one per vacancy, `vacancy_id` unique): `profile` jsonb copy + `profile_version` (later profile edits never
+  change the post), `title`, `description_md` (written by `private.job_post_markdown`), `location` (vacancy office, else
+  where most of the department works), `seats`, `employment_type`, `show_salary` + `salary_min/max` (check: shown ⇒
+  min > 0 and max ≥ min; hidden ⇒ cleared), `deadline` (default today + 14, at most + 90), `public_slug` (unique per org,
+  fixed once published), `poster` {theme orange|navy|green|maroon}, `weights` {ats, objective, written, interview}
+  whole numbers summing to 100 (default 10/25/20/45), `has_written_test`, `status` draft|published|closed|cancelled,
+  published/closed at/by, `close_note`.
+- `applicants`: job_post_id, `full_name`, `email` (lower-cased), `phone` (+8801…), `source`
+  form|email|linkedin|bdjobs|referral|other, `consent_at` (form only), `cover_note`, `cv_path`, `cv_uploaded_at`,
+  `cv_upload_token_hash` (sha-256 of the one-time upload token), `is_internal` + `employee_id` (later), `status` (§4.2),
+  `purged_at`. Unique (job_post_id, lower(email)) while not purged. Own audit trigger: ids, status, source, has_cv and the
+  **names** of changed fields only.
+- `applicant_events` (append-only: applied, added_by_hr, cv_uploaded, cv_attached; no personal data).
+- `private.apply_log` (org, sha-256 of IP and email, time; rows older than a day are deleted on each apply).
+- Storage bucket `recruit-cvs/{org}/{job_post}/{applicant}.pdf|docx` (private, ≤ 5 MB, PDF/DOCX MIME types).
+  Policies: anon/authenticated **insert** only where `policy_checks.recruit_cv_pending(name)` (a form application
+  asked for exactly this path, not confirmed yet, < 1 hour old); HR with `recruit.manage` read/write files of their own
+  org's applicants (`private.recruit_cv_access`).
 
 **R3 — screening**
 - `applicant_profiles`: applicant_id, `parsed` jsonb (years, education, skills, roles), `markdown`,
@@ -432,9 +462,19 @@ during the build and marked `needs_confirmation` until then — never typed from
   Private: `workload_figures(p)` (pure), `department_workload(org, dept, month)`, `headcount_on`,
   `open_sanctioned_seats`, `average_gross`, `draft_vacancies_from_snapshot`, `insert_vacancy`, `vacancy_event`,
   `mask_workforce_money`, `require_any_permission`, `workforce_month`; trigger `on_employee_separation`.
-- **R2**: `save_job_profile`, `create_job_post_from_vacancy`, `update_job_post`, `publish_job_post`, `close_job_post`,
-  anon view `public_job_posts_v` (published only, safe columns), `upload_applicants` (HR bulk, with source),
-  `list_applicants`, `get_applicant`.
+- **R2 (built)**, all `recruit.manage`: `list_job_profiles()`, `save_job_profile(designation, p)`,
+  `list_job_posts()` → {org_code, posts (+ applicant counts), ready (approved vacancies without a post, has_profile)},
+  `create_job_post_from_vacancy(vacancy)` (approved only, needs a profile, one per vacancy),
+  `get_job_post(id)`, `update_job_post(id, p)` (draft or published; link only while draft), `publish_job_post(id)`
+  (vacancy still approved, deadline not passed), `close_job_post(id, note)` (draft → cancelled, published → closed),
+  `add_applicants(post, rows, source)` → {added, duplicates, ids}, `attach_applicant_cv(applicant, ext)` (after HR
+  upload; file must exist), `list_applicants(post)` (+ events).
+  Anon + authenticated: `get_public_careers(org_code)` (published, deadline not passed), `get_public_job_post(org_code,
+  slug)` (published or closed, `is_open`), `submit_job_application(org_code, slug, p)` → {applicant_id, upload_path,
+  upload_token}, `confirm_cv_upload(applicant, token)` (file must exist; token works once).
+  Private: `job_post_markdown`, `job_post_slug`, `education_label`, `text_list`, `clean_applicant`, `cv_extension`,
+  `cv_path`, `applicant_event`, `public_post_json`, `recruit_cv_access`; `policy_checks.recruit_cv_pending`.
+  Not built (not needed yet): `get_applicant` (the list carries everything the modal shows).
 - **R3**: `queue_cv_parse`, `save_manual_profile`, `override_must_have`, `shortlist_applicants`, `get_ats_report`.
 - **R4**: `queue_question_generation`, `review_question`, `save_assessment`, `invite_to_assessment`,
   anon-by-token `start_assessment(token)`, `submit_assessment(token, answers)`, `enter_written_marks`,
@@ -471,10 +511,16 @@ during the build and marked `needs_confirmation` until then — never typed from
 | `integrations.manage` | Admin only, never grantable |
 
 ### 8.2 Public surfaces (no login)
-- Careers list and job detail: anon `select` on `public_job_posts_v` only (published, safe columns; salary only
-  when `show_salary`).
-- Apply: **Edge Function `recruit-apply`** — captcha verified server-side, rate limit per IP and per email,
-  PDF/DOCX ≤ 5 MB checked by content type and magic bytes, consent required, duplicate email per post refused.
+- Careers list and job detail (built): anon RPCs `get_public_careers` / `get_public_job_post` return safe fields only
+  (no vacancy, profile, weights or ids; salary only when `show_salary`); the org must be active.
+- Apply (built, decision 16): `submit_job_application` checks the post is open, honeypot field empty, name, email,
+  BD mobile, consent, PDF/DOCX by extension + declared MIME type, ≤ 5 MB, rate limit (10 per IP, 5 per email, per
+  hour; `x-forwarded-for` hashed), duplicate email per post. The browser then uploads to the returned path (storage
+  policy above) and calls `confirm_cv_upload` with the token. **Later**: captcha and a content (magic-byte) check in
+  an Edge Function, when R3 parses the CV anyway.
+- Anon never gets usage on `private` (30+ older private functions are executable by PUBLIC; harmless only while the
+  schema is closed). The one function anon's storage policy needs lives alone in schema `policy_checks`; the R2 test
+  asserts both.
 - Test page, pre-interview form, offer response, pre-joining form, joining feedback: **single-purpose token links**
   (32 random bytes, only the sha-256 stored, expiry, one use where it matters). The pre-joining form also needs an
   email OTP because it collects NID and bank data.
@@ -527,15 +573,18 @@ first; otherwise paste each function in the Supabase Dashboard editor. Secrets a
   Settings (capacity, availability, bands, confirm), Demo cases (the 10 cases). Dev: `/preview/workforce`.
 - **Vacancies** `/vacancies` (built): Needs my action / Open / Closed; row → dialog with the workload card, history
   and the actions the viewer may take; "Request vacancy" dialog. Nav section **Hiring**.
-- **Job profiles** `/job-profiles`; **Job posts** `/job-posts/:id`: text editor, poster preview (PNG download, QR),
-  salary toggle → "Negotiable", publish/close, share link.
-- **Applicants** `/job-posts/:id/applicants`: report table (sort, filter, shortlist); **row click → profile modal**
-  (markdown profile, ATS breakdown, test scores, interview scores, timeline, CV preview while it exists).
+- **Job posts** `/job-posts` (built): tabs Ready to post (approved vacancies; "Set profile & post" opens the profile
+  dialog first), Posts (status, deadline, applicants), Job profiles. `/job-posts/:id`: details form (title, location,
+  deadline, salary toggle → "Negotiable", link, description, weights, written test), Text / Poster preview (4 colours,
+  PNG download, QR), Save / Publish / Close, apply link with Copy. Dev: `/preview/job-post`.
+- **Applicants** (built, below the post): report table (sort by name/source/date, source filter); **row click → profile
+  modal** (contact, consent, note, CV open/upload, history); "Add applicants" (paste rows). R3 adds the markdown profile,
+  ATS breakdown and shortlist; later steps add test and interview scores.
 - **Assessments**, **Interviews** (calendar + list, edit/delete), **Interviewer kit** (panel members only),
   **Offers**, **Onboarding cases** (checklist, documents, signed uploads).
 - **Dashboard (Admin)**: funnel per vacancy (applied → screened → shortlisted → test → interview → offer → joined),
   time-to-fill, open vacancies, top candidates.
-- **Public** `/careers/:orgCode`, `/careers/:orgCode/:slug` (apply), `/t/:token` (test), `/f/:token` (forms).
+- **Public** `/careers/:orgCode`, `/careers/:orgCode/:slug` (apply) — built; `/t/:token` (test), `/f/:token` (forms).
 - **Settings → Integrations** `/settings/integrations` (Admin).
 
 ---------------------------------------------------------------------------------------------------------------------

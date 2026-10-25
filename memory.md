@@ -171,6 +171,12 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - `workforce_settings`, `department_workforce`, `headcount_plans`, `workload_inputs`, `workload_snapshots`,
   `vacancies`, `vacancy_events`; trigger on `employees` drafts a replacement when a planned position holder leaves
 
+**Onboarding R2 — job posts** (schema in `src/onboarding-process/architecture.md` §5)
+- `job_profiles` (one per designation, versioned), `job_posts` (one per approved vacancy, keeps a profile copy),
+  `applicants` (own audit trigger: ids/status/changed field names only, no personal data), `applicant_events`,
+  `private.apply_log` (rate limit hashes); private bucket `recruit-cvs/{org}/{post}/{applicant}.pdf|docx`;
+  schema `policy_checks` holds only `recruit_cv_pending` (anon storage policy) — anon never gets `private`
+
 **Performance (manual scoring demo)**
 - `performance_cycles` (draft|open|closed), `performance_criteria` (weight, sum 100), `performance_reviews` (one per
   cycle+employee; draft|submitted|acknowledged, overall_score, rating), `performance_scores` (1-5 + comment)
@@ -214,6 +220,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - **Onboarding R1 (workforce)**: `save_workforce_settings`, `save_department_workforce`, `save_headcount_plan`,
   `save_workload_inputs`, `build_workload_snapshots`, `get_workforce_dashboard`, `list_vacancies`, `draft_vacancy`,
   `review_vacancy`, `decide_vacancy`, `cancel_vacancy` — details in `src/onboarding-process/architecture.md` §7
+- **Onboarding R2 (job posts)**: `list_job_profiles`, `save_job_profile`, `list_job_posts`, `create_job_post_from_vacancy`,
+  `get_job_post`, `update_job_post`, `publish_job_post`, `close_job_post`, `add_applicants`, `attach_applicant_cv`,
+  `list_applicants`; anon: `get_public_careers`, `get_public_job_post`, `submit_job_application`, `confirm_cv_upload`
 - **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
   `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
 - 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
@@ -269,7 +278,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   payslip dialog has a "How it was calculated" view (pages/payroll/CalculationExplainer.tsx); run page shows TDS / PF columns
 - Performance: `/performance` (cycles, criteria weights, scoring dialog) · `/my-reviews` (everyone; acknowledge)
 - Hiring (onboarding process): `/workforce` (overview, output data, plan & methods, settings, demo cases) ·
-  `/vacancies` (review → approve) · dev `/preview/workforce`; core logic in `src/onboarding-process/`
+  `/vacancies` (review → approve) · `/job-posts` (ready / posts / job profiles) · `/job-posts/:id` (editor, text +
+  poster PNG with QR, applicants table → profile modal) · public `/careers/:orgCode[/:slug]` (apply form) · dev
+  `/preview/workforce`, `/preview/job-post`; core logic in `src/onboarding-process/`
 - Visual helpers: `lib/calculationGuide.ts` (explainLine, taxSteps, weightedScore…), `components/references.tsx`
   (SourceBadge, ReferenceChips, ReferenceCard), `components/calcVisuals.tsx` (TaxBreakdown, SlabBar, NetFlow) — plain HTML bars
 - Platform: `/platform` · `/platform/applications` · `/platform/organizations/:id`
@@ -297,7 +308,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **PMS manual scoring demo** | `20261020000200_pms_manual_scoring` | ✅ applied (R1 guard needs it; test not confirmed) | (same test) |
 | **Part 3B payroll engine** | `20261019000100_part3b_payroll_engine` | ✅ applied, passed 2026-10-17 | `part3b_payroll_engine_test.sql` (12) |
 | **Onboarding R1 workforce** | `20261025000100_recruit_r1_workforce` | ✅ applied, passed 2026-10-25 | `recruit_r1_workforce_test.sql` (9) |
-- Local (2026-10-25): all 8 SQL suites pass in PGlite (110 checks); vitest 82 tests; typecheck + build pass.
+| **Onboarding R2 job posts** | `20261026000100_recruit_r2_job_posts` | ⏳ not applied (needs R1) | `recruit_r2_job_posts_test.sql` (12) |
+- Local (2026-10-25): all 9 SQL suites pass in PGlite (122 checks); vitest 95 tests; typecheck + build pass.
+- PGlite stub now grants anon on `storage.objects` (as Supabase does) so the anon CV-upload policy is tested.
 - 2026-10-17: running 3B failed (23503, `compensation.view` missing) because 3A was never applied; 3B now starts
   with a guard that names the missing prerequisite. Always probe with the anon key before trusting "applied".
 - **3C/PMS status (2026-10-17)**: backend done + golden-tested (commit 2154d41). FY 2026-27 tax values verified from PwC (reviewed 31 Jul 2026) + Daily Star (Finance Act 2026): threshold 400k (woman/65+ 450k, disabled/third gender 525k, freedom fighter 550k), slabs 10/15/20/25/30 on 300k/400k/500k/2M/rest, exempt min(1/3, 500k), rebate min(3% taxable, 10% investment, 750k), min tax 5,000 (new 1,000). PF/gratuity defaults are placeholders marked needs_confirmation (Labour Act 2025-26 amendments uncertain).
@@ -617,6 +630,15 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   `department_workforce`; capacity = one company figure × availability (roster-based later); vacancies drafted only
   from the current/previous month; demo cases are browser-only (never stored); budget/cost hidden without
   `compensation.view`; `statutory_references` gains `industry_practice` / `workforce`.
+- **R2 built 2026-10-25** (not applied yet). Choices: apply form = anon RPC + direct upload to the private bucket
+  (policy allows only the returned path, 1 hour, once) + token confirm — no Edge Function yet; honeypot field and rate
+  limit (10 per network / 5 per email per hour) instead of captcha for now; file checked by extension + declared type +
+  size (content/magic-byte check comes with CV parsing in R3); one post per vacancy; deadline default +14 days (max 90);
+  job profile = one education level + subjects (not a list of alternatives); post text written by SQL
+  (`private.job_post_markdown`), rendered by a safe Markdown subset (`core/markdown.ts`, no raw HTML); poster drawn on
+  canvas in the browser (4 colour themes, QR to the apply page). If the CV upload fails the application stays without
+  a CV (HR can upload it). Found: 30+ older `private` functions are executable by PUBLIC — harmless while `private`
+  is closed to anon and not exposed by the API, but never grant anon usage on `private`.
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

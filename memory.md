@@ -182,6 +182,10 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `applicant_profiles` (CV markdown, facts + sources, ATS figures, gate; no row audit), `applicant_decisions`
   (append-only), `question_bank` (per designation), `question_papers` + `paper_questions` (per post, lockable)
 
+**Onboarding R4 — tests & interviews** (schema in architecture.md §5)
+- `assessment_invites` (token sha-256, shuffled order, server deadline), `assessment_answers`, `assessment_results`
+  (by section), `written_marks`, `interview_schedules` (panel 1–4, due_by, prev_status)
+
 **Performance (manual scoring demo)**
 - `performance_cycles` (draft|open|closed), `performance_criteria` (weight, sum 100), `performance_reviews` (one per
   cycle+employee; draft|submitted|acknowledged, overall_score, rating), `performance_scores` (1-5 + comment)
@@ -233,6 +237,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `save_applicant_profile`, `move_applicants`, `get_question_papers`, `save_question_paper`, `delete_question_paper`,
   `question_ai_context`; R2 `list_job_posts` / `get_job_post` / `list_applicants` redefined for Managers.
   Edge Function `supabase/functions/recruit-ai` (read_cvs, draft_questions, test_key)
+- **Onboarding R4 (tests & interviews)**: `get_assessment_board`, `invite_to_test`, `cancel_test_invite`,
+  `save_written_marks`, `list_interviewer_options`, `propose_interview_slot`, `save_interview`, `cancel_interview`,
+  `move_applicants` (redefined); anon by token: `get_test`, `start_test`, `save_test_answer`, `submit_test`
 - **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
   `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
 - 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
@@ -291,7 +298,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `/vacancies` (review → approve) · `/job-posts` (ready / posts / job profiles) · `/job-posts/:id` (editor, text +
   poster PNG with QR, applicants table → profile modal) · public `/careers/:orgCode[/:slug]` (apply form) · dev
   `/preview/workforce`, `/preview/job-post`; R3: post page tabs Applicants (score, read CVs, shortlist) / Question
-  papers, `/settings/recruitment` (CV mode, Claude key); core logic in `src/onboarding-process/`
+  papers, `/settings/recruitment` (CV mode, Claude key); R4: post tab Tests & interviews (links, scores, written
+  marks, interview dialog with "Propose a time"), public `/t/:token` test page; core logic in `src/onboarding-process/`
 - Visual helpers: `lib/calculationGuide.ts` (explainLine, taxSteps, weightedScore…), `components/references.tsx`
   (SourceBadge, ReferenceChips, ReferenceCard), `components/calcVisuals.tsx` (TaxBreakdown, SlabBar, NetFlow) — plain HTML bars
 - Platform: `/platform` · `/platform/applications` · `/platform/organizations/:id`
@@ -321,7 +329,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Onboarding R1 workforce** | `20261025000100_recruit_r1_workforce` | ✅ applied, passed 2026-10-25 | `recruit_r1_workforce_test.sql` (9) |
 | **Onboarding R2 job posts** | `20261026000100_recruit_r2_job_posts` | ✅ applied, passed 2026-10-25 | `recruit_r2_job_posts_test.sql` (12) |
 | **Onboarding R3 screening** | `20261027000100_recruit_r3_screening` | ⏳ not applied (needs R2); Edge Function `recruit-ai` not deployed | `recruit_r3_screening_test.sql` (10) |
-- Local (2026-10-25): all 10 SQL suites pass in PGlite (132 checks); vitest 105 tests; typecheck + build pass.
+| **Onboarding R4 tests & interviews** | `20261028000100_recruit_r4_tests_interviews` | ⏳ not applied (needs R3) | `recruit_r4_tests_interviews_test.sql` (9) |
+- Local (2026-10-25): all 11 SQL suites pass in PGlite (141 checks); vitest 111 tests; typecheck + build pass.
   The R2 test's manager check was changed in R3 (managers may now read their department's posts).
 - No Deno / Supabase CLI on this machine: the Edge Function is not type-checked or run locally.
 - PowerShell 5.1 `Get-Content`/`Set-Content` on UTF-8 files without BOM corrupts non-ASCII (– — •): edit with the
@@ -667,6 +676,13 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   `claude-opus-5-5` (company can pick Sonnet 5.5 / Haiku 5.5), effort low, JSON schema output, server-side refusal
   fallback; ATS out of 85 when relevance is not set; gate never moves anyone; HR corrections (`mode_used = manual`)
   survive re-reads; no platform test key (owner pastes own key into the test company); token usage not stored yet.
+- **R4 built 2026-10-25** (not applied). Choices: papers from R3 (no `assessments` table), no negative marking;
+  links shown once to HR (copy / mailto) until email arrives in R5; first link locks the objective paper, first marks
+  lock the written paper (no unlock yet); server clock + 30 s grace, lazy auto-submit; question order shuffled, options
+  not; scores never move anyone; interview window fixed 10:00–16:30 (shifts not used), notice 2 days, due = last result
+  + 15 days, later needs a reason; HR or department Manager schedules; test links / marks are HR only; screening out
+  after tests cancels open links and the interview. JS `String.replace` with `$$` in the replacement writes `$` — use
+  a function replacement when editing SQL with Node.
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

@@ -5,7 +5,8 @@
 > this file owns the details of this module and `memory.md` points here.
 
 Status: **R1 built** (2026-10-25; applied on Supabase, test passed). **R2 built** (2026-10-25; applied on Supabase, test passed).
-**R3 built** (2026-10-25; migration not applied, Edge Function `recruit-ai` not deployed). R4–R7 designed.
+**R3 built** (2026-10-25; migration not applied, Edge Function `recruit-ai` not deployed).
+**R4 built** (2026-10-25; migration not applied). R5–R7 designed.
 Final settlement is a **separate module, built later**.
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -30,7 +31,7 @@ generated pre-filled for printing and signing, and a named joining-day feedback 
 | **R1** | Headcount plan, workload (4 methods, (?) tooltips), vacancy draft + approval, workforce dashboard, 10 demo cases | ✅ applied, `recruit_r1_workforce_test.sql` passed on Supabase |
 | **R2** | Job profiles → job post (text + poster) → careers page + apply form + temporary CV storage | ✅ applied, `recruit_r2_job_posts_test.sql` passed on Supabase |
 | **R3** | CV reading (AI or Basic/markdown), must-have gate, ATS score, profile modal, shortlist, question bank + per-post papers, Settings → AI key | ✅ code done, tests pass locally; ⏳ apply `20261027000100_recruit_r3_screening.sql`, run `recruit_r3_screening_test.sql`, deploy `recruit-ai` |
-| **R4** | Online objective test (own page), written-test marks entry, interview scheduling | ⏳ |
+| **R4** | Online objective test (own page), written-test marks entry, interview scheduling | ✅ code done, tests pass locally; ⏳ apply `20261028000100_recruit_r4_tests_interviews.sql` + run `recruit_r4_tests_interviews_test.sql` |
 | **R5** | Email (now) / SMS (coded, off), pre-interview form, interviewer kit, panel scoring, composite result | ⏳ |
 | **R6** | Offer (maker-checker) / reject email, pre-joining form (NID, photo, nominee, bank) | ⏳ |
 | **R7** | Joining automation (pre-hire → employee), documents to print and sign, joining feedback, data purge | ⏳ |
@@ -88,7 +89,7 @@ src/onboarding-process/                 ← core of the module (import as @/onbo
     poster.ts                           ✅ poster content (facts, requirements, salary, deadline, URL) + word wrap
     ats.ts                              ✅ must-have gate + ATS score breakdown (mirror of private.ats_figures)
     questions.ts                        ✅ sections, question checks, Excel paste parser, total marks
-    assessment.ts                       ⏳ objective scoring, written normalisation
+    assessment.ts                       ✅ objective scoring by section (mirror of score_invite), written %, timer, time zones
     composite.ts                        ⏳ composite score, weight renormalisation, interviewer spread flag
     schedule.ts                         ⏳ 15-day window, slot proposal around leave/holiday/weekly off
   demo/
@@ -100,6 +101,7 @@ src/onboarding-process/                 ← core of the module (import as @/onbo
     workload.test.ts                    ✅ golden numbers = SQL test numbers
     jobPost.test.ts                     ✅ salary toggle, deadline, weights, CV rules, pasted rows, markdown, poster
     screening.test.ts                   ✅ the 5 ATS cases + Alpha applicants (= SQL test), question checks, Excel paste
+    assessment.test.ts                  ✅ Rahim 60.0 % / Karim 40.0 % (= R4 SQL test), written 70.0 %, clock, Dhaka time
 
 src/lib/onboarding.ts                   ✅ React Query hooks (dashboard, vacancies, any workforce RPC)
 src/lib/recruit.ts                      ✅ hooks: posts, profiles, applicants, CV upload/open, public careers + apply;
@@ -121,13 +123,18 @@ src/pages/onboarding/
   ApplicantsPanel.tsx                   ✅ applicants table (score + gate, filters), CV reading bar, shortlist / screen out
   QuestionPapersPanel.tsx               ✅ objective / written papers: bank, blank, Excel paste, AI draft, editor, save to bank
   RecruitmentSettingsPage.tsx           ✅ /settings/recruitment: CV reading mode, Claude key (Admin)
+  TestsPanel.tsx                        ✅ Tests & interviews board: links, scores by section, written marks, interviews
+  dialogs/InviteLinksDialog.tsx         ✅ create test links (shown once): copy / ready email
+  dialogs/WrittenMarksDialog.tsx        ✅ marks per question with marking points
+  dialogs/InterviewDialog.tsx           ✅ panel 1–4, "Propose a time", date/time in the org time zone, mode, cancel
   dialogs/JobProfileDialog.tsx          ✅ experience, education + subjects, skills, duties, employment type
   dialogs/ApplicantDialog.tsx           ✅ applicant profile modal: contact, CV, ATS bars + formula, gate reasons,
                                            AI summary, HR "Correct" form, CV text, history
   dialogs/AddApplicantsDialog.tsx       ✅ paste rows from email / LinkedIn / Bdjobs / referral
   (R3+)                                 ⏳ Assessments, Interviews, Offers, Onboarding
 src/pages/public/careers/CareersPages.tsx ✅ /careers/:orgCode list · /careers/:orgCode/:slug detail + apply form
-                                        ⏳ test page, forms (R4+)
+src/pages/public/careers/TestPage.tsx   ✅ /t/:token online test: start screen, server timer, autosave, submit
+                                        ⏳ forms (R5+)
 src/pages/settings/IntegrationsPage.tsx ⏳ AI key / email / SMS settings (admin only)
 
 supabase/migrations/20261025000100_recruit_r1_workforce.sql   ✅ R1
@@ -137,6 +144,8 @@ supabase/tests/recruit_r2_job_posts_test.sql                  ✅ R2 test (12 ch
 supabase/migrations/20261027000100_recruit_r3_screening.sql   ✅ R3
 supabase/tests/recruit_r3_screening_test.sql                  ✅ R3 test (10 checks)
 supabase/functions/recruit-ai/index.ts                        ✅ R3 Edge Function (read CVs, draft questions, test key)
+supabase/migrations/20261028000100_recruit_r4_tests_interviews.sql ✅ R4
+supabase/tests/recruit_r4_tests_interviews_test.sql           ✅ R4 test (9 checks)
 supabase/functions/recruit-notify/                            ⏳ R5 (apply needs none, decision 16)
 ```
 Also touched in R1: `statutory_references` gains category `industry_practice` and area `workforce`
@@ -333,16 +342,24 @@ money `numeric(12,2)`, dates in org timezone.
 - No `ai_jobs` queue (planned earlier): the Edge Function claims applicants (`claim_cv_reads`) and saves each result
   directly (`save_cv_read`); token usage is not stored yet.
 
-**R4 — assessments and scheduling**
-- Papers come from R3 (`question_papers` / `paper_questions`).
-- `assessments`: job_post_id, `kind`, paper version, `duration_minutes`, `total_marks`, `pass_percent`,
-  `negative_marking` bool (default false).
-- `assessment_invites`: applicant_id, assessment_id, `token_hash` (sha-256; raw token only in the link),
-  `expires_at`, `started_at`, `submitted_at` (one attempt; server-side timer = started_at + duration + 60 s grace).
-- `assessment_answers` (append-only), `assessment_results` (score, percent, `section_scores` jsonb).
-- `written_marks`: applicant_id, per-question marks, `entered_by` (audited).
-- `interview_schedules`: applicant_id, `starts_at`, `location` / `online_link`, `panel` uuid[] (employee ids),
-  `due_by` (= result date + 15 days), `status`, `proposed_by` system|user.
+**R4 — tests and scheduling (built)**
+- Papers come from R3 (`question_papers` / `paper_questions`); no separate `assessments` table. No negative marking.
+- `assessment_invites`: applicant, paper, `paper_version`, `token_hash` (sha-256 of a 48-hex-char token; the raw token
+  is returned once to HR), `question_order` int[] (shuffled per applicant), `status`
+  invited|started|submitted|expired|cancelled, `expires_at` (1–14 days, default 3), `started_at`, `deadline_at`
+  (= start + duration; answers accepted until +30 s), `submitted_at`, `auto_submitted`. One open/started/submitted
+  invite per applicant and paper. The first invite locks the objective paper.
+- `assessment_answers` (invite + position, chosen_index; upserted while running).
+- `assessment_results` (score, total, percent, answered, correct, `section_scores` {section: score/total/percent},
+  `passed` vs the paper's pass mark, or null).
+- `written_marks` (unique applicant + paper; marks [{position, marks}], score, total, percent, passed; audited). The
+  first marks lock the written paper.
+- `interview_schedules`: applicant, post, `starts_at`, `duration_minutes` (15–240, default 45), `mode`
+  in_person|online, `location` / `online_link` (https only), `panel` uuid[] (1–4 active employees), `due_by`,
+  `late_reason` (needed after the due date), `status` scheduled|done|cancelled, `prev_status` (restored on cancel),
+  `note`, `cancel_reason`, `proposed_by` system|user. One scheduled interview per applicant. Audited.
+- Applicant status: shortlisted → test_invited (link) → test_done (submit / time up) → written_done (marks) →
+  interview_scheduled. Steps can be skipped (written-only post, interview straight after shortlist).
 
 **R5 — messaging and interview**
 - `message_templates` (key, channel, language en|bn, subject, body with `{placeholders}`).
@@ -464,10 +481,13 @@ during the build and marked `needs_confirmation` until then — never typed from
   = 6.12 + 17 + 11.05 + 30.6 + 11.25 = **76.02**.
 
 ### 6.6 Scheduling
-- `due_by` = date the written result is published + 15 days.
-- Proposal = earliest day ≥ result + 2 days (notice for the applicant) that is a working day for **every** panel
-  member (not on approved leave, not a holiday, not their weekly off) and inside their shift; slot length 45 min.
-  If none fits before `due_by`, the system says so and HR picks a date. HR can always edit, reschedule or delete.
+- `due_by` (as built) = latest of shortlisting, test submission and written marks (org date) + 15 days.
+- Proposal (as built, `private.first_free_slot`) = earliest day from **today + 2** (notice for the applicant) up to
+  `due_by` that is a working day for **every** panel member (company weekly off and holidays for their branch, not on
+  full-day approved leave), first 45-minute slot from 10:00 to 16:30 local time with no clash with the panel's other
+  interviews. Shift times are not used yet (fixed 10:00–16:30 window). None found → the dialog says so and HR picks a
+  time. Saving after `due_by` needs a reason; clashes are refused (23P01). HR or the department Manager can
+  reschedule or cancel (reason) at any time.
 
 ### 6.7 The 10 demo cases (golden test for R1; capacity_per_fte = 200 h, sustain = 2 months)
 
@@ -529,9 +549,14 @@ during the build and marked `needs_confirmation` until then — never typed from
     `estimate_years`, `score_applicant_profile`, `recruit_scope`, `recruit_post`, `post_cv_mode`, `ai_ready`,
     `question_json`, `clean_question`.
   - Edge Function `recruit-ai`: actions `read_cvs`, `draft_questions` (returns drafts, never saves), `test_key`.
-- **R4**: `save_assessment`, `invite_to_assessment`,
-  anon-by-token `start_assessment(token)`, `submit_assessment(token, answers)`, `enter_written_marks`,
-  `propose_interview`, `save_interview_schedule`, `cancel_interview`.
+- **R4 (built)**: `get_assessment_board(post)` (scope: HR or department Manager; closes overdue tests first),
+  `invite_to_test(post, ids, valid_days)` → [{applicant_id, full_name, email, token}], `cancel_test_invite(invite)`,
+  `save_written_marks(applicant, marks)` (HR); `list_interviewer_options(post)`, `propose_interview_slot(applicant,
+  {panel, duration_minutes})`, `save_interview(applicant, p)`, `cancel_interview(id, reason)` (HR or department
+  Manager); `move_applicants` redefined (screen out also after tests; cancels open links and the interview).
+  Anon by token: `get_test`, `start_test`, `save_test_answer(token, position, choice)`, `submit_test`.
+  Private: `score_invite`, `close_overdue_tests`, `interview_due_by`, `first_free_slot`, `clean_panel`,
+  `invite_by_token`, `test_state`.
 - **R5**: `send_message(template, applicants)`, anon-by-token `submit_preinterview_form`, `get_interviewer_kit`,
   `submit_interview_score`, `get_candidate_results`, `decide_candidate`.
 - **R6**: `prepare_offer`, `approve_offer`, `send_offer`, anon-by-token `respond_offer`, `submit_prejoining_form`,
@@ -579,7 +604,9 @@ during the build and marked `needs_confirmation` until then — never typed from
 - Test page, pre-interview form, offer response, pre-joining form, joining feedback: **single-purpose token links**
   (32 random bytes, only the sha-256 stored, expiry, one use where it matters). The pre-joining form also needs an
   email OTP because it collects NID and bank data.
-- Objective test: answer key never leaves the database; timer and single attempt enforced on the server.
+- Objective test (built): answer key and model answers never leave the database (test asserts it); questions only
+  while running; one start; server deadline; any call after deadline + 30 s scores the saved answers; tokens are 24
+  random bytes (only sha-256 stored), expire, and stop working when HR sends a new link.
 
 ### 8.3 Personal data
 - NID and account numbers: encrypted with the existing `private.app_secrets` key (pgp_sym_encrypt), last 4 kept
@@ -647,11 +674,15 @@ first; otherwise paste each function in the Supabase Dashboard editor. Secrets a
   "Also save to the bank"; locked badge. Managers may edit their department's papers.
 - **Recruitment settings** `/settings/recruitment` (built, recruit.manage): CV reading mode cards; Claude key card
   (Admin: password field, model, Save / Test / Remove; others see "ends in ••••").
-- **Assessments**, **Interviews** (calendar + list, edit/delete), **Interviewer kit** (panel members only),
-  **Offers**, **Onboarding cases** (checklist, documents, signed uploads).
+- **Tests & interviews** tab (built): paper summaries; table of shortlisted applicants with link status / objective %
+  (by section, time-up flag), written % (Enter / Edit marks), interview (date in org time, place, panel) or due date
+  (overdue flag); select → "Send test links" (links shown once: copy all / per person / ready email); refreshes every
+  30 s. Public `/t/:token` test page (start screen with rules, sticky timer, question grid, one question per screen,
+  autosave with "not saved" warning, submit / auto-submit, thank-you).
+- **Interviewer kit** (panel members only), calendar view, **Offers**, **Onboarding cases**: later steps.
 - **Dashboard (Admin)**: funnel per vacancy (applied → screened → shortlisted → test → interview → offer → joined),
   time-to-fill, open vacancies, top candidates.
-- **Public** `/careers/:orgCode`, `/careers/:orgCode/:slug` (apply) — built; `/t/:token` (test), `/f/:token` (forms).
+- **Public** `/careers/:orgCode`, `/careers/:orgCode/:slug` (apply), `/t/:token` (test) — built; `/f/:token` (forms, R5+).
 - Email / SMS settings: later (R5), next to the AI key on Recruitment settings.
 
 ---------------------------------------------------------------------------------------------------------------------

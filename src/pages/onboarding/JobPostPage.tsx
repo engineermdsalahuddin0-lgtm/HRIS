@@ -16,6 +16,7 @@ import { Markdown } from '@/components/Markdown'
 import { JobPoster } from './JobPoster'
 import { ApplicantsPanel } from './ApplicantsPanel'
 import { QuestionPapersPanel } from './QuestionPapersPanel'
+import { TestsPanel } from './TestsPanel'
 import { postStatusTone } from './JobPostsPage'
 
 type Draft = Pick<JobPost, 'title' | 'description_md' | 'location' | 'show_salary' | 'deadline' | 'has_written_test' | 'public_slug'> & {
@@ -220,14 +221,15 @@ export function JobPostEditor({ post, demo = false }: { post: JobPost; demo?: bo
 /** Below the post: applicants (once published) and the question papers. */
 function PostWork({ post }: { post: JobPost }) {
   const live = post.status === 'published' || post.status === 'closed'
-  const [tab, setTab] = useState<'applicants' | 'papers'>(live ? 'applicants' : 'papers')
+  const [tab, setTab] = useState<'applicants' | 'tests' | 'papers'>(live ? 'applicants' : 'papers')
   return (
     <section className="space-y-4">
       <Tabs value={tab} onChange={setTab} tabs={[
-        ...(live ? [{ key: 'applicants' as const, label: 'Applicants' }] : []),
+        ...(live ? [{ key: 'applicants' as const, label: 'Applicants' }, { key: 'tests' as const, label: 'Tests & interviews' }] : []),
         { key: 'papers' as const, label: 'Question papers' },
       ]} />
-      {tab === 'applicants' && live ? <ApplicantsPanel post={post} /> : <QuestionPapersPanel post={post} />}
+      {tab === 'applicants' && live ? <ApplicantsPanel post={post} />
+        : tab === 'tests' && live ? <TestsPanel post={post} /> : <QuestionPapersPanel post={post} />}
     </section>
   )
 }

@@ -3,7 +3,8 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type {
-  Applicant, CvMode, JobPost, JobPostList, JobProfileRow, PublicCareers, PublicJobPost, QuestionPapers, RecruitSettings,
+  Applicant, AssessmentBoard, CvMode, InterviewerOption, JobPost, JobPostList, JobProfileRow, PublicCareers, PublicJobPost,
+  QuestionPapers, RecruitSettings, TestState,
 } from '@/onboarding-process/core/types'
 import type { CvExtension } from '@/onboarding-process/core/jobPost'
 import { CV_TYPES, cvError, cvExtension } from '@/onboarding-process/core/jobPost'
@@ -35,6 +36,34 @@ export function useQuestionPapers(postId: string | undefined) {
     enabled: !!postId,
     queryFn: () => callRpc<QuestionPapers>('get_question_papers', { p_job_post_id: postId }),
   })
+}
+
+// ---------------------------------------------------------------------------- R4: tests, marks, interviews
+export function useAssessmentBoard(postId: string | undefined) {
+  return useQuery({
+    queryKey: ['recruit', 'board', postId],
+    enabled: !!postId,
+    refetchInterval: 30_000, // results arrive while applicants take the test
+    queryFn: () => callRpc<AssessmentBoard>('get_assessment_board', { p_job_post_id: postId }),
+  })
+}
+
+export function useInterviewerOptions(postId: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ['recruit', 'interviewers', postId],
+    enabled,
+    staleTime: 5 * 60_000,
+    queryFn: () => callRpc<InterviewerOption[]>('list_interviewer_options', { p_job_post_id: postId }),
+  })
+}
+
+/** The public test page: every call carries the link's token. */
+export const testApi = {
+  get: (token: string) => callRpc<TestState>('get_test', { p_token: token }),
+  start: (token: string) => callRpc<TestState>('start_test', { p_token: token }),
+  answer: (token: string, position: number, choice: number) =>
+    callRpc<void>('save_test_answer', { p_token: token, p_position: position, p_choice: choice }),
+  submit: (token: string) => callRpc<{ status: string }>('submit_test', { p_token: token }),
 }
 
 /** The recruit-ai Edge Function (CV reading, AI question drafts, key test). Errors carry the function's message. */

@@ -52,6 +52,8 @@ export const router = createBrowserRouter([
   // Public careers page and apply form (no login, signed-in visitors too).
   { path: '/careers/:orgCode', element: named(() => import('@/pages/public/careers/CareersPages'), 'CareersPage') },
   { path: '/careers/:orgCode/:slug', element: named(() => import('@/pages/public/careers/CareersPages'), 'JobApplyPage') },
+  // R4: the online test; the link's token is the only key.
+  { path: '/t/:token', element: named(() => import('@/pages/public/careers/TestPage'), 'TestPage') },
   {
     element: <RequireSession />,
     children: [

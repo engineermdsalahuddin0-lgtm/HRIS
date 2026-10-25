@@ -211,3 +211,48 @@ export interface QuestionPapers {
   papers: Record<PaperKind, QuestionPaper | null>
   bank: Record<PaperKind, Question[]>
 }
+
+// ----------------------------------------------------------------------------- R4
+export type InviteStatus = 'invited' | 'started' | 'submitted' | 'expired' | 'cancelled'
+
+export interface BoardPaper {
+  id: string; question_count: number; total_marks: number; duration_minutes: number | null
+  pass_percent: number | null; locked: boolean
+  questions?: { position: number; stem: string; marks: number; model_answer: string | null }[] | null
+}
+
+export interface Interview {
+  id: string; starts_at: string; duration_minutes: number; mode: 'in_person' | 'online'
+  location: string | null; online_link: string | null; panel: string[]; panel_names: string[] | null
+  due_by: string; late_reason: string | null; note: string | null; proposed_by: 'system' | 'user'
+}
+
+export interface BoardRow {
+  applicant_id: string; full_name: string; email: string; phone: string | null; status: ApplicantStatus
+  ats_score: number | null; gate: import('./ats').Gate | null
+  invite: { id: string; status: InviteStatus; expires_at: string; started_at: string | null; submitted_at: string | null
+            auto_submitted: boolean; created_at: string } | null
+  objective: { score: number; total: number; percent: number; passed: boolean | null; answered: number; correct: number
+               sections: Partial<Record<QuestionSection, { score: number; total: number; percent: number | null }>> } | null
+  written: { score: number; total: number; percent: number; passed: boolean | null; marks: { position: number; marks: number }[]
+             updated_at: string } | null
+  interview: Interview | null
+  due_by: string
+}
+
+export interface AssessmentBoard {
+  can: { manage: boolean; schedule: boolean }; today: string; timezone: string
+  papers: Partial<Record<PaperKind, BoardPaper>>
+  rows: BoardRow[]
+}
+
+export interface InterviewerOption { id: string; full_name: string; department_name: string | null; designation_name: string | null; same_department: boolean }
+
+/** What the public test page receives: never the answer key. */
+export interface TestState {
+  status: InviteStatus; organization: string; job_title: string; first_name: string
+  duration_minutes: number; question_count: number; total_marks: number; expires_at: string; auto_submitted: boolean
+  seconds_left: number | null
+  questions: { position: number; section: QuestionSection; stem: string; options: string[]; marks: number }[] | null
+  answers: Record<string, number> | null
+}

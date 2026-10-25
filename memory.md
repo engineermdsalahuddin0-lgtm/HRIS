@@ -355,7 +355,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Onboarding R5 messages & interviews** | `20261029000100_recruit_r5_messages_interviews` | ✅ applied (probe 2026-10-25: `get_preinterview_form` answers; test run not confirmed); Edge Function `recruit-notify` ✅ deployed (probe: "Unknown action") | `recruit_r5_messages_interviews_test.sql` (8) |
 | **Onboarding R6 offers** | `20261030000100_recruit_r6_offers` | ⏳ not applied (needs R5) | `recruit_r6_r7_offer_joining_test.sql` (9, needs R7 too) |
 | **Onboarding R7 joining** | `20261031000100_recruit_r7_joining` | ⏳ not applied (needs R6) | (same test) |
-| **Onboarding R6 + R7 (live)** | — | ✅ applied on Supabase (the organogram RPCs answer, so R6/R7 below them exist); R6+R7 test re-run not confirmed | |
+| **Onboarding R6 + R7 (live)** | — | ✅ applied, `recruit_r6_r7_offer_joining_test.sql` passed on Supabase 2026-10-25 | |
 | **Department organogram** | `20261101000100_organogram` | ✅ applied, `organogram_test.sql` passed on Supabase 2026-10-25 | `organogram_test.sql` (9) |
 | **Organogram fix** | `20261101000200_organogram_fix_volatile` | ✅ applied (implied: test check 9 passed on Supabase 2026-10-25); `list_organogram_grades` was STABLE but seeds grades → HTTP 405 | (organogram test check 9: no STABLE public function writes) |
 - Local (2026-10-25): all 14 SQL suites pass in PGlite; vitest 133 tests; typecheck + build pass.
@@ -369,7 +369,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - **Waiting on the user** (ask at the start of the next session, do not redo):
   1. Done 2026-10-25: `organogram_test.sql` passed on Supabase (so the fix is applied). Still to confirm in the UI that
      Organogram → Budget & slots / Grades & designations open (they gave HTTP 405 before the fix).
-  2. Confirm on Supabase: `recruit_r6_r7_offer_joining_test.sql` passes (R3–R5 tests also never confirmed, only probed).
+  2. Done 2026-10-25: `recruit_r6_r7_offer_joining_test.sql` passed on Supabase. (R3–R5 tests never run there, only probed.)
   3. Hand test with real keys: AI CV reading / question drafting (`recruit-ai`), email/SMS (`recruit-notify`).
 - **Known, not investigated**: `set_pf_membership` returns HTTP 400 in the browser console (Part 3C PF page).
 - **Next feature**: the user will name it in the next chat. Candidates already noted: Part 3D (hours compliance,

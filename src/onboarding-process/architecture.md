@@ -4,7 +4,8 @@
 > (status table §1, file map §3, schema §5, RPCs §7). The project-wide handbook is `memory.md` (repo root);
 > this file owns the details of this module and `memory.md` points here.
 
-Status: **design agreed, no code yet** (2026-10-25). Final settlement is a **separate module, built later**.
+Status: **R1 built** (2026-10-25: migration + golden test + core + UI; not yet applied on Supabase). R2–R7 designed.
+Final settlement is a **separate module, built later**.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 0. What the module does (one paragraph)
@@ -25,7 +26,7 @@ generated pre-filled for printing and signing, and a named joining-day feedback 
 
 | Step | Content | Status |
 |---|---|---|
-| **R1** | Headcount plan, workload (4 methods, (?) tooltips), vacancy draft + approval, workforce dashboard, 10 demo cases | ⏳ not started |
+| **R1** | Headcount plan, workload (4 methods, (?) tooltips), vacancy draft + approval, workforce dashboard, 10 demo cases | ✅ code done, tests pass locally; ⏳ apply `20261025000100_recruit_r1_workforce.sql` + run `recruit_r1_workforce_test.sql` |
 | **R2** | Job profiles → job post (text + poster) → careers page + apply form + temporary CV storage | ⏳ |
 | **R3** | CV parsing (AI), ATS gate + score, markdown profile, report table, profile modal | ⏳ |
 | **R4** | Question generation + review, online objective test (own page), written-test marks entry, interview scheduling | ⏳ |
@@ -67,40 +68,49 @@ the tooling expects them there:
   and the manual SQL-Editor apply order read only those folders).
 - Edge Functions → `supabase/functions/<name>/` (Supabase's required layout).
 
+✅ = exists (R1), ⏳ = planned.
 ```
 src/onboarding-process/                 ← core of the module (import as @/onboarding-process/...)
-  architecture.md                       ← this file
+  architecture.md                       ✅ this file
   core/
-    types.ts                            ← shared types (Vacancy, JobPost, Applicant, Scores …)
-    workload.ts                         ← capacity, index, required FTE, gap, suggestion rules (mirror of SQL)
-    attrition.ts                        ← attrition %, vacancy rate, time-to-fill
-    jobPost.ts                          ← fill post from job profile, salary text ("Negotiable"), deadline
-    ats.ts                              ← must-have gate + ATS score breakdown (mirror of SQL)
-    assessment.ts                       ← objective scoring, written normalisation
-    composite.ts                        ← composite score, weight renormalisation, interviewer spread flag
-    schedule.ts                         ← 15-day window, slot proposal around leave/holiday/weekly off
-    workflow.ts                         ← state machines + allowed transitions per status (§4.2)
-    explain.ts                          ← text for every (?) tooltip: formula, numbers filled in, source key
+    types.ts                            ✅ shared types (figures, dashboard, vacancy …; R2+ adds JobPost, Applicant …)
+    workload.ts                         ✅ capacity, index, required FTE, gap, attrition, suggestion rules (mirror of SQL)
+    explain.ts                          ✅ text for every (?) tooltip: formula, numbers filled in, reference keys
+    workflow.ts                         ✅ vacancy status labels + which actions a viewer gets (maker-checker)
+    inputCsv.ts                         ✅ pasted spreadsheet rows → output / volume figures
+    jobPost.ts                          ⏳ fill post from job profile, salary text ("Negotiable"), deadline
+    ats.ts                              ⏳ must-have gate + ATS score breakdown (mirror of SQL)
+    assessment.ts                       ⏳ objective scoring, written normalisation
+    composite.ts                        ⏳ composite score, weight renormalisation, interviewer spread flag
+    schedule.ts                         ⏳ 15-day window, slot proposal around leave/holiday/weekly off
   demo/
-    workloadCases.ts                    ← the 10 demo cases + expected results (§6.6)
+    workloadCases.ts                    ✅ the 10 demo cases + expected results (§6.7)
   integrations/
-    providers.ts                        ← provider ids and config shapes (ai: claude; email: resend|smtp; sms: …)
-  __tests__/                            ← vitest for every core file (golden numbers = SQL test numbers)
+    providers.ts                        ⏳ provider ids and config shapes (ai: claude; email: resend|smtp; sms: …)
+  __tests__/
+    workload.test.ts                    ✅ golden numbers = SQL test numbers
 
-src/lib/onboarding.ts                   ← React Query hooks (calls RPCs; invalidate after mutations)
-src/pages/onboarding/                   ← pages: Workforce, Vacancies, JobProfiles, JobPosts, Applicants,
-                                          Assessments, Interviews, Offers, Onboarding cases
-src/pages/onboarding/dialogs/           ← modals: ApplicantProfileModal, VacancyApproval, ScoreDialog …
-src/pages/public/careers/               ← public pages: careers list, job detail + apply, test page,
-                                          pre-interview form, pre-joining form, joining feedback
-src/pages/settings/IntegrationsPage.tsx ← AI key / email / SMS settings (admin only)
+src/lib/onboarding.ts                   ✅ React Query hooks (dashboard, vacancies, any workforce RPC)
+src/components/InfoTip.tsx              ✅ the (?) popover (formula, working, references)
+src/pages/onboarding/
+  WorkforcePage.tsx                     ✅ /workforce: month, Build, KPIs, department cards, tabs
+  WorkforceSetup.tsx                    ✅ tabs Output data · Plan & methods · Settings
+  WorkforceDemo.tsx                     ✅ tab Demo cases + /preview/workforce (dev, no login)
+  WorkloadCard.tsx                      ✅ one department: gauge, figures with (?), suggestion
+  VacanciesPage.tsx                     ✅ /vacancies: needs my action / open / closed
+  dialogs/VacancyDialog.tsx             ✅ detail, workload, history, review / approve actions
+  dialogs/DraftVacancyDialog.tsx        ✅ manual request
+  (R2+)                                 ⏳ JobProfiles, JobPosts, Applicants, Assessments, Interviews, Offers, Onboarding
+src/pages/public/careers/               ⏳ careers list, job detail + apply, test page, forms
+src/pages/settings/IntegrationsPage.tsx ⏳ AI key / email / SMS settings (admin only)
 
-supabase/migrations/2026102x…_recruit_r1_workforce.sql … _r7_joining.sql   ← one migration per step
-supabase/tests/recruit_r1_workforce_test.sql …                              ← one golden test per step
-supabase/functions/recruit-apply/       ← public apply: captcha, file checks, CV upload, insert
-supabase/functions/recruit-ai/          ← AI job runner (CV parse, ATS relevance, question generation)
-supabase/functions/recruit-notify/      ← sends queued email (and SMS when enabled)
+supabase/migrations/20261025000100_recruit_r1_workforce.sql   ✅ R1
+supabase/tests/recruit_r1_workforce_test.sql                  ✅ R1 golden test (9 checks)
+supabase/functions/recruit-apply|recruit-ai|recruit-notify/   ⏳ R2 / R3 / R5
 ```
+Also touched in R1: `statutory_references` gains category `industry_practice` and area `workforce`
+(`src/lib/statutory.ts`, `components/references.tsx`, `ReferencesPage.tsx`); nav section **Hiring** in `AppLayout.tsx`;
+routes in `router.tsx`.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 4. Process flow
@@ -170,15 +180,21 @@ flowchart TD
 ```mermaid
 stateDiagram-v2
   direction LR
-  state "Vacancy" as V {
-    [*] --> draft
-    draft --> hr_reviewed
-    hr_reviewed --> draft: sent back
-    hr_reviewed --> approved
-    hr_reviewed --> on_hold
-    hr_reviewed --> rejected
-    on_hold --> hr_reviewed
-    approved --> filled: all seats joined
+  state "Vacancy (R1, as built)" as V {
+    [*] --> draft: separation / snapshot / request
+    draft --> hr_reviewed: HR forward
+    draft --> on_hold: HR hold (reason)
+    draft --> rejected: HR reject (reason)
+    on_hold --> hr_reviewed: HR forward
+    on_hold --> rejected: HR reject
+    hr_reviewed --> approved: approver ≠ reviewer
+    hr_reviewed --> on_hold: approver hold
+    hr_reviewed --> rejected: approver reject
+    hr_reviewed --> draft: send back
+    approved --> filled: all seats joined (R7)
+    draft --> cancelled
+    hr_reviewed --> cancelled
+    on_hold --> cancelled
     approved --> cancelled
     filled --> [*]
   }
@@ -221,23 +237,24 @@ Conventions as in the rest of the project: `id uuid`, `org_id` + composite FKs `
 (`attach_standard_triggers`: updated_at/by, audit, soft delete), closed tables (API roles read through views/RPCs),
 money `numeric(12,2)`, dates in org timezone.
 
-**R1 — workforce**
-- `workforce_settings` (one per org): `capacity_mode` roster|fixed, `fixed_capacity_hours` (default 208),
-  `availability_lookback_months` 3, `band_watch` 1.00, `band_overload` 1.10, `sustain_months` 2, `band_critical` 1.25,
-  `band_underload` 0.85, `confirmed_at/by`.
-- `headcount_plans`: department_id, designation_id, office_id (nullable = any office), `sanctioned` int,
-  `monthly_budget` (department salary budget), `effective_from/to` (versioned, never edited).
-- `workload_methods`: department_id, `method` hours|output_smv|volume_std|ratio, `params` jsonb
-  (ratio: `{per_employees: 100}`), effective_from/to.
-- `workload_inputs`: department_id, `period_month`, `metric_key` (style code / "voucher" / "call"), `quantity`,
-  `std_minutes`, `source` manual|csv, entered_by. Unique (department, month, metric_key).
-- `workload_snapshots`: department_id, period_month, `method`, `demand_hours`, `capacity_per_fte`, `active`,
-  `sanctioned`, `vacancy`, `required_fte`, `gap`, `index`, `band`, `separations_3m`, `avg_headcount_3m`,
-  `attrition_pct`, `explain` jsonb (every number + formula + reference keys). Rebuilt idempotently.
-- `vacancies`: department_id, designation_id, office_id, `seats`, `reason` replacement|overload|new_position,
-  `separated_employee_id` (nullable), `snapshot_id`, `estimated_monthly_cost`, `budget_status` ok|blocked,
-  `status` (§4.2), `drafted_by` (null = system), `hr_reviewed_by/at`, `approved_by/at`, `decision_note`.
-- `vacancy_events` (append-only history).
+**R1 — workforce (built)**
+- `workforce_settings` (pk org_id): `capacity_hours` 208, `availability_source` attendance|fixed,
+  `fixed_availability_percent` 100, `band_underload` 0.85, `band_watch` 1.00, `band_overload` 1.10, `band_critical` 1.25,
+  `sustain_months` 2, `attrition_flag_percent` 20, `confirmed_at/by` (cleared on every save without confirm).
+- `department_workforce` (pk department_id): `method` hours|output_smv|volume_std|ratio, `per_employees` (ratio),
+  `monthly_budget` (department salary budget, null = no check). Missing row = hours method, no budget.
+- `headcount_plans`: one row per designation (`designation_id` unique, composite FK to department + designation),
+  `sanctioned`. History through the audit log; each snapshot keeps the numbers it used. Office-level plans: later.
+- `workload_inputs`: department_id, `period_month` (1st), `metric_key`, `label`, `quantity`, `std_minutes`,
+  `source` manual|csv. Unique (department, month, metric_key); replaced as a set (rows may be deleted; audited).
+- `workload_snapshots`: department_id, period_month (unique pair), `method`, `workload_index`, `band`, `action`,
+  `figures` jsonb (= every output of the calculation + the facts: availability, regular/OT hours, org headcount,
+  budget, payroll), `built_at/by`. Rebuilt idempotently. No soft-delete trigger (derived data).
+- `vacancies`: department_id, designation_id, office_id, `seats`, `reason` replacement|new_position,
+  `origin` separation|snapshot|manual, `separated_employee_id`, `snapshot_id`, `period_month`,
+  `estimated_monthly_cost`, `budget_status` ok|blocked|unknown, `recommendation` jsonb (figures at draft time),
+  `note`, `status` (§4.2), `hr_reviewed_by/at`, `decided_by/at`, `decision_note`; `created_by` null = system.
+- `vacancy_events` (append-only: event, from/to status, note, actor).
 
 **R2 — job profiles, posts, applicants**
 - `job_profiles` (one current version per designation): `experience_min/max_years`, `education` jsonb
@@ -311,11 +328,11 @@ the (?) tooltip. Reference keys live in `statutory_references` with a new catego
 during the build and marked `needs_confirmation` until then — never typed from memory.
 
 ### 6.1 Capacity per FTE (hours a month one person can really work)
-- `roster` mode: `scheduled_hours` = Σ over the month's working days (roster/default shift, minus weekly offs and
-  holidays) of (shift length − break).
-- `fixed` mode: `fixed_capacity_hours` (default 208 = 26 days × 8 h; company confirms).
-- `availability` = 1 − (leave hours + absent hours) ÷ scheduled hours, averaged over the last 3 months (Part 2 data).
-- **capacity_per_fte = scheduled_hours × availability**. The demo uses 200 h.
+- `capacity_hours` (default 208 = 26 days × 8 h; the company confirms it against its shifts and labour law).
+- `availability` = `attendance`: 1 − (absent + on-leave workdays, half day = 0.5) ÷ scheduled workdays of the
+  department over the last 3 months (Part 2 `attendance_records`; no records → 1, floor 0.05); or `fixed` percent.
+- **capacity_per_fte = capacity_hours × availability** (2 decimals). The demo uses 200 h.
+- Roster-based scheduled hours per person (instead of one company figure): later.
 
 ### 6.2 Demand hours per method
 | Method | Demand hours | Typical department |
@@ -332,7 +349,12 @@ during the build and marked `needs_confirmation` until then — never typed from
 - **vacancy** = sanctioned − active (never below 0)
 - **attrition %** = separations in the period ÷ average headcount in the period × 100
 - **vacancy rate %** = vacancy ÷ sanctioned × 100
-- **band**: ≥ 1.10 overload · 1.00–1.10 watch · 0.85–1.00 balanced · < 0.85 underloaded
+- **band**: ≥ 1.25 critical · ≥ 1.10 overload · > 1.00 watch · ≥ 0.85 balanced · < 0.85 underloaded
+  (nobody in the department but work to do → critical, index shown as —)
+- **action**: hire (seats > 0) · watch (band watch/overload/critical, no seats) · hold (vacancies kept) ·
+  underloaded · balanced
+- Rounding: demand and required FTE 2 decimals, index 3, attrition and vacancy rate 1 (half away from zero, in SQL
+  and in `roundTo`).
 
 ### 6.4 Suggestion rules (the threshold, explained)
 - Index **1.10** means the team does 10 % more work than its capacity. One heavy month (for example, orders before
@@ -342,12 +364,18 @@ during the build and marked `needs_confirmation` until then — never typed from
 - **New position (raises sanction)**: when the overload rule fires, `extra = ceil(required_fte) − sanctioned`
   (if > 0), drafted as `reason = new_position`; only an Admin can approve because it changes the headcount plan.
 - **Vacancies kept on hold**: `vacancy − backfill seats` (shown as a saving).
-- **Budget check**: `estimated_monthly_cost` = gross from the designation's salary template (or the leaver's gross
-  for a replacement) × seats; if current department payroll + cost > `monthly_budget` → `budget_status = blocked`
-  for the seats that do not fit, shown next to "OT cost last month" for comparison.
+- **Budget check**: remaining = `monthly_budget` − Σ gross (pay in force at month end) of the department's people;
+  cost per seat = their average gross; seats that fit = ⌊remaining ÷ cost⌋, replacements first. Seats that do not
+  fit are drafted as a separate vacancy with `budget_status = blocked`; approving it needs "over budget" + a reason.
+  No budget or no pay on record → `unknown` (not checked). OT-cost comparison: later.
 - **Attrition flag**: attrition % over 3 months above 20 % → "check exit reasons" (company can change the limit).
-- **Separation trigger**: `deactivate_employee` on a person in a sanctioned position drafts a replacement vacancy at
-  once; the next monthly snapshot then decides the suggested seats.
+- **Separation trigger**: trigger `draft_replacement_vacancy` on `employees` (status active → inactive/terminated)
+  drafts a 1-seat replacement at once when the designation has a headcount plan (cost = the leaver's gross).
+- **Drafting from snapshots**: only for the current and the previous month (older months are history). Missing seats =
+  suggestion − seats already open (replacements in any open status + approved new positions). Replacements go to
+  the designations with the most open sanctioned positions; a new position to the planned designation with the most
+  people. Rebuilding never duplicates.
+- **Demo cases** are calculated in the browser only (`WorkforceDemo.tsx`); nothing is stored in a company's data.
 
 ### 6.5 Screening and selection scores
 - **Must-have gate**: experience ≥ `experience_min_years` and education level ≥ required. Fail → `screened_out`
@@ -395,10 +423,15 @@ during the build and marked `needs_confirmation` until then — never typed from
 ---------------------------------------------------------------------------------------------------------------------
 ## 7. RPC catalog (planned)
 
-- **R1**: `save_workforce_settings`, `save_headcount_plan`, `save_workload_method`, `save_workload_inputs`
-  (manual + CSV rows), `build_workload_snapshots(month)`, `get_workforce_dashboard(month)`, `list_vacancies`,
-  `draft_vacancy`, `review_vacancy`, `decide_vacancy`, `seed_workforce_demo` (demo org only).
-  Hook: `deactivate_employee` → `private.draft_replacement_vacancy`.
+- **R1 (built)**: `save_workforce_settings(p)` (headcount.manage; `confirm`), `save_department_workforce(dept, p)`
+  (method/ratio: workforce.manage; budget: headcount.manage), `save_headcount_plan(dept, rows)` (headcount.manage),
+  `save_workload_inputs(dept, month, rows, source)` (workforce.manage), `build_workload_snapshots(month)`
+  (workforce.manage), `get_workforce_dashboard(month)`, `list_vacancies(status)`, `draft_vacancy(p)`,
+  `review_vacancy(id, forward|hold|reject, note, p)`, `decide_vacancy(id, approve|hold|reject|send_back, note,
+  over_budget)`, `cancel_vacancy(id, reason)`.
+  Private: `workload_figures(p)` (pure), `department_workload(org, dept, month)`, `headcount_on`,
+  `open_sanctioned_seats`, `average_gross`, `draft_vacancies_from_snapshot`, `insert_vacancy`, `vacancy_event`,
+  `mask_workforce_money`, `require_any_permission`, `workforce_month`; trigger `on_employee_separation`.
 - **R2**: `save_job_profile`, `create_job_post_from_vacancy`, `update_job_post`, `publish_job_post`, `close_job_post`,
   anon view `public_job_posts_v` (published only, safe columns), `upload_applicants` (HR bulk, with source),
   `list_applicants`, `get_applicant`.
@@ -423,11 +456,12 @@ during the build and marked `needs_confirmation` until then — never typed from
 ### 8.1 Permissions (new)
 | Permission | Default role |
 |---|---|
-| `workforce.view` | HR, Admin; Manager for own departments (read only) |
-| `headcount.manage` | Admin only (budget) |
-| `vacancy.request` | Manager, HR |
+| `workforce.view` | HR (Admin implicitly). Salary-derived numbers (budget, cost per seat, payroll) also need `compensation.view` |
+| `workforce.manage` (methods, output data, build snapshots) | HR |
+| `headcount.manage` (sanctioned plan, budgets, thresholds; approving a new position) | Admin (grantable) |
+| `vacancy.request` | Manager (own department only), HR |
 | `vacancy.review` | HR |
-| `vacancy.approve` | Admin (never the person who reviewed) |
+| `vacancy.approve` | Admin (never the person who forwarded it) |
 | `recruit.manage` (profiles, posts, applicants, shortlist) | HR |
 | `assessment.manage` (questions, tests, written marks) | HR |
 | `interview.schedule` | HR |
@@ -487,10 +521,12 @@ first; otherwise paste each function in the Supabase Dashboard editor. Secrets a
 ---------------------------------------------------------------------------------------------------------------------
 ## 10. UI map (planned)
 
-- **Workforce** `/workforce`: month picker, department cards (index gauge coloured by band, (?) on every number),
-  vacancy / attrition KPIs, suggestions list with "Draft vacancy" actions, input screen (manual + CSV), headcount
-  plan, settings (bands, capacity mode).
-- **Vacancies** `/vacancies`: list by status, approval dialog showing the snapshot explanation and budget check.
+- **Workforce** `/workforce` (built): month picker + "Build" (HR), KPI row (sanctioned, active, vacancy, open seats,
+  overloaded, suggested seats), department cards (index gauge by band, (?) on every number, suggestion, 6-month
+  trend); tabs Output data (rows + CSV paste), Plan & methods (method, ratio, budget, sanctioned per designation),
+  Settings (capacity, availability, bands, confirm), Demo cases (the 10 cases). Dev: `/preview/workforce`.
+- **Vacancies** `/vacancies` (built): Needs my action / Open / Closed; row → dialog with the workload card, history
+  and the actions the viewer may take; "Request vacancy" dialog. Nav section **Hiring**.
 - **Job profiles** `/job-profiles`; **Job posts** `/job-posts/:id`: text editor, poster preview (PNG download, QR),
   salary toggle → "Negotiable", publish/close, share link.
 - **Applicants** `/job-posts/:id/applicants`: report table (sort, filter, shortlist); **row click → profile modal**

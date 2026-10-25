@@ -11,7 +11,7 @@ async function callRpc<T>(fn: string, args?: Record<string, unknown>): Promise<T
 }
 
 // ---------------------------------------------------------------- references --
-export type ReferenceCategory = 'law' | 'company_policy' | 'company_setting'
+export type ReferenceCategory = 'law' | 'company_policy' | 'company_setting' | 'industry_practice'
 
 export interface StatutoryReference {
   key: string; category: ReferenceCategory; area: string; title: string; title_bn: string | null

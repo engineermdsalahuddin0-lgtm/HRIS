@@ -165,6 +165,10 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - payroll_slips + taxable_earnings, tds_preview, employer_pf, tax_detail jsonb; slip line types + 'pf' (PF_EE), 'tax' (TDS)
 - payroll_settings + tds_apply_minimum_tax, tds_confirmed_at/by (switches auto_tds/pf_enabled/gratuity_enabled from 3A)
 
+**Onboarding R1 — workforce** (schema in `src/onboarding-process/architecture.md` §5)
+- `workforce_settings`, `department_workforce`, `headcount_plans`, `workload_inputs`, `workload_snapshots`,
+  `vacancies`, `vacancy_events`; trigger on `employees` drafts a replacement when a planned position holder leaves
+
 **Performance (manual scoring demo)**
 - `performance_cycles` (draft|open|closed), `performance_criteria` (weight, sum 100), `performance_reviews` (one per
   cycle+employee; draft|submitted|acknowledged, overall_score, rating), `performance_scores` (1-5 + comment)
@@ -205,6 +209,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `set_tds_challan`, `get_run_statutory_summary`, `list_pf_members`, `set_pf_membership`, `get_pf_statement`,
   `preview_pf_withdrawal`, `post_pf_interest`, `preview_gratuity`, `list_gratuity_liability`; `lock_payroll_run` now wraps
   `private.lock_payroll_run_core` and posts the TDS / PF / gratuity ledgers
+- **Onboarding R1 (workforce)**: `save_workforce_settings`, `save_department_workforce`, `save_headcount_plan`,
+  `save_workload_inputs`, `build_workload_snapshots`, `get_workforce_dashboard`, `list_vacancies`, `draft_vacancy`,
+  `review_vacancy`, `decide_vacancy`, `cancel_vacancy` — details in `src/onboarding-process/architecture.md` §7
 - **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
   `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
 - 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
@@ -259,6 +266,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - 3C: `/tax` (calculator / tax tables / profiles / TDS ledger) · `/pf` · `/gratuity` · `/settings/statutory` · `/references`;
   payslip dialog has a "How it was calculated" view (pages/payroll/CalculationExplainer.tsx); run page shows TDS / PF columns
 - Performance: `/performance` (cycles, criteria weights, scoring dialog) · `/my-reviews` (everyone; acknowledge)
+- Hiring (onboarding process): `/workforce` (overview, output data, plan & methods, settings, demo cases) ·
+  `/vacancies` (review → approve) · dev `/preview/workforce`; core logic in `src/onboarding-process/`
 - Visual helpers: `lib/calculationGuide.ts` (explainLine, taxSteps, weightedScore…), `components/references.tsx`
   (SourceBadge, ReferenceChips, ReferenceCard), `components/calcVisuals.tsx` (TaxBreakdown, SlabBar, NetFlow) — plain HTML bars
 - Platform: `/platform` · `/platform/applications` · `/platform/organizations/:id`
@@ -285,7 +294,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Part 3C tax/PF/gratuity + refs** | `20261020000100_part3c_tax_pf_gratuity` | ⏳ not applied | `part3c_tax_pf_gratuity_pms_test.sql` (14, covers PMS too) |
 | **PMS manual scoring demo** | `20261020000200_pms_manual_scoring` | ⏳ not applied | (same test) |
 | **Part 3B payroll engine** | `20261019000100_part3b_payroll_engine` | ✅ applied, passed 2026-10-17 | `part3b_payroll_engine_test.sql` (12) |
-- Local: all 6 SQL suites pass in PGlite (87 checks); vitest 42 tests; typecheck + build pass.
+| **Onboarding R1 workforce** | `20261025000100_recruit_r1_workforce` | ⏳ not applied (needs 3C + PMS first) | `recruit_r1_workforce_test.sql` (9) |
+- Local (2026-10-25): all 8 SQL suites pass in PGlite (110 checks); vitest 82 tests; typecheck + build pass.
 - 2026-10-17: running 3B failed (23503, `compensation.view` missing) because 3A was never applied; 3B now starts
   with a guard that names the missing prerequisite. Always probe with the anon key before trusting "applied".
 - **3C/PMS status (2026-10-17)**: backend done + golden-tested (commit 2154d41). FY 2026-27 tax values verified from PwC (reviewed 31 Jul 2026) + Daily Star (Finance Act 2026): threshold 400k (woman/65+ 450k, disabled/third gender 525k, freedom fighter 550k), slabs 10/15/20/25/30 on 300k/400k/500k/2M/rest, exempt min(1/3, 500k), rebate min(3% taxable, 10% investment, 750k), min tax 5,000 (new 1,000). PF/gratuity defaults are placeholders marked needs_confirmation (Labour Act 2025-26 amendments uncertain).
@@ -600,6 +610,11 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   an interviewer-scored category; no CV retention after close (rejected purged, selected → employee); applicant row →
   profile modal; salary toggle per post (off = "Negotiable"); joining feedback named. Edge Functions accepted for
   AI/email/apply only; service-role key only inside Edge Functions. Approval chain still a default (HR → Admin).
+- **R1 built 2026-10-25** (backend + UI, all local tests pass; not applied on Supabase). Choices made while building:
+  plan per designation (no office level, no versioning — snapshots keep history); method + budget in
+  `department_workforce`; capacity = one company figure × availability (roster-based later); vacancies drafted only
+  from the current/previous month; demo cases are browser-only (never stored); budget/cost hidden without
+  `compensation.view`; `statutory_references` gains `industry_practice` / `workforce`.
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

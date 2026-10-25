@@ -8,7 +8,7 @@ import { PageHeader } from '@/components/kit'
 
 const AREA_LABEL: Record<string, string> = {
   tax: 'Income tax', pf: 'Provident fund', gratuity: 'Gratuity', overtime: 'Overtime', attendance: 'Attendance & deductions',
-  salary: 'Salary', performance: 'Performance',
+  salary: 'Salary', performance: 'Performance', workforce: 'Workforce planning',
 }
 
 /** The library behind every calculation: laws (with section and source) and company rules. */
@@ -30,7 +30,7 @@ export default function ReferencesPage() {
     <div className="mx-auto max-w-5xl space-y-6">
       <PageHeader title="Law & policy references"
         description="Where every payroll calculation comes from. Each payslip line links to one of these." />
-      <div className="grid gap-3 sm:grid-cols-3">
+      <div className="grid grid-cols-2 gap-3 sm:grid-cols-4">
         {(Object.keys(SOURCE_STYLE) as ReferenceCategory[]).map((key) => (
           <Card key={key} className="p-4">
             <p className="text-xs text-slate-500">{SOURCE_STYLE[key].label}</p>
@@ -42,7 +42,7 @@ export default function ReferencesPage() {
         <Alert tone="info">{toConfirm} rule(s) are marked "Company must confirm": check them with your legal or tax adviser before relying on them.</Alert>
       )}
       <div className="flex flex-wrap gap-2" role="tablist" aria-label="Filter by source">
-        {(['all', 'law', 'company_policy', 'company_setting'] as const).map((key) => (
+        {(['all', 'law', 'company_policy', 'company_setting', 'industry_practice'] as const).map((key) => (
           <button key={key} role="tab" aria-selected={category === key} onClick={() => setCategory(key)}
             className={cx('rounded-full px-3 py-1.5 text-sm ring-1',
               category === key ? 'bg-primary-600 text-white ring-primary-600' : 'bg-white text-slate-600 ring-slate-200 hover:bg-slate-50')}>

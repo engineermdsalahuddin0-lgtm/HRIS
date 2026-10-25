@@ -39,6 +39,10 @@ const COMPENSATION = ['compensation.view', 'increments.approve', 'bonuses.manage
 // Law & policy library: anyone who works with pay or its settings.
 const REFERENCES = ['compensation.view', 'payroll.prepare', 'payroll.approve', 'payroll_settings.manage', 'tax.view_profiles', 'pf.manage', 'gratuity.manage', 'performance.manage']
 
+// Onboarding process: the dashboard needs workforce rights; vacancies also open for requesters.
+const WORKFORCE = ['workforce.view', 'workforce.manage', 'headcount.manage']
+const VACANCIES = ['workforce.view', 'vacancy.request', 'vacancy.review', 'vacancy.approve']
+
 export const router = createBrowserRouter([
   { path: '/login', element: <PublicOnly><LoginPage /></PublicOnly> },
   { path: '/register', element: <PublicOnly>{page(() => import('@/pages/public/RegisterPage'))}</PublicOnly> },
@@ -89,6 +93,9 @@ export const router = createBrowserRouter([
               // Performance (manual scoring demo)
               guarded(['performance.manage', 'performance.review'], '/performance', page(() => import('@/pages/performance/PerformancePage'))),
               { path: '/my-reviews', element: page(() => import('@/pages/performance/MyReviewsPage')) },
+              // Onboarding process R1: workforce planning and vacancies
+              guarded(WORKFORCE, '/workforce', page(() => import('@/pages/onboarding/WorkforcePage'))),
+              guarded(VACANCIES, '/vacancies', page(() => import('@/pages/onboarding/VacanciesPage'))),
               {
                 element: <RequirePlatformAdmin />,
                 children: [
@@ -106,7 +113,10 @@ export const router = createBrowserRouter([
   },
   // Dev-only: view the app shell without signing in.
   ...(import.meta.env.DEV
-    ? [{ path: '/preview', element: <PreviewPage />, children: [{ index: true, element: page(() => import('@/pages/DashboardPage')) }] }]
+    ? [{ path: '/preview', element: <PreviewPage />, children: [
+        { index: true, element: page(() => import('@/pages/DashboardPage')) },
+        { path: 'workforce', element: named(() => import('@/pages/onboarding/WorkforceDemo'), 'WorkforceDemoPage') },
+      ] }]
     : []),
   { path: '*', element: <Navigate to="/" replace /> },
 ])

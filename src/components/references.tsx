@@ -1,7 +1,7 @@
 // Shows where a calculation comes from: the law (with section and source),
 // a company policy, or a company setting. Used next to every explained number.
 import { useState } from 'react'
-import { BookOpen, ExternalLink, Scale, ShieldCheck, SlidersHorizontal, TriangleAlert } from 'lucide-react'
+import { BookOpen, ExternalLink, Factory, Scale, ShieldCheck, SlidersHorizontal, TriangleAlert } from 'lucide-react'
 import type { ReferenceCategory, StatutoryReference } from '@/lib/statutory'
 import { useStatutoryReferences } from '@/lib/statutory'
 import { formatDate } from '@/lib/options'
@@ -11,6 +11,7 @@ export const SOURCE_STYLE: Record<ReferenceCategory, { label: string; labelBn: s
   law:             { label: 'Law',            labelBn: 'আইন',            className: 'bg-sky-50 text-sky-700 ring-sky-200',           icon: Scale },
   company_policy:  { label: 'Company policy', labelBn: 'প্রতিষ্ঠানের নীতি', className: 'bg-primary-50 text-primary-700 ring-primary-200', icon: BookOpen },
   company_setting: { label: 'Company setting', labelBn: 'প্রতিষ্ঠানের সেটিং', className: 'bg-slate-100 text-slate-700 ring-slate-200',   icon: SlidersHorizontal },
+  industry_practice: { label: 'Industry practice', labelBn: 'প্রচলিত পদ্ধতি', className: 'bg-violet-50 text-violet-700 ring-violet-200', icon: Factory },
 }
 
 export function SourceBadge({ category, className }: { category: ReferenceCategory; className?: string }) {

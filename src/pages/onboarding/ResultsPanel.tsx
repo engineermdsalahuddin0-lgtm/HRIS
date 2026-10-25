@@ -1,6 +1,10 @@
 // Results of one post: every interviewed applicant ranked by the composite score, with each
 // component, the panel's scores and a flag when the interviewers disagree a lot. HR decides (next step).
+import { useState } from 'react'
 import { AlertTriangle, Trophy } from 'lucide-react'
+import { APPLICANT_STATUS_LABEL } from '@/onboarding-process/core/jobPost'
+import { Button } from '@/components/ui'
+import { DecisionDialog } from './dialogs/OfferDialogs'
 import type { JobPost } from '@/onboarding-process/core/types'
 import { COMPONENT_LABEL } from '@/onboarding-process/core/composite'
 import { RECOMMENDATION_LABEL } from '@/onboarding-process/core/interview'
@@ -12,6 +16,8 @@ import { Table, td, th } from '@/components/kit'
 
 export function ResultsPanel({ post }: { post: JobPost }) {
   const results = useCandidateResults(post.id)
+  const manage = post.can?.manage ?? true
+  const [deciding, setDeciding] = useState<{ id: string; name: string; decision: 'selected' | 'waitlist' | 'rejected' } | null>(null)
   if (results.isPending) return <div className="flex justify-center py-8 text-primary-600"><Spinner /></div>
   if (results.isError) return <Alert>{errorMessage(results.error)}</Alert>
   const r = results.data
@@ -24,7 +30,8 @@ export function ResultsPanel({ post }: { post: JobPost }) {
       </p>
       {r.rows.length === 0 ? <EmptyState title="No interviews yet">Applicants appear here once they have an interview.</EmptyState> : (
         <Table minWidth={900} head={(
-          <tr><th className={th}>#</th><th className={th}>Applicant</th><th className={th}>Composite</th><th className={th}>Components</th><th className={th}>Panel</th></tr>
+          <tr><th className={th}>#</th><th className={th}>Applicant</th><th className={th}>Composite</th><th className={th}>Components</th><th className={th}>Panel</th>
+            {manage && <th className={th}>Decision</th>}</tr>
         )}>
           {r.rows.map((row, i) => {
             const f = row.figures
@@ -49,11 +56,23 @@ export function ResultsPanel({ post }: { post: JobPost }) {
                   ))}</ul>
                   {f.panel_mean != null && <p className="mt-1 text-[11px] text-slate-500">Mean {f.panel_mean} → {f.interview_percent}%</p>}
                 </td>
+                {manage && (
+                  <td className={td}>
+                    {row.status === 'interviewed' ? (
+                      <div className="flex flex-wrap gap-1">
+                        <Button className="px-2.5 py-1.5 text-xs" onClick={() => setDeciding({ id: row.applicant_id, name: row.full_name, decision: 'selected' })}>Select</Button>
+                        <Button variant="secondary" className="px-2.5 py-1.5 text-xs" onClick={() => setDeciding({ id: row.applicant_id, name: row.full_name, decision: 'waitlist' })}>Waitlist</Button>
+                        <Button variant="ghost" className="px-2.5 py-1.5 text-xs" onClick={() => setDeciding({ id: row.applicant_id, name: row.full_name, decision: 'rejected' })}>Not selected</Button>
+                      </div>
+                    ) : <Badge tone={row.status === 'rejected' ? 'red' : 'green'}>{APPLICANT_STATUS_LABEL[row.status]}</Badge>}
+                  </td>
+                )}
               </tr>
             )
           })}
         </Table>
       )}
+      {deciding && <DecisionDialog applicantId={deciding.id} name={deciding.name} decision={deciding.decision} onClose={() => setDeciding(null)} />}
     </section>
   )
 }

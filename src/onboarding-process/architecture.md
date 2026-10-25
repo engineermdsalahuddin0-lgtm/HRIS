@@ -6,8 +6,8 @@
 
 Status: **R1 built** (2026-10-25; applied on Supabase, test passed). **R2 built** (2026-10-25; applied on Supabase, test passed).
 **R3 built** (2026-10-25; migration not applied, Edge Function `recruit-ai` not deployed).
-**R4 built** (2026-10-25; migration not applied). **R5 built** (2026-10-25; migration not applied, Edge Function
-`recruit-notify` not deployed). R6–R7 designed.
+**R3–R5 applied** on Supabase (probed 2026-10-25), Edge Functions `recruit-ai` and `recruit-notify` deployed.
+**R6 + R7 built** (2026-10-25; not applied) — the hiring cycle is complete end to end.
 Final settlement is a **separate module, built later**.
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -34,8 +34,8 @@ generated pre-filled for printing and signing, and a named joining-day feedback 
 | **R3** | CV reading (AI or Basic/markdown), must-have gate, ATS score, profile modal, shortlist, question bank + per-post papers, Settings → AI key | ✅ code done, tests pass locally; ⏳ apply `20261027000100_recruit_r3_screening.sql`, run `recruit_r3_screening_test.sql`, deploy `recruit-ai` |
 | **R4** | Online objective test (own page), written-test marks entry, interview scheduling | ✅ code done, tests pass locally; ⏳ apply `20261028000100_recruit_r4_tests_interviews.sql` + run `recruit_r4_tests_interviews_test.sql` |
 | **R5** | Email (now) / SMS (coded, off), pre-interview form, interviewer kit, panel scoring, composite result | ✅ code done, tests pass locally; ⏳ apply `20261029000100_recruit_r5_messages_interviews.sql`, run its test, deploy `recruit-notify` |
-| **R6** | Offer (maker-checker) / reject email, pre-joining form (NID, photo, nominee, bank) | ⏳ |
-| **R7** | Joining automation (pre-hire → employee), documents to print and sign, joining feedback, data purge | ⏳ |
+| **R6** | Offer (maker-checker) / reject email, pre-joining form (NID, photo, nominee, bank) | ✅ code done, tests pass locally; ⏳ apply `20261030000100_recruit_r6_offers.sql` |
+| **R7** | Joining automation (pre-hire → employee), documents to print and sign, joining feedback, data purge | ✅ code done; ⏳ apply `20261031000100_recruit_r7_joining.sql`, then run `recruit_r6_r7_offer_joining_test.sql` |
 | Later | Final settlement (separate module) | — |
 
 Every step: migration + SQL golden test + pure-TS mirror with vitest + UI, then `npm run test:all`, typecheck,
@@ -66,6 +66,8 @@ build, commit, update this file and `memory.md` A9.
 | 19 | Who may do recruitment (2026-10-25) | Only **Admin, HR Manager, Manager**; employees see nothing. Manager: **own department only**; default (unanswered): Manager may view and set question papers, publish / shortlist stay with HR and Admin. Interview panel (R5): a Manager may assign any employee as interviewer; that employee can only score the applicants assigned to them. |
 | 20 | Email provider (R5 build, 2026-10-25) | Not answered → **Resend** (HTTPS API, works from Edge Functions; the company verifies its domain there). SMS: generic HTTP gateway adapter (field names configurable), off until the Admin enables it. |
 | 21 | Interview scoring (R5 build, 2026-10-25) | Five categories 1–5 (job knowledge, communication, problem solving, **confidence**, team & culture fit) + recommendation + comment. Interviewers see others' scores only after scoring. Interview done when the whole panel has scored. Suggested questions are built from the profile and the gaps (no AI). |
+| 22 | Offer and pre-joining (R6 build, 2026-10-25) | Decision on the Results tab (selected within the seats / waitlist / not selected with optional email). Offer: HR prepares, a holder of `offer.approve` (Admin by default) who did not prepare it approves; one link `/offer/<token>` to accept and then fill the pre-joining form. **No email OTP** (planned earlier): the link goes only to the applicant's email, and NID / account numbers are write-only (never shown back), so a leaked link cannot read them. |
+| 23 | Joining and purge (R7 build, 2026-10-25) | HR converts after verifying the form (no automatic conversion on the date yet — pg_cron later). Starting pay is written from the approved offer (the approval is the maker-checker; `compensation.edit` is not asked again). Documents are printed from the browser; signed scans uploaded. Close hiring: the app deletes the CV / photo files through Storage (Supabase blocks deleting storage rows in SQL), then the database clears every applicant's personal data. |
 | 16 | Apply without an Edge Function (R2 build, 2026-10-25) | The apply form works with anon RPCs and a direct upload to the private bucket (only the returned path, within 1 hour, once, then token confirm). Honeypot + rate limit for now; captcha moves into an Edge Function when R3 brings the first one. |
 
 ---------------------------------------------------------------------------------------------------------------------
@@ -95,6 +97,8 @@ src/onboarding-process/                 ← core of the module (import as @/onbo
     assessment.ts                       ✅ objective scoring by section (mirror of score_invite), written %, timer, time zones
     composite.ts                        ✅ composite + interview % + spread flag (mirror of private.composite_figures)
     interview.ts                        ✅ categories, scale, recommendations, templates + placeholders, suggested questions
+    joining.ts                          ✅ offer / pre-joining / task / document labels, feedback questions, the 4 printable
+                                           documents (HTML, every value escaped)
     composite.ts                        ⏳ composite score, weight renormalisation, interviewer spread flag
     schedule.ts                         ⏳ 15-day window, slot proposal around leave/holiday/weekly off
   demo/
@@ -108,6 +112,7 @@ src/onboarding-process/                 ← core of the module (import as @/onbo
     screening.test.ts                   ✅ the 5 ATS cases + Alpha applicants (= SQL test), question checks, Excel paste
     assessment.test.ts                  ✅ Rahim 60.0 % / Karim 40.0 % (= R4 SQL test), written 70.0 %, clock, Dhaka time
     interview.test.ts                   ✅ composite 76.2 / 79.0 / spread / Rahim 73.06 (= R5 SQL test), templates, questions
+    joining.test.ts                     ✅ documents escape values, appointment letter from the offer, 4 pages, NID rule
 
 src/lib/onboarding.ts                   ✅ React Query hooks (dashboard, vacancies, any workforce RPC)
 src/lib/recruit.ts                      ✅ hooks: posts, profiles, applicants, CV upload/open, public careers + apply;
@@ -137,6 +142,9 @@ src/pages/onboarding/
   ResultsPanel.tsx                      ✅ Results tab: composite ranking, components × effective weight, panel, spread flag
   OutboxPanel.tsx                       ✅ Messages tab: email/SMS status, errors, Send now, Retry
   MessagingSettings.tsx                 ✅ Email (Resend) / SMS (gateway) cards with test send; template editor
+  OffersPanel.tsx                       ✅ Offers & joining tab (HR): seats, offer / pre-joining / joining per person, close hiring
+  dialogs/OfferDialogs.tsx              ✅ Decision, Offer, Approve, Send, Withdraw, Pre-joining review, Convert, Close & purge
+  dialogs/OnboardingCaseDialog.tsx      ✅ checklist, print documents, upload signed scans, feedback, complete
 src/pages/interviews/MyInterviewsPage.tsx ✅ /my-interviews: interviews where I am on the panel (any employee)
 src/pages/interviews/InterviewKitPage.tsx ✅ /my-interviews/:id: results so far, form answers, questions, scoring form
   dialogs/JobProfileDialog.tsx          ✅ experience, education + subjects, skills, duties, employment type
@@ -147,6 +155,8 @@ src/pages/interviews/InterviewKitPage.tsx ✅ /my-interviews/:id: results so far
 src/pages/public/careers/CareersPages.tsx ✅ /careers/:orgCode list · /careers/:orgCode/:slug detail + apply form
 src/pages/public/careers/TestPage.tsx   ✅ /t/:token online test: start screen, server timer, autosave, submit
 src/pages/public/careers/PreinterviewFormPage.tsx ✅ /f/:token pre-interview form (attendance, notice, salary, questions)
+src/pages/public/careers/OfferPage.tsx  ✅ /offer/:token offer (accept / decline) + pre-joining form (NID, nominees, account, photo)
+src/pages/public/careers/JoiningFeedbackPage.tsx ✅ /joining-feedback/:token named feedback (4 × 1–5 + comment)
 src/pages/settings/IntegrationsPage.tsx ⏳ AI key / email / SMS settings (admin only)
 
 supabase/migrations/20261025000100_recruit_r1_workforce.sql   ✅ R1
@@ -161,6 +171,9 @@ supabase/tests/recruit_r4_tests_interviews_test.sql           ✅ R4 test (9 che
 supabase/migrations/20261029000100_recruit_r5_messages_interviews.sql ✅ R5
 supabase/tests/recruit_r5_messages_interviews_test.sql        ✅ R5 test (8 checks)
 supabase/functions/recruit-notify/index.ts                    ✅ R5 Edge Function (send queue: Resend / SMS gateway; test send)
+supabase/migrations/20261030000100_recruit_r6_offers.sql      ✅ R6
+supabase/migrations/20261031000100_recruit_r7_joining.sql     ✅ R7
+supabase/tests/recruit_r6_r7_offer_joining_test.sql           ✅ R6 + R7 end-to-end test (9 checks)
 ```
 Also touched in R1: `statutory_references` gains category `industry_practice` and area `workforce`
 (`src/lib/statutory.ts`, `components/references.tsx`, `ReferencesPage.tsx`); nav section **Hiring** in `AppLayout.tsx`;
@@ -392,20 +405,31 @@ money `numeric(12,2)`, dates in org timezone.
   Audited. Panel complete → interview `done`, applicant `interviewed`.
 - No `candidate_results` table: `get_candidate_results` computes the composite live; the decision is stored in R6.
 
-**R6 — offer and pre-joining**
-- `offers`: applicant_id, designation/grade/office, `salary_template_id`, `gross`, `joining_date`, `expires_at`,
-  `status`, `prepared_by`, `approved_by` (≠ prepared_by).
-- `prehire_records`: applicant_id, token_hash, personal fields (as `employees`), `nid_number` (encrypted,
-  last4 clear), `nominees` jsonb, payment account (encrypted, last4), `photo_path`, `signature_path`,
-  `submitted_at`, `verified_by/at`.
+**R6 — decision, offer and pre-joining (built)**
+- `candidate_decisions` (append-only): applicant, post, decision selected|waitlist|rejected, composite at the time, note.
+  Seats: selected + offer_sent + offer_accepted + prejoining_done + joined ≤ post seats.
+- `offers`: applicant, post, department / designation / office, employment_type, `salary_template_id`, `gross`,
+  `joining_date`, `expires_on` (≤ joining date), `probation_months` (0–12), `terms`, `status`
+  draft|approved|sent|accepted|declined|expired|withdrawn (expired lazily on open), `token_hash`, `approved_by/at`
+  (≠ `created_by`), `approval_note` (send-back reason), `sent_at`, `responded_at`, `response_note`, `withdraw_reason`.
+  One active offer per applicant. Audited.
+- `prehire_records` (one per offer; the offer link is also the form link): `status` pending|submitted|returned|verified,
+  `data` jsonb (parents, birth date, gender, marital status, blood group, religion, addresses, emergency contact,
+  nominees), `nid_enc` + `nid_last4`, payment method / bank / branch / routing / account name, `account_enc` or
+  `wallet_enc` + `number_last4`, `photo_path` (+ `photo_pending_path` while uploading), `return_note`, `verified_by/at`,
+  `employee_id` after conversion. No row audit. Bucket `prehire-files/{org}/{applicant}/photo-xxxx.ext` (anon insert
+  only on the pending path via `policy_checks.prehire_photo_pending`; HR read / delete).
+- Template keys gain `joining_feedback`; default rejection, offer (email + SMS) and welcome templates seeded.
 
-**R7 — joining**
-- `onboarding_cases`: offer_id, `employee_id` (after conversion), joining_date, `status` pending|converted|completed.
-- `onboarding_tasks`: case_id, `kind`, `status` todo|done, done_by/at (checklist).
-- `onboarding_documents`: case_id, `kind` appointment_letter|joining_report|nominee_form|pf_nomination|
-  code_of_conduct|id_card, `generated_at`, `signed_scan_path`, `signed_at`, `uploaded_by`.
-- `joining_feedback`: case_id, employee_id (**named**), ratings jsonb (`overall`, `recruiter_behaviour`,
-  `clarity`, `first_day`), comment.
+**R7 — joining (built)**
+- `onboarding_cases` (one per applicant / offer): employee, joining date, status open|completed, `feedback_token_hash`.
+- `onboarding_tasks` (7 fixed keys: photo_copied, documents_signed, id_card, portal_access, reporting_manager,
+  workstation, orientation; done_at / done_by). documents_signed ticks itself when all 4 scans are uploaded.
+- `onboarding_documents` (appointment_letter, joining_report, nominee_form, code_of_conduct): printed_at,
+  `signed_path` (bucket `onboarding-docs/{org}/{case}/{kind}.pdf|jpg|png`, HR only), signed_at.
+- `joining_feedback` (one per case, **named** = employee_id): ratings overall / recruiter_behaviour / clarity /
+  first_day 1–5, comment.
+- `applicants.employee_id_joined` keeps the link after the purge.
 
 **Integrations (shared)**
 - `org_integrations`: `kind` ai|email|sms, `provider`, `enabled`, `config` jsonb (model, sender, from address),
@@ -600,12 +624,20 @@ during the build and marked `needs_confirmation` until then — never typed from
   - Edge Function `recruit-notify`: actions `send` (up to 20 per call; the app calls it right after queuing; "Send
     now" on the Messages tab), `test` (Admin).
   - Decision (`decide_candidate`) moves to R6 with the offer / rejection emails.
-- **R6**: `prepare_offer`, `approve_offer`, `send_offer`, anon-by-token `respond_offer`, `submit_prejoining_form`,
-  `verify_prejoining`.
-- **R7**: `convert_prehire_to_employee` (reuses `create_employee`, `set_initial_compensation`, roster/leave defaults,
-  `set_reporting_line`, `grant_portal_access`, `save_payment_account`), `generate_onboarding_documents`,
-  `upload_signed_document`, `complete_onboarding_task`, anon-by-token `submit_joining_feedback`,
-  `close_vacancy` (runs the purge, §8.5).
+- **R6 (built)**: `decide_candidate(applicant, decision, note, send)`, `get_offer_context(applicant)`,
+  `prepare_offer(applicant, p)` (create / edit the draft), `decide_offer(offer, approve|send_back, note)`
+  (`offer.approve`, never the preparer), `send_offer(offer, base_url)` (new link each time), `withdraw_offer(offer,
+  reason)`, `list_offers(post)` (HR only — salary), `get_prehire(id)` (masked), `verify_prehire(id, verify|return,
+  note)`, `save_message_template` re-created for the new key. Anon by token: `get_offer`, `respond_offer`,
+  `start_prejoining_photo`, `submit_prejoining`. Private: `offer_by_token`, `prehire_state`, `post_seats_taken`,
+  `money_text`, `seed_r6_templates`.
+- **R7 (built)**: `convert_to_employee(prehire, {card_id, send_feedback, base_url})` (calls `create_employee`, then
+  `private.create_compensation` from the offer, copies the encrypted salary account, opens the case, fills the vacancy
+  when all seats joined), `get_onboarding_case`, `list_onboarding_cases(post)`, `set_onboarding_task`,
+  `mark_document_printed`, `attach_signed_document`, `complete_onboarding`, `get_purge_plan(post)`,
+  `purge_post_applicants(post, 'DELETE')`. Anon by token: `get_joining_feedback`, `submit_joining_feedback`.
+  Not built: portal login and reporting line are checklist items done on the employee profile (they need a password /
+  a manager choice); automatic conversion on the joining date (pg_cron).
 - **Integrations**: `save_integration` (secret write-only), `remove_integration`, `test_integration`
   (via Edge Function), `get_integrations` (no secrets, last4 only).
 
@@ -627,7 +659,7 @@ during the build and marked `needs_confirmation` until then — never typed from
 | `assessment.manage` (questions, tests, written marks) | HR |
 | `interview.schedule` | HR |
 | `interview.score` | only interviewers on that panel (row check, not a role grant) |
-| `offer.prepare` / `offer.approve` | HR / Admin (preparer ≠ approver) |
+| offer prepare (`recruit.manage`) / `offer.approve` | HR / Admin (preparer ≠ approver, enforced even if HR is given `offer.approve`) |
 | `onboarding.manage` | HR |
 | `integrations.manage` | Admin only, never grantable |
 
@@ -672,11 +704,16 @@ during the build and marked `needs_confirmation` until then — never typed from
   Token usage is not logged yet.
 
 ### 8.5 Retention and purge (decision 10)
-- `close_vacancy` (HR, confirm dialog with counts): for every applicant not converted to an employee → delete CV
-  file, parsed profile, answers, written marks, interview notes, pre-interview and pre-joining data; clear name,
-  email, phone; set `purged_at`. Kept: anonymous counts for the funnel and time-to-fill.
-- Selected applicants: photo, signature and NID scan move into `employee-files/{org}/{employee}/`; the CV is deleted.
-- A nightly job (pg_cron) also purges posts closed for more than 30 days that HR forgot to close out.
+- As built (R7): **Close hiring & delete data** on the Offers & joining tab. `get_purge_plan` lists the files (CVs,
+  pre-joining photos) and refuses while an offer is open or accepted without joining; the app deletes the files through
+  Storage; `purge_post_applicants(post, 'DELETE')` refuses while CV files remain, then for every applicant of the post
+  deletes the CV profile, test answers, messages, pre-interview and pre-joining forms, clears interview comments, and
+  clears name / email / phone / note / CV path (`purged_at`, status `purged`, joined ones stay `joined`). Kept: counts,
+  scores and statuses for reports. The post closes.
+- Joined applicants: the pre-joining photo is copied into `employee-files/{org}/{employee}/photo` by the app at
+  conversion; NID, nominees and the salary account move into the employee record; the CV is deleted with the purge.
+- Known gap: free-text notes in decision histories (`applicant_decisions`, `candidate_decisions`, append-only) and
+  old interview comments in the audit log stay. A nightly purge of forgotten posts needs pg_cron (later).
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 9. Integrations
@@ -727,12 +764,17 @@ first; otherwise paste each function in the Supabase Dashboard editor. Secrets a
   written results, CV summary, pre-interview answers, suggested questions, scoring form (5 × 1–5, recommendation,
   comment), panel scores after own submission. Public `/f/:token` pre-interview form.
 - Recruitment settings add Email and SMS cards (Admin, test send) and the template editor (HR).
-- Calendar view, **Offers**, **Onboarding cases**: later steps.
+- **Results** tab decisions (HR): Select / Waitlist / Not selected (+ rejection email). **Offers & joining** tab (HR):
+  seats used, per person the offer (status, gross, joining, preparer / approver, send-back note, reply note), the
+  pre-joining status and the right next button (Prepare / Edit / Approve / Send / Send again / Withdraw / Check form /
+  Make employee / Joining n/7); joining dialog with checklist, print all / one document, upload signed scans, feedback,
+  Complete; **Close hiring & delete data**. Public `/offer/:token` (offer + pre-joining form) and
+  `/joining-feedback/:token`.
+- Calendar view: later.
 - **Dashboard (Admin)**: funnel per vacancy (applied → screened → shortlisted → test → interview → offer → joined),
   time-to-fill, open vacancies, top candidates.
 - **Public** `/careers/:orgCode`, `/careers/:orgCode/:slug` (apply), `/t/:token` (test), `/f/:token` (pre-interview
-  form) — built; offer response and pre-joining forms in R6.
-- Email / SMS settings: later (R5), next to the AI key on Recruitment settings.
+  form), `/offer/:token`, `/joining-feedback/:token` — built.
 
 ---------------------------------------------------------------------------------------------------------------------
 ## 11. Memory and documentation rules for this module

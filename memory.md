@@ -190,6 +190,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - `org_messaging` (email Resend / SMS gateway, keys encrypted), `message_templates`, `notifications` (outbox, no
   audit), `preinterview_forms` (token), `interview_scores` (5 × 1–5, recommendation)
 
+**Onboarding R6 + R7 — offers & joining** (schema in architecture.md §5)
+- `candidate_decisions`, `offers` (maker-checker), `prehire_records` (NID / account encrypted, photo in
+  `prehire-files`), `onboarding_cases` / `onboarding_tasks` / `onboarding_documents` (scans in `onboarding-docs`),
+  `joining_feedback` (named); `applicants.employee_id_joined`
+
 **Performance (manual scoring demo)**
 - `performance_cycles` (draft|open|closed), `performance_criteria` (weight, sum 100), `performance_reviews` (one per
   cycle+employee; draft|submitted|acknowledged, overall_score, rating), `performance_scores` (1-5 + comment)
@@ -249,6 +254,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `list_notifications`, `claim_notifications`, `mark_notification`, `retry_notification`, `invite_to_test` (5 args now),
   `send_interview_invite`, anon `get/submit_preinterview_form`, `list_my_interviews`, `get_interviewer_kit`,
   `submit_interview_score`, `get_candidate_results`, `get_assessment_board` (re-created). Edge Function `recruit-notify`
+- **Onboarding R6 + R7**: `decide_candidate`, `get_offer_context`, `prepare_offer`, `decide_offer` (offer.approve),
+  `send_offer`, `withdraw_offer`, `list_offers`, `get_prehire`, `verify_prehire`, anon `get_offer` / `respond_offer` /
+  `start_prejoining_photo` / `submit_prejoining`; `convert_to_employee`, `get_onboarding_case`, `list_onboarding_cases`,
+  `set_onboarding_task`, `mark_document_printed`, `attach_signed_document`, `complete_onboarding`, `get_purge_plan`,
+  `purge_post_applicants`, anon `get/submit_joining_feedback`
 - **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
   `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
 - 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
@@ -310,7 +320,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   papers, `/settings/recruitment` (CV mode, Claude key); R4: post tab Tests & interviews (links, scores, written
   marks, interview dialog with "Propose a time"), public `/t/:token` test page; R5: post tabs Results / Messages,
   `/my-interviews` + kit (every employee), public `/f/:token` form, email/SMS/templates on Recruitment settings;
-  core logic in `src/onboarding-process/`
+  R6/R7: Results decisions, post tab Offers & joining (offer, form check, make employee, joining checklist + documents,
+  close hiring), public `/offer/:token` and `/joining-feedback/:token`; core logic in `src/onboarding-process/`
 - Visual helpers: `lib/calculationGuide.ts` (explainLine, taxSteps, weightedScore…), `components/references.tsx`
   (SourceBadge, ReferenceChips, ReferenceCard), `components/calcVisuals.tsx` (TaxBreakdown, SlabBar, NetFlow) — plain HTML bars
 - Platform: `/platform` · `/platform/applications` · `/platform/organizations/:id`
@@ -341,9 +352,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Onboarding R2 job posts** | `20261026000100_recruit_r2_job_posts` | ✅ applied, passed 2026-10-25 | `recruit_r2_job_posts_test.sql` (12) |
 | **Onboarding R3 screening** | `20261027000100_recruit_r3_screening` | ✅ applied (anon probe 2026-10-25: `claim_cv_reads` exists; test run not confirmed); Edge Function `recruit-ai` ✅ deployed, boots (probe: "Unknown action") | `recruit_r3_screening_test.sql` (10) |
 | **Onboarding R4 tests & interviews** | `20261028000100_recruit_r4_tests_interviews` | ✅ applied (anon probe 2026-10-25: `get_test` answers "This test link is not valid"; test run not confirmed) | `recruit_r4_tests_interviews_test.sql` (9) |
-| **Onboarding R5 messages & interviews** | `20261029000100_recruit_r5_messages_interviews` | ⏳ not applied (probe 2026-10-25: `get_preinterview_form` missing); Edge Function `recruit-notify` not deployed (404) | `recruit_r5_messages_interviews_test.sql` (8) |
-- Local (2026-10-25): all 12 SQL suites pass in PGlite (149 checks); vitest 118 tests; typecheck + build pass.
-- Apply order for the pending recruit steps: R3 → R4 → R5 (each file checks the previous one exists).
+| **Onboarding R5 messages & interviews** | `20261029000100_recruit_r5_messages_interviews` | ✅ applied (probe 2026-10-25: `get_preinterview_form` answers; test run not confirmed); Edge Function `recruit-notify` ✅ deployed (probe: "Unknown action") | `recruit_r5_messages_interviews_test.sql` (8) |
+| **Onboarding R6 offers** | `20261030000100_recruit_r6_offers` | ⏳ not applied (needs R5) | `recruit_r6_r7_offer_joining_test.sql` (9, needs R7 too) |
+| **Onboarding R7 joining** | `20261031000100_recruit_r7_joining` | ⏳ not applied (needs R6) | (same test) |
+- Local (2026-10-25): all 13 SQL suites pass in PGlite (158 checks); vitest 122 tests; typecheck + build pass.
+- Apply order for the pending recruit steps: R6 → R7, then the R6+R7 test (each file checks the previous one exists).
 - Probing from the terminal works over HTTPS with the anon key from `.env`: `POST {url}/rest/v1/rpc/<fn>` (missing
   function → PGRST202) and `POST {url}/functions/v1/<name>` with `{"action":"ping"}` (deployed → "Unknown action",
   missing → 404). PostgREST returns HTTP 500 for P0002 raises; the JSON message is still right.
@@ -706,6 +719,14 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   scores hidden until one scores; suggested questions without AI; composite computed live (no table), PMS for
   internal candidates not built; selection decision moved to R6. plpgsql: wrap `CASE … THEN` inside an `IF`
   condition in parentheses (bit us twice).
+- **R6 + R7 built 2026-10-25** (not applied) — the hiring cycle is complete. Choices: decision on Results (seats
+  enforced); offer maker-checker with `offer.approve` (Admin default; preparer never approves); the offer link also
+  opens the pre-joining form; no email OTP (numbers are write-only instead); HR converts manually after verifying
+  (no pg_cron); pay written from the approved offer via `private.create_compensation`; encrypted account copied as is;
+  documents printed from the browser (`core/joining.ts`); photo copied to the employee by the app; portal login and
+  reporting manager are checklist items done on the profile; close hiring = app deletes Storage files (Supabase blocks
+  SQL deletes of storage rows), then `purge_post_applicants`. Known gap: notes in append-only decision histories and
+  old interview comments in the audit log are kept. `of` is a reserved word — never use it as a SQL alias.
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

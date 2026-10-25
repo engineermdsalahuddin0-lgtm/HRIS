@@ -19,6 +19,7 @@ import { QuestionPapersPanel } from './QuestionPapersPanel'
 import { TestsPanel } from './TestsPanel'
 import { ResultsPanel } from './ResultsPanel'
 import { OutboxPanel } from './OutboxPanel'
+import { OffersPanel } from './OffersPanel'
 import { postStatusTone } from './JobPostsPage'
 
 type Draft = Pick<JobPost, 'title' | 'description_md' | 'location' | 'show_salary' | 'deadline' | 'has_written_test' | 'public_slug'> & {
@@ -223,18 +224,22 @@ export function JobPostEditor({ post, demo = false }: { post: JobPost; demo?: bo
 /** Below the post: applicants (once published) and the question papers. */
 function PostWork({ post }: { post: JobPost }) {
   const live = post.status === 'published' || post.status === 'closed'
-  const [tab, setTab] = useState<'applicants' | 'tests' | 'results' | 'messages' | 'papers'>(live ? 'applicants' : 'papers')
+  const manage = post.can?.manage ?? true
+  const [tab, setTab] = useState<'applicants' | 'tests' | 'results' | 'offers' | 'messages' | 'papers'>(live ? 'applicants' : 'papers')
   return (
     <section className="space-y-4">
       <Tabs value={tab} onChange={setTab} tabs={[
         ...(live ? [{ key: 'applicants' as const, label: 'Applicants' }, { key: 'tests' as const, label: 'Tests & interviews' },
-                    { key: 'results' as const, label: 'Results' }, { key: 'messages' as const, label: 'Messages' }] : []),
+                    { key: 'results' as const, label: 'Results' }] : []),
+        ...(live && manage ? [{ key: 'offers' as const, label: 'Offers & joining' }] : []),
+        ...(live ? [{ key: 'messages' as const, label: 'Messages' }] : []),
         { key: 'papers' as const, label: 'Question papers' },
       ]} />
       {!live || tab === 'papers' ? <QuestionPapersPanel post={post} />
         : tab === 'applicants' ? <ApplicantsPanel post={post} />
           : tab === 'tests' ? <TestsPanel post={post} />
-            : tab === 'results' ? <ResultsPanel post={post} /> : <OutboxPanel post={post} />}
+            : tab === 'results' ? <ResultsPanel post={post} />
+              : tab === 'offers' && manage ? <OffersPanel post={post} /> : <OutboxPanel post={post} />}
     </section>
   )
 }

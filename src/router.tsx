@@ -56,6 +56,9 @@ export const router = createBrowserRouter([
   { path: '/t/:token', element: named(() => import('@/pages/public/careers/TestPage'), 'TestPage') },
   // R5: the pre-interview form link from the interview email.
   { path: '/f/:token', element: named(() => import('@/pages/public/careers/PreinterviewFormPage'), 'PreinterviewFormPage') },
+  // R6 / R7: the offer + pre-joining form, and the named joining feedback.
+  { path: '/offer/:token', element: named(() => import('@/pages/public/careers/OfferPage'), 'OfferPage') },
+  { path: '/joining-feedback/:token', element: named(() => import('@/pages/public/careers/JoiningFeedbackPage'), 'JoiningFeedbackPage') },
   {
     element: <RequireSession />,
     children: [

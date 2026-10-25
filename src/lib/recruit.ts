@@ -4,8 +4,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import type {
   Applicant, AssessmentBoard, CandidateResults, Channel, CvMode, InterviewerKit, InterviewerOption, JobPost, JobPostList,
-  JobProfileRow, MessagingSettings, MyInterview, NotificationRow, PreinterviewForm, PublicCareers, PublicJobPost,
-  QuestionPapers, RecruitSettings, TestState,
+  JobProfileRow, MessagingSettings, MyInterview, NotificationRow, OfferContext, OfferList, OnboardingCase, OnboardingCaseRow,
+  PreinterviewForm, PrehireReview, PrehireState, PublicCareers, PublicJobPost, PublicOffer, PurgePlan, QuestionPapers,
+  RecruitSettings, TestState,
 } from '@/onboarding-process/core/types'
 import type { CvExtension } from '@/onboarding-process/core/jobPost'
 import { CV_TYPES, cvError, cvExtension } from '@/onboarding-process/core/jobPost'
@@ -121,6 +122,73 @@ export async function testMessaging(channel: Channel, to: string): Promise<{ ok:
 export const formApi = {
   get: (token: string) => callRpc<PreinterviewForm>('get_preinterview_form', { p_token: token }),
   submit: (token: string, p: Record<string, unknown>) => callRpc<void>('submit_preinterview_form', { p_token: token, p }),
+}
+
+// ---------------------------------------------------------------------------- R6 / R7: offers, pre-joining, joining
+export function useOffers(postId: string) {
+  return useQuery({ queryKey: ['recruit', 'offers', postId], queryFn: () => callRpc<OfferList>('list_offers', { p_job_post_id: postId }) })
+}
+
+export function useOfferContext(applicantId: string) {
+  return useQuery({ queryKey: ['recruit', 'offer-context', applicantId], queryFn: () => callRpc<OfferContext>('get_offer_context', { p_applicant_id: applicantId }) })
+}
+
+export function usePrehire(id: string | undefined) {
+  return useQuery({ queryKey: ['recruit', 'prehire', id], enabled: !!id, queryFn: () => callRpc<PrehireReview>('get_prehire', { p_prehire_id: id }) })
+}
+
+export function useOnboardingCases(postId: string) {
+  return useQuery({ queryKey: ['recruit', 'cases', postId], queryFn: () => callRpc<OnboardingCaseRow[]>('list_onboarding_cases', { p_job_post_id: postId }) })
+}
+
+export function useOnboardingCase(id: string | undefined) {
+  return useQuery({ queryKey: ['recruit', 'case', id], enabled: !!id, queryFn: () => callRpc<OnboardingCase>('get_onboarding_case', { p_case_id: id }) })
+}
+
+/** Signed link to a private file (HR may read prehire photos and signed documents of the company). */
+export async function signedUrl(bucket: string, path: string, seconds = 300) {
+  const { data, error } = await supabase.storage.from(bucket).createSignedUrl(path, seconds)
+  if (error) throw error
+  return data.signedUrl
+}
+
+/** Copies the pre-joining photo into the employee's profile (employee-files/{org}/{employee}/photo). */
+export async function copyPrehirePhoto(orgId: string, employeeId: string, photoPath: string) {
+  const { data, error } = await supabase.storage.from('prehire-files').download(photoPath)
+  if (error) throw error
+  const { error: up } = await supabase.storage.from('employee-files').upload(`${orgId}/${employeeId}/photo`, data, { upsert: true, contentType: data.type || 'image/jpeg' })
+  if (up) throw up
+}
+
+/** Close hiring: delete the files listed in the plan, then purge the applicants (the database refuses while files remain). */
+export async function closeHiring(postId: string, plan: PurgePlan) {
+  for (const bucket of ['recruit-cvs', 'prehire-files'] as const) {
+    const paths = plan.files[bucket]
+    for (let i = 0; i < paths.length; i += 100) {
+      const { error } = await supabase.storage.from(bucket).remove(paths.slice(i, i + 100))
+      if (error) throw error
+    }
+  }
+  return callRpc<{ purged: number }>('purge_post_applicants', { p_job_post_id: postId, p_confirm: 'DELETE' })
+}
+
+export const getPurgePlan = (postId: string) => callRpc<PurgePlan>('get_purge_plan', { p_job_post_id: postId })
+
+/** The public offer page and pre-joining form. */
+export const offerApi = {
+  get: (token: string) => callRpc<PublicOffer>('get_offer', { p_token: token }),
+  respond: (token: string, answer: 'accept' | 'decline', note: string) => callRpc<PublicOffer>('respond_offer', { p_token: token, p_answer: answer, p_note: note }),
+  photoPath: (token: string, ext: string) => callRpc<string>('start_prejoining_photo', { p_token: token, p_ext: ext }),
+  uploadPhoto: async (path: string, file: File) => {
+    const { error } = await supabase.storage.from('prehire-files').upload(path, file, { contentType: file.type })
+    if (error) throw error
+  },
+  submit: (token: string, p: Record<string, unknown>) => callRpc<PrehireState>('submit_prejoining', { p_token: token, p }),
+}
+
+export const feedbackApi = {
+  get: (token: string) => callRpc<{ organization: string; full_name: string; joining_date: string; submitted: boolean; open: boolean }>('get_joining_feedback', { p_token: token }),
+  submit: (token: string, p: Record<string, unknown>) => callRpc<void>('submit_joining_feedback', { p_token: token, p }),
 }
 
 /** The recruit-ai Edge Function (CV reading, AI question drafts, key test). Errors carry the function's message. */

@@ -322,3 +322,82 @@ export interface CandidateResult {
 }
 
 export interface CandidateResults { weights: Weights; has_written_test: boolean; rows: CandidateResult[] }
+
+// ----------------------------------------------------------------------------- R6 / R7
+type OfferStatusT = import('./joining').OfferStatus
+type PrehireStatusT = import('./joining').PrehireStatus
+
+export interface Offer {
+  id: string; applicant_id: string; job_post_id: string; office_id: string; employment_type: EmploymentType
+  salary_template_id: string; gross: number; joining_date: string; expires_on: string; probation_months: number
+  terms: string | null; status: OfferStatusT; approved_by: string | null; approved_at: string | null; approval_note: string | null
+  sent_at: string | null; responded_at: string | null; response_note: string | null; withdraw_reason: string | null
+  created_by: string | null; created_at: string
+  template_name: string; office_name: string; prepared_by_name: string | null; approved_by_name: string | null
+}
+
+export interface OfferRow {
+  applicant_id: string; full_name: string; email: string; status: ApplicantStatus
+  decision: { decision: 'selected' | 'waitlist' | 'rejected'; composite: number | null; note: string | null; created_at: string } | null
+  offer: Offer | null
+  prehire: { id: string; status: PrehireStatusT; submitted_at: string | null; employee_id: string | null } | null
+}
+
+export interface OfferList { can: { approve: boolean; user_id: string }; seats: number; seats_taken: number; rows: OfferRow[] }
+
+export interface OfferContext {
+  applicant: { id: string; full_name: string; status: ApplicantStatus }
+  post: { id: string; title: string; employment_type: EmploymentType; show_salary: boolean; salary_min: number | null
+          salary_max: number | null; department_name: string; designation_name: string }
+  expected_salary: number | null; notice_period_days: number | null
+  templates: { id: string; name: string }[]; offices: { id: string; name: string; branch_name: string }[]
+  default_office_id: string | null; today: string
+}
+
+export interface PrehireData {
+  father_name?: string; mother_name?: string; date_of_birth?: string; gender?: string | null; marital_status?: string | null
+  blood_group?: string | null; religion?: string | null; present_address?: string; permanent_address?: string
+  emergency_name?: string | null; emergency_phone?: string | null
+  nominees?: { name: string; relation: string; phone: string | null }[]
+}
+
+export interface PrehireState {
+  status: PrehireStatusT; data: PrehireData; nid_last4: string | null; payment_method: 'bank' | 'mobile_wallet' | 'cash' | null
+  bank_name: string | null; branch_name: string | null; routing_number: string | null; account_name: string | null
+  wallet_provider: string | null; number_last4: string | null; has_photo: boolean; return_note: string | null; submitted_at: string | null
+}
+
+export interface PublicOffer {
+  status: OfferStatusT; organization: string; full_name: string; designation: string; department: string; office: string
+  employment_type: EmploymentType; gross: number; joining_date: string; expires_on: string; probation_months: number
+  terms: string | null; responded_at: string | null; prejoining: PrehireState | null
+}
+
+export interface PrehireReview {
+  id: string; status: PrehireStatusT; data: PrehireData; nid: string | null; payment_method: string | null
+  bank_name: string | null; branch_name: string | null; routing_number: string | null; account_name: string | null
+  wallet_provider: string | null; number: string | null; photo_path: string | null; submitted_at: string | null
+  verified_at: string | null; return_note: string | null; employee_id: string | null
+  applicant: { full_name: string; email: string; phone: string | null }
+}
+
+export interface OnboardingCase {
+  id: string; status: 'open' | 'completed'; joining_date: string; completed_at: string | null; org_id: string
+  employee: import('./joining').CaseFacts['employee'] & { id: string; email: string | null; phone: string | null }
+  company: { name: string; org_code: string }
+  offer: import('./joining').CaseFacts['offer'] & { employment_type: EmploymentType }
+  nominees: { name: string; relation: string; phone: string | null }[]
+  tasks: { id: string; key: import('./joining').TaskKey; done_at: string | null; done_by_name: string | null }[]
+  documents: { kind: import('./joining').DocumentKind; printed_at: string | null; signed_path: string | null; signed_at: string | null }[]
+  feedback: { ratings: Record<import('./joining').FeedbackKey, number>; comment: string | null; submitted_at: string } | null
+}
+
+export interface OnboardingCaseRow {
+  id: string; applicant_id: string; employee_id: string; status: 'open' | 'completed'; joining_date: string
+  employee_name: string; card_id: string; tasks_done: number; tasks_total: number; feedback: boolean
+}
+
+export interface PurgePlan {
+  blocking: number; applicants: number; joined: number
+  files: { 'recruit-cvs': string[]; 'prehire-files': string[] }
+}

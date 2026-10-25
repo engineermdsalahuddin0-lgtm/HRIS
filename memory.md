@@ -639,6 +639,13 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   canvas in the browser (4 colour themes, QR to the apply page). If the CV upload fails the application stays without
   a CV (HR can upload it). Found: 30+ older `private` functions are executable by PUBLIC — harmless while `private`
   is closed to anon and not exposed by the API, but never grant anon usage on `private`.
+- **R3 decisions (2026-10-25, discussion)**: CV reading per company/post = AI mode (Claude) or Basic mode (no AI,
+  PDF/DOCX → markdown via JS libraries in the Edge Function — user chose this over a Python MarkItDown server);
+  AI falls back to Basic. Question bank per designation, per-post papers (objective / written / both), editable,
+  "this post only" or "update bank"; typed in the system or Excel paste (AI draft only in AI mode). Recruitment only for
+  Admin, HR Manager, Manager (own department); employees nothing. R5: a Manager may assign any employee as interviewer,
+  who only scores assigned applicants. Manager actions default (not answered): view + set papers; publish/shortlist =
+  HR/Admin. Details: architecture.md §2 #17–19.
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

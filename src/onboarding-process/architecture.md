@@ -29,8 +29,8 @@ generated pre-filled for printing and signing, and a named joining-day feedback 
 |---|---|---|
 | **R1** | Headcount plan, workload (4 methods, (?) tooltips), vacancy draft + approval, workforce dashboard, 10 demo cases | ✅ applied, `recruit_r1_workforce_test.sql` passed on Supabase |
 | **R2** | Job profiles → job post (text + poster) → careers page + apply form + temporary CV storage | ✅ applied, `recruit_r2_job_posts_test.sql` passed on Supabase |
-| **R3** | CV parsing (AI), ATS gate + score, markdown profile, report table, profile modal | ⏳ |
-| **R4** | Question generation + review, online objective test (own page), written-test marks entry, interview scheduling | ⏳ |
+| **R3** | CV reading (AI or Basic/markdown), must-have gate, ATS score, profile modal, shortlist, question bank + per-post papers, Settings → AI key | ⏳ |
+| **R4** | Online objective test (own page), written-test marks entry, interview scheduling | ⏳ |
 | **R5** | Email (now) / SMS (coded, off), pre-interview form, interviewer kit, panel scoring, composite result | ⏳ |
 | **R6** | Offer (maker-checker) / reject email, pre-joining form (NID, photo, nominee, bank) | ⏳ |
 | **R7** | Joining automation (pre-hire → employee), documents to print and sign, joining feedback, data purge | ⏳ |
@@ -59,6 +59,9 @@ build, commit, update this file and `memory.md` A9.
 | 13 | Joining feedback | **Named**, not anonymous. |
 | 14 | Approval chain | *Default until the user says otherwise*: vacancy = drafted (system/Manager) → HR review → Admin approve (budget); offer = HR prepares → Admin approves (preparer ≠ approver). |
 | 15 | Architecture | Recruitment needs outside calls (AI, email, SMS, captcha) → **Supabase Edge Functions** for those three jobs only (§9). Everything else stays in Postgres RPCs. |
+| 17 | CV reading (2026-10-25) | Per company (post can override): **AI mode** (Claude extracts years, education, skills, roles + relevance) or **Basic mode** (no AI: PDF/DOCX → markdown with JavaScript libraries inside the Edge Function, MarkItDown-like, no Python server; skills by keyword match against the job profile, years estimated from dates, relevance entered by HR). AI mode falls back to Basic when no key / error. HR can correct every profile; AI never rejects anyone. Scanned PDFs in Basic mode → HR enters the data. |
+| 18 | Question papers (2026-10-25) | Per post: objective, written or both (question, options, correct answer, marks, section; written: marks + model answer). Saved to a **question bank per designation**; the next post for that designation starts from it. Editable per post; on save the user picks "this post only" or "also update the bank". Sources: typed in the system, Excel paste, or AI draft (AI mode only, needs approval). Paper locks once a test starts (changes → new version). Answer key never reaches the applicant. Moved from R4 into R3. |
+| 19 | Who may do recruitment (2026-10-25) | Only **Admin, HR Manager, Manager**; employees see nothing. Manager: **own department only**; default (unanswered): Manager may view and set question papers, publish / shortlist stay with HR and Admin. Interview panel (R5): a Manager may assign any employee as interviewer; that employee can only score the applicants assigned to them. |
 | 16 | Apply without an Edge Function (R2 build, 2026-10-25) | The apply form works with anon RPCs and a direct upload to the private bucket (only the returned path, within 1 hour, once, then token confirm). Honeypot + rate limit for now; captcha moves into an Edge Function when R3 brings the first one. |
 
 ---------------------------------------------------------------------------------------------------------------------

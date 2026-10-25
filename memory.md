@@ -582,6 +582,20 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   Ideas taken from ibos.io (hero + CTA, solutions grid, 3-step process, FAQ).
 - Old `SignupPage` and `SignupRequestsPage` removed; `/signup` → `/register`, `/platform/requests` → `/platform/applications`.
 
+### Recruitment & onboarding (planned, discussion only) — user answers 2026-10-25
+- **Order**: onboarding/recruitment first; **final settlement is a separate module, later**.
+- Scope = full recruitment flow: workload + vacancy (Part 01) → job post from designation profile + apply channels + CV
+  storage + ATS/markdown profile/report (Part 02) → objective/written tests, interview scheduling ≤ 15 days, editable
+  (Part 03) → SMS with pre-interview form, interviewer kit, 1–4 panel scoring, offer/reject email + pre-joining form
+  (NID, photo, nominee, bank) (Part 04) → joining-day feedback form, auto-filled documents printed and signed (Part 05).
+- **Sanctioned headcount**: companies set it in the system (new headcount plan per department/designation/office + budget).
+- **Vacancy**: auto-drafted (separation or overload), a person approves.
+- **Workload**: link output data, not only attendance/OT; methods per department (hours / output×SMV / volume×standard
+  time / staffing ratio); every formula and source shown on a (?) hover; sources verified, never from memory.
+- Demo: 10 seeded workload/vacancy cases (proposal in the 2026-10-25 discussion).
+- Pending user decisions: Edge Functions or pg_net for AI/SMS/email/Google Forms; SMS gateway; Google Form vs built-in
+  test; score weights ("IQ" → aptitude test); thresholds; CV retention; approval chain; salary range on posts.
+
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).
 - **Phone login**: Supabase Phone provider is **disabled** (`phone_provider_disabled`). Phone-only logins can't sign in

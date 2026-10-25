@@ -398,8 +398,9 @@ reset role;
 do $$
 begin
   assert not has_schema_privilege('anon', 'private', 'usage'), 'anon must not reach the private schema';
-  assert (select array_agg(p.proname::text) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
-          where n.nspname = 'policy_checks') = array['recruit_cv_pending'], 'policy_checks holds only the upload check';
+  -- R6 adds the pre-joining photo check; nothing else may live there.
+  assert (select array_agg(p.proname::text order by p.proname) from pg_proc p join pg_namespace n on n.oid = p.pronamespace
+          where n.nspname = 'policy_checks') <@ array['prehire_photo_pending', 'recruit_cv_pending'], 'policy_checks holds only upload checks';
   raise notice 'PASS: anon reaches only the CV upload check, nothing of the private schema';
 end $$;
 

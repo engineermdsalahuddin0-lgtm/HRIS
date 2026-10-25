@@ -356,21 +356,20 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Onboarding R6 offers** | `20261030000100_recruit_r6_offers` | ⏳ not applied (needs R5) | `recruit_r6_r7_offer_joining_test.sql` (9, needs R7 too) |
 | **Onboarding R7 joining** | `20261031000100_recruit_r7_joining` | ⏳ not applied (needs R6) | (same test) |
 | **Onboarding R6 + R7 (live)** | — | ✅ applied on Supabase (the organogram RPCs answer, so R6/R7 below them exist); R6+R7 test re-run not confirmed | |
-| **Department organogram** | `20261101000100_organogram` | ✅ applied (UI calls reach `list_organogram_grades`); test run not confirmed | `organogram_test.sql` (9) |
-| **Organogram fix** | `20261101000200_organogram_fix_volatile` | ⏳ run in the SQL Editor: `list_organogram_grades` was STABLE but seeds grades (INSERT) → HTTP 405 on the Budget and Grades tabs | (organogram test check 9: no STABLE public function writes) |
+| **Department organogram** | `20261101000100_organogram` | ✅ applied, `organogram_test.sql` passed on Supabase 2026-10-25 | `organogram_test.sql` (9) |
+| **Organogram fix** | `20261101000200_organogram_fix_volatile` | ✅ applied (implied: test check 9 passed on Supabase 2026-10-25); `list_organogram_grades` was STABLE but seeds grades → HTTP 405 | (organogram test check 9: no STABLE public function writes) |
 - Local (2026-10-25): all 14 SQL suites pass in PGlite; vitest 133 tests; typecheck + build pass.
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405
   on Supabase but passes in PGlite. A function that seeds or logs must stay VOLATILE (the organogram test lints this).
-- R6 → R7 → organogram are applied; only the organogram fix file above is still to run.
+- R6 → R7 → organogram + fix are all applied.
 
 ### A9a. Handoff — where work stopped (2026-10-25, last commit `ec84577`, tree clean)
 - **Finished**: recruitment/onboarding R1–R7 (full hiring cycle) + Department Organogram + interactive organogram demo.
   Handbook for all of it: `src/onboarding-process/architecture.md` (§1 status, §2 decisions 1–25, §10b organogram).
 - **Waiting on the user** (ask at the start of the next session, do not redo):
-  1. Run `20261101000200_organogram_fix_volatile.sql` in the SQL Editor, then check that Organogram → Budget & slots /
-     Grades & designations open (they gave HTTP 405 before the fix).
-  2. Confirm on Supabase: `recruit_r6_r7_offer_joining_test.sql` and `organogram_test.sql` pass (R3–R5 tests also never
-     confirmed, only probed).
+  1. Done 2026-10-25: `organogram_test.sql` passed on Supabase (so the fix is applied). Still to confirm in the UI that
+     Organogram → Budget & slots / Grades & designations open (they gave HTTP 405 before the fix).
+  2. Confirm on Supabase: `recruit_r6_r7_offer_joining_test.sql` passes (R3–R5 tests also never confirmed, only probed).
   3. Hand test with real keys: AI CV reading / question drafting (`recruit-ai`), email/SMS (`recruit-notify`).
 - **Known, not investigated**: `set_pf_membership` returns HTTP 400 in the browser console (Part 3C PF page).
 - **Next feature**: the user will name it in the next chat. Candidates already noted: Part 3D (hours compliance,

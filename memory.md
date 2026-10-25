@@ -339,11 +339,14 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Part 3B payroll engine** | `20261019000100_part3b_payroll_engine` | ✅ applied, passed 2026-10-17 | `part3b_payroll_engine_test.sql` (12) |
 | **Onboarding R1 workforce** | `20261025000100_recruit_r1_workforce` | ✅ applied, passed 2026-10-25 | `recruit_r1_workforce_test.sql` (9) |
 | **Onboarding R2 job posts** | `20261026000100_recruit_r2_job_posts` | ✅ applied, passed 2026-10-25 | `recruit_r2_job_posts_test.sql` (12) |
-| **Onboarding R3 screening** | `20261027000100_recruit_r3_screening` | ⏳ not applied (needs R2); Edge Function `recruit-ai` not deployed | `recruit_r3_screening_test.sql` (10) |
-| **Onboarding R4 tests & interviews** | `20261028000100_recruit_r4_tests_interviews` | ⏳ not applied (needs R3) | `recruit_r4_tests_interviews_test.sql` (9) |
-| **Onboarding R5 messages & interviews** | `20261029000100_recruit_r5_messages_interviews` | ⏳ not applied (needs R4); Edge Function `recruit-notify` not deployed | `recruit_r5_messages_interviews_test.sql` (8) |
+| **Onboarding R3 screening** | `20261027000100_recruit_r3_screening` | ✅ applied (anon probe 2026-10-25: `claim_cv_reads` exists; test run not confirmed); Edge Function `recruit-ai` ✅ deployed, boots (probe: "Unknown action") | `recruit_r3_screening_test.sql` (10) |
+| **Onboarding R4 tests & interviews** | `20261028000100_recruit_r4_tests_interviews` | ✅ applied (anon probe 2026-10-25: `get_test` answers "This test link is not valid"; test run not confirmed) | `recruit_r4_tests_interviews_test.sql` (9) |
+| **Onboarding R5 messages & interviews** | `20261029000100_recruit_r5_messages_interviews` | ⏳ not applied (probe 2026-10-25: `get_preinterview_form` missing); Edge Function `recruit-notify` not deployed (404) | `recruit_r5_messages_interviews_test.sql` (8) |
 - Local (2026-10-25): all 12 SQL suites pass in PGlite (149 checks); vitest 118 tests; typecheck + build pass.
 - Apply order for the pending recruit steps: R3 → R4 → R5 (each file checks the previous one exists).
+- Probing from the terminal works over HTTPS with the anon key from `.env`: `POST {url}/rest/v1/rpc/<fn>` (missing
+  function → PGRST202) and `POST {url}/functions/v1/<name>` with `{"action":"ping"}` (deployed → "Unknown action",
+  missing → 404). PostgREST returns HTTP 500 for P0002 raises; the JSON message is still right.
   The R2 test's manager check was changed in R3 (managers may now read their department's posts).
 - No Deno / Supabase CLI on this machine: the Edge Function is not type-checked or run locally.
 - PowerShell 5.1 `Get-Content`/`Set-Content` on UTF-8 files without BOM corrupts non-ASCII (– — •): edit with the

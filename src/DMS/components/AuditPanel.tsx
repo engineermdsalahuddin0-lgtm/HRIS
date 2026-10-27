@@ -8,6 +8,7 @@ import { Select, Table, Textarea, td, th } from '@/components/kit'
 import { addDays } from '../core/dms'
 import type { AuditRow } from '../core/types'
 import { useAccessReview, useAudit, useSignAccessReview } from '../data/api'
+import { ServerError } from './ServerError'
 
 const ACTION: Record<string, string> = {
   'dms.document_published': 'Published (v1)',
@@ -60,7 +61,7 @@ export function AuditPanel({ onOpen }: { onOpen: (id: string) => void }) {
             <Download className="size-4" /> Export CSV
           </Button>
         </div>
-        {audit.isPending ? <PageLoader /> : audit.isError ? <Alert>{errorMessage(audit.error)}</Alert>
+        {audit.isPending ? <PageLoader /> : audit.isError ? <ServerError error={audit.error} step="audit" />
           : audit.data.length === 0 ? <EmptyState title="Nothing in this period" /> : (
             <Table minWidth={760} head={<tr><th className={th}>When</th><th className={th}>What</th><th className={th}>Document</th><th className={th}>By</th><th className={th}>Detail</th></tr>}>
               {audit.data.map((r, i) => (
@@ -90,7 +91,7 @@ function AccessReviewCard() {
   const sign = useSignAccessReview()
   const [note, setNote] = useState('')
   if (review.isPending) return null
-  if (review.isError) return <Alert>{errorMessage(review.error)}</Alert>
+  if (review.isError) return <ServerError error={review.error} step="audit" />
   const r = review.data
   return (
     <Card className="space-y-4">

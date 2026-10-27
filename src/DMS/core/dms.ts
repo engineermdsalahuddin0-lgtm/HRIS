@@ -123,5 +123,20 @@ export function titleFromFileName(name: string): string {
   return base ? base.charAt(0).toUpperCase() + base.slice(1) : ''
 }
 
-export const formatSize = (bytes: number) =>
+/** The server function is not installed yet (its migration has not been run on Supabase). */
+export function isMissingRpc(e: unknown): boolean {
+  const err = e as { code?: string; status?: number; message?: string } | null
+  return !!err && (err.code === 'PGRST202' || err.status === 404 || /Could not find the function/i.test(err.message ?? ''))
+}
+
+/** Which migration a DMS tab needs, for the "not installed yet" message. */
+export const DMS_STEP_MIGRATION = {
+  tasks: '20261104000200_dms_d2_governance.sql',
+  compliance: '20261104000300_dms_d3_compliance.sql',
+  records: '20261104000400_dms_d4_records.sql',
+  ai: '20261104000500_dms_d5_ai.sql',
+  audit: '20261104000600_dms_d6_audit.sql',
+} as const
+
+export const formatSize =(bytes: number) =>
   bytes < 1024 * 1024 ? `${Math.max(1, Math.round(bytes / 1024))} KB` : `${(bytes / 1024 / 1024).toFixed(1)} MB`

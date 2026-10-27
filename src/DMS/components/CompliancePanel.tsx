@@ -1,10 +1,10 @@
 import { useState } from 'react'
 import { Download } from 'lucide-react'
-import { errorMessage } from '@/lib/identity'
-import { Alert, Badge, Button, Card, EmptyState, PageLoader, cx } from '@/components/ui'
+import { Badge, Button, Card, EmptyState, PageLoader, cx } from '@/components/ui'
 import { downloadText, toCsv } from '@/lib/payrollRuns'
 import type { ComplianceClause, ComplianceProfile } from '../core/types'
 import { useCompliance } from '../data/api'
+import { ServerError } from './ServerError'
 
 const STATUS: Record<ComplianceClause['status'], { label: string; tone: 'green' | 'orange' | 'red' }> = {
   ok: { label: 'Evidence', tone: 'green' },
@@ -18,7 +18,7 @@ export function CompliancePanel({ onOpen, onSetup }: { onOpen: (id: string) => v
   const [profile, setProfile] = useState<string | null>(null)
   const [onlyGaps, setOnlyGaps] = useState(false)
   if (data.isPending) return <PageLoader />
-  if (data.isError) return <Alert>{errorMessage(data.error)}</Alert>
+  if (data.isError) return <ServerError error={data.error} step="compliance" />
   if (data.data.length === 0) {
     return (
       <EmptyState title="No ISO standard selected">

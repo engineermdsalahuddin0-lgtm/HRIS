@@ -7,6 +7,7 @@ import { Modal } from '@/components/kit'
 import type { DmsRequest, Library, VersionTask } from '../core/types'
 import { openFile, uploadMessage, useCancelRequest, useTasks } from '../data/api'
 import { RequestForm } from './RequestForm'
+import { ServerError } from './ServerError'
 import { ReviewDecision } from './ReviewDecision'
 import { UploadForm } from './UploadForm'
 
@@ -20,7 +21,7 @@ export function MyTasks({ library, onOpen }: { library: Library; onOpen: Open })
   const [asking, setAsking] = useState(false)
   const [message, setMessage] = useState<string | null>(null)
   if (tasks.isPending) return <PageLoader />
-  if (tasks.isError) return <Alert>{errorMessage(tasks.error)}</Alert>
+  if (tasks.isError) return <ServerError error={tasks.error} step="tasks" />
   const t = tasks.data
 
   const startUpload = (r: DmsRequest) => {
@@ -99,7 +100,7 @@ export function ReviewQueue({ onOpen }: { onOpen: Open }) {
   const [message, setMessage] = useState<string | null>(null)
   const [fileError, setFileError] = useState<string | null>(null)
   if (tasks.isPending) return <PageLoader />
-  if (tasks.isError) return <Alert>{errorMessage(tasks.error)}</Alert>
+  if (tasks.isError) return <ServerError error={tasks.error} step="tasks" />
   const list = tasks.data.to_review
   return (
     <div className="space-y-4">

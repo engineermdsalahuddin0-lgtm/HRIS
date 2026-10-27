@@ -5,6 +5,7 @@ import { Alert, Badge, Button, Card, EmptyState, PageLoader } from '@/components
 import { Table, td, th } from '@/components/kit'
 import type { Records, RetentionRule } from '../core/types'
 import { useApproveDisposal, useFinishDisposal, useRecords, useRecordsAction } from '../data/api'
+import { ServerError } from './ServerError'
 
 const START: Record<RetentionRule['start_event'], string> = { published: 'after publishing', archived: 'after archiving', expiry: 'after expiry' }
 
@@ -19,7 +20,7 @@ export function RecordsPanel({ onOpen }: { onOpen: (id: string) => void }) {
   const finish = useFinishDisposal()
   const [message, setMessage] = useState<string | null>(null)
   if (data.isPending) return <PageLoader />
-  if (data.isError) return <Alert>{errorMessage(data.error)}</Alert>
+  if (data.isError) return <ServerError error={data.error} step="records" />
   const r = data.data
   const error = act.error ?? approve.error ?? finish.error
   const run = (fn: string, args: Record<string, unknown>, done: string) => {

@@ -199,6 +199,18 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - `performance_cycles` (draft|open|closed), `performance_criteria` (weight, sum 100), `performance_reviews` (one per
   cycle+employee; draft|submitted|acknowledged, overall_score, rating), `performance_scores` (1-5 + comment)
 
+**Communication C1–C3** (Part 5, design in `src/communication/architecture.md`)
+- `notices` (category, title(+bn), body(+bn) safe markdown, audience all|department|branch|employees + id arrays, pinned,
+  requires_ack, email_copy, status draft|published|archived, publish_at, expires_at, attachment, email_queued_at,
+  last_reminded_at), `notice_reads` (first_read_at, acknowledged_at set once); bucket `notice-files/{org}/{notice}/…`
+- `notifications` (R5 outbox) widened: applicant_id / job_post_id nullable, `source` recruit|notice|helpdesk,
+  `employee_id`, `ref_id`
+- `helpdesk_settings` (sla jsonb minutes per priority, auto_close_days, next_ticket_no), `helpdesk_categories`
+  (confidential, handler_employee_id), `helpdesk_tickets` (ticket_no, status open|in_progress|waiting|resolved|closed,
+  due times, first_response_at, waiting_since, paused_minutes, rating, reopen_count), `helpdesk_messages`
+  (reply|note|event, append-only); bucket `helpdesk-files`
+- `password_requests` (pending|resolved|dismissed, masked login_hint), `private.password_request_log` (hashes, 1 day)
+
 **Platform / SaaS**
 - `platform_plans` (TRIAL/BASIC/PRO/ENTERPRISE, price_per_employee null = contact sales, max_employees, features)
 - `org_subscriptions` (one per org: plan, status trial|active|past_due|suspended|cancelled|expired, seats, price,
@@ -259,6 +271,14 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `start_prejoining_photo` / `submit_prejoining`; `convert_to_employee`, `get_onboarding_case`, `list_onboarding_cases`,
   `set_onboarding_task`, `mark_document_printed`, `attach_signed_document`, `complete_onboarding`, `get_purge_plan`,
   `purge_post_applicants`, anon `get/submit_joining_feedback`
+- **Communication (C1–C3)**: notices `save_notice`, `publish_notice`, `set_notice_pin`, `archive_notice`,
+  `list_notices_manage`, `notice_receipts`, `remind_notice_ack`, `my_notices`, `open_notice`, `acknowledge_notice`,
+  `my_notice_alerts`; outbox `claim_notifications` / `mark_notification` now also for notice publishers
+  (`private.can_send_messages`); helpdesk `list_helpdesk_categories`, `create_ticket`, `list_tickets(scope)`, `get_ticket`,
+  `reply_ticket`, `set_ticket_status`, `assign_ticket`, `rate_ticket`, `reopen_ticket`, `get_helpdesk_setup`,
+  `save_helpdesk_settings`, `save_helpdesk_category`; office time `private.add_office_minutes`,
+  `office_minutes_between`, `office_days_between`; password `request_password_help` (anon), `list_password_requests`,
+  `resolve_password_request`, `dismiss_password_request`
 - **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
   `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
 - 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
@@ -284,6 +304,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
     `payment.export`
   - 3C: `tax.view_profiles`, `tax.manage`, `pf.manage`, `gratuity.manage` (HR default all four)
   - performance: `performance.manage` (HR), `performance.review` (HR + Manager, own team only)
+  - communication: `notices.manage` (HR), `notices.department` (Manager: own department only), `helpdesk.manage` (HR),
+    `helpdesk.handle` (HR; give to IT etc.); password requests use the existing `users.reset_password`
 - **HR Manager** default: org view/manage, all employees.*, users.reset_password, roles.view, all attendance except
   lock_period, shifts/roster/holidays/swaps/geofences, all leave, all overtime, compensation view/edit, bonuses,
   deductions, payment accounts view/edit, payroll.view_own/prepare/review. **Not**: increments.approve,
@@ -327,6 +349,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - AI assistant (Part 4, UI on preview data, `src/AIassistant/`): floating `AssistantWidget` in AppLayout (every
   signed-in page) · `/settings/assistant` (Admin; HR Manager when handed over) tabs Overview / API key / Resources /
   Model settings / Role access / Messages / Test as role · dev `/preview/assistant`
+- Communication (`src/communication/`, sidebar section Communication): `/notices` (For me / Manage, `?open=<id>`) ·
+  `/helpdesk` (my / assigned / all / setup) · `/helpdesk/:id` · `/password-requests` · dashboard `NoticeBanner` ·
+  login page "Forgot password? Ask HR"
 - Platform: `/platform` · `/platform/applications` · `/platform/organizations/:id`
 - Data hooks: `src/lib/hr.ts` (Part 1), `time.ts` (Part 2), `files.ts` (storage), `payroll.ts` (3A + money helpers),
   `payrollRuns.ts` (3B + CSV), `payslipText.ts` (EN/BN), `platform.ts`, `identity.ts` (phone/login/errors),
@@ -361,7 +386,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Onboarding R6 + R7 (live)** | — | ✅ applied, `recruit_r6_r7_offer_joining_test.sql` passed on Supabase 2026-10-25 | |
 | **Department organogram** | `20261101000100_organogram` | ✅ applied, `organogram_test.sql` passed on Supabase 2026-10-25 | `organogram_test.sql` (9) |
 | **Organogram fix** | `20261101000200_organogram_fix_volatile` | ✅ applied (implied: test check 9 passed on Supabase 2026-10-25); `list_organogram_grades` was STABLE but seeds grades → HTTP 405 | (organogram test check 9: no STABLE public function writes) |
-- Local (2026-10-25): all 14 SQL suites pass in PGlite; vitest 133 tests; typecheck + build pass.
+| **Comm C1 notices** | `20261102000100_comm_c1_notices` | ⏳ not applied | `comm_c1_notices_test.sql` (8) |
+| **Comm C2 helpdesk** | `20261102000200_comm_c2_helpdesk` | ⏳ not applied (needs C1) | `comm_c2_helpdesk_test.sql` (6) |
+| **Comm C3 password requests** | `20261102000300_comm_c3_password_requests` | ⏳ not applied (needs C2) | `comm_c3_password_requests_test.sql` (3) |
+- Local (2026-10-27): all 17 SQL suites pass in PGlite; vitest 192 tests; typecheck + build pass (main chunk 515 kB:
+  bundler moved `components/ui.tsx` and react-query from shared chunks into `index`; first-load size ~unchanged).
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405
   on Supabase but passes in PGlite. A function that seeds or logs must stay VOLATILE (the organogram test lints this).
 - R6 → R7 → organogram + fix are all applied.
@@ -369,6 +398,13 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 ### A9a. Handoff — where work stopped (2026-10-25, last commit `ec84577`, tree clean)
 - **Finished**: recruitment/onboarding R1–R7 (full hiring cycle) + Department Organogram + interactive organogram demo.
   Handbook for all of it: `src/onboarding-process/architecture.md` (§1 status, §2 decisions 1–25, §10b organogram).
+- **Latest (2026-10-27)**: Part 5 Communication C1 notices, C2 helpdesk, C3 password requests built (backend + UI,
+  commits `64a686e`…`84fb7c6`), local tests green. **User must apply on Supabase, in order:**
+  `20261102000100_comm_c1_notices.sql` → `comm_c1_notices_test.sql`, `20261102000200_comm_c2_helpdesk.sql` →
+  `comm_c2_helpdesk_test.sql`, `20261102000300_comm_c3_password_requests.sql` → `comm_c3_password_requests_test.sql`.
+  Then hand test: notice with email copy (needs the email channel), a ticket through a custom "IT" role with
+  helpdesk.handle, "Forgot password?" on the login page. Not browser-checked by the agent (no browser tool).
+  `docs/DevelopersManual.md` is an untracked user file: not read, not committed.
 - **Waiting on the user** (ask at the start of the next session, do not redo):
   1. Done 2026-10-25: `organogram_test.sql` passed on Supabase (so the fix is applied). Still to confirm in the UI that
      Organogram → Budget & slots / Grades & designations open (they gave HTTP 405 before the fix).
@@ -781,12 +817,31 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   none. D4 changed: DOCX cited by section with approx. page (no converter in Edge Functions).
 - **Backend written as an execution plan** (design doc §8 + §11, README "Backend files to come"): steps AI1–AI6 each
   list files, UI parts to switch from `data/store.ts`, tests, SQL files for the user. User: "UI only now, backend
-  later — when I say, execute it". `docs/Part05Architecture.md` is the user's next module: do not read or touch it
-  until asked.
+  later — when I say, execute it". `docs/Part05Architecture.md` is the user's next module (read 2026-10-27 on request,
+  discussion only: Modules 15–23 + REST/Next.js spec from the old "AIHR BD" design; stack parts conflict with ours).
 - **UI built 2026-10-27** (preview, no backend): floating widget (Updates + Ask, Alt+A), `/settings/assistant` with
   7 tabs, state in localStorage `olympus.ai-assistant.v1` (only key last 4 kept). `nav.ts` keeps the module out of the
   first download. Build: main chunk now 509 kB (was 497) — only ~1 kB is new code; react-query moved from the `ui-`
   chunk into `index` (bundler chunking), total JS +71 kB all in lazy chunks.
+
+### Part 5 Communication: Notices + Helpdesk (planned, discussion only) — user answers 2026-10-27
+- Source spec: `docs/Part05Architecture.md` (old "AIHR BD" Modules 15–23; take features/fields only, not its
+  Next.js / REST stack). User chose to start with **Notices + Helpdesk, full backend + UI**, in a tidy module folder
+  (like `src/AIassistant/`).
+- Notices: publish by **Admin, HR Manager, and Manager for own department only**. Features: **Bangla version, email
+  copy, acknowledge, read receipt**. Editor: **simple toolbar → safe markdown** (no rich-text library).
+- Helpdesk: **auto-routing by category** to a handler set in setup (Admin/HR can reassign); **SLA on office hours**
+  (weekly off, holidays, office time excluded; paused while waiting for the employee). Visibility: **own + handler +
+  HR/Admin**; internal notes hidden from the employee; confidential categories never shown to Managers. Closing:
+  **rating 1–5 or reopen; auto-close after 3 working days**; closed tickets do not reopen.
+- **Password requests (15.3) included, small**: "Forgot password? Ask HR" on login → request list → existing
+  `reset_user_password`; rate limited.
+- **Built 2026-10-27** (C1–C3, not applied). Choices made while building: emails reuse the R5 outbox (`notifications`
+  widened with `source` / `employee_id` / `ref_id`) and the unchanged `recruit-notify` function; scheduled notices and
+  ticket auto-close / SLA breach are computed when lists are read (no pg_cron); SLA counts only the resolution clock
+  as paused while waiting; first response = first public reply or status change by staff; confidential tickets can
+  only be assigned to holders of helpdesk.manage; managers' notices always target their own department (DB fills it);
+  ticket files are added as a first message right after creation (storage needs the ticket id).
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

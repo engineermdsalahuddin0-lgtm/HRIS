@@ -432,7 +432,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **AI5 assistant ask** | `20261103000400_assistant_ai5_ask` | ✅ applied, passed (user, 2026-10-27) | `assistant_ai5_ask_test.sql` (3) |
 | **AI6 assistant usage** | `20261103000500_assistant_ai6_usage` | ✅ applied, passed (user, 2026-10-27) | `assistant_ai6_usage_test.sql` (3) |
 | **Edge Function assistant** | `supabase/functions/assistant` | ✅ deployed (user, 2026-10-27) | ⚠️ **INCOMPLETE**: never run against a real provider (company has no API key yet); see A9a |
-| **DMS D1 foundation** | `20261104000100_dms_d1_foundation` | ⏳ not applied (needs AI6) | `dms_d1_foundation_test.sql` (9) |
+| **DMS D1 foundation** | `20261104000100_dms_d1_foundation` | ✅ applied, passed on Supabase (user, 2026-10-27) | `dms_d1_foundation_test.sql` (9) |
 - Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
   (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405
@@ -446,8 +446,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   Folders (base / ISO / custom), system naming `{DEPT}-{TYPE}-{SEQ}_v{n}`, duplicate refusal (hash; same type +
   department + title), versions / renewals, read rule (classification, department scope, restricted roles),
   licences by expiry with 30 June default, Setup tab. Local: 23 SQL suites, 192 unit tests, build pass; not
-  browser-checked (no browser tool). **User must:** apply `20261104000100_dms_d1_foundation.sql` then
-  `dms_d1_foundation_test.sql`; give departments a Code in Organization → Departments; then try an upload.
+  browser-checked (no browser tool). Applied on Supabase and `dms_d1_foundation_test.sql` passed (user, 2026-10-27).
+  **User still:** give departments a Code in Organization → Departments; try a real upload in the browser.
   Next: D2 (approval, reminders) — ask the D2 questions in `src/DMS/architecture.md` §7 first.
 - **⚠️ INCOMPLETE — AI assistant live test (open item, ask the user about it each session):** C1–C3, AI1–AI6 applied
   and their tests passed on Supabase, Edge Function `assistant` deployed (all confirmed by the user 2026-10-27). Not

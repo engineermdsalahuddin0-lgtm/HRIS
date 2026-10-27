@@ -1,6 +1,6 @@
 # DMS (Document Management System)
 
-**Status: D1 built (2026-10-27), not applied on Supabase.** D2–D6 planned. Read in this order:
+**Status: D1 built and applied on Supabase, test passed (2026-10-27).** D2–D6 planned. Read in this order:
 
 1. `architecture.md` — decisions, layers, flows, how it plugs into the app and the AI assistant, build steps D1–D6
 2. `features.md` — permissions, dashboard tabs, feature list per step, ISO guide for clients

@@ -907,6 +907,8 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
 - Folders (user, 2026-10-27): **flexible**. Base folders (licences, buyer compliance, HR policy, contracts, records,
   general) for every company, each can be switched off; ISO folders optional; users create their own folders /
   subfolders. **Naming rule always enforced**: code from department + type, never from the folder; moving never renames.
+- Guiding rule (user, 2026-10-27): **the user only opens a folder and uploads**; the system names, defaults, routes for
+  approval and prevents duplicates / mismatches (features.md §2a). Keep every form minimal.
 - Build steps D1–D6 (migrations `20261104000100…0600`); open questions per step in architecture.md §7. Ask before
   starting D1; seed document-type list to be reviewed with the user first.
 

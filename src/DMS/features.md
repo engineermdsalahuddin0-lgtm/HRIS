@@ -46,6 +46,40 @@ UI rules: loading / empty / error state everywhere, mobile-first, actions hidden
 
 ---
 
+## 2a. Guiding rule: the user only uploads (user, 2026-10-27)
+
+The user opens a folder and drops a file. The system decides everything else. No duplicates, no mismatches.
+
+**Upload in one step**
+- Upload starts from where the user is: inside a folder, the folder is known and the type list shows only that
+  folder's types (one type → chosen automatically).
+- Department = the uploader's department (changeable only with `dms.upload_all`); owner = the uploader.
+- Classification, review date, reminder days, approver, AI indexing: **defaults from the document type**, shown
+  folded under "More", never required.
+- The form shows only the type's required fields (e.g. licence number + expiry date). With an AI key, auto-fill
+  proposes them from the file.
+- Live preview before saving: "Will be saved as `HR-POL-0013_v1` in HR Policy".
+- If the type needs approval, the document goes to the approver by itself; the uploader does nothing more.
+- Several files at once: each gets its own code; the shared fields are asked once.
+
+**No duplication**
+| Case | What the system does |
+|---|---|
+| The exact same file again (same SHA-256) | Refused: "This file is already saved as `HR-POL-0012 v3` in HR Policy" with a link |
+| A changed file for a document that exists (same type, department, similar title) | Asks: "Is this a new version of `HR-POL-0012 Leave Policy`?" Yes → v4 of the same code, not a new document |
+| Licence renewal | "Upload renewal" on the expiry row → next version of the same licence; the old one is superseded |
+| One document needed by several ISOs / folders | Stored once, tagged many times; never copied |
+
+**No mismatch**
+- Names are generated, never typed; department, type and authority lists are chosen, not free text.
+- One stored value per fact (expiry date, review date, status); every screen, reminder and AI answer reads the same
+  column.
+- Moving between folders never renames or moves the file.
+- Publishing a new version, superseding the old one and updating the AI index happen in one transaction.
+- File type is detected from the file itself, never asked.
+
+---
+
 ## 3. Feature list
 
 ### Core (D1)

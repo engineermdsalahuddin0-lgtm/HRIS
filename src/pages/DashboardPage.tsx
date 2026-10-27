@@ -1,4 +1,5 @@
 import type { ReactNode } from 'react'
+import { Suspense, lazy } from 'react'
 import type { LucideIcon } from 'lucide-react'
 import {
   ArrowRight, ArrowRightLeft, BadgeCheck, Building2, CalendarDays, KeyRound, Power, ShieldCheck, TrendingDown,
@@ -12,6 +13,9 @@ import { useDashboardStats } from '@/lib/hr'
 import { Alert, Badge, Card, EmptyState, PageLoader } from '@/components/ui'
 import { ChartCard, DepartmentBars, EmploymentDonut, HeadcountArea, JoinersLeaversBars } from './dashboard/charts'
 import { sampleStats } from './dashboard/sampleData'
+
+// Pinned / unread / to-acknowledge notices (src/communication); hidden when there is nothing.
+const NoticeBanner = lazy(() => import('@/communication/notices/components/NoticeBanner'))
 
 function KpiTile({ label, value, icon: Icon, note }: { label: string; value: number | string; icon: LucideIcon; note?: ReactNode }) {
   return (
@@ -76,12 +80,14 @@ export default function DashboardPage() {
       {isPreview && <Badge tone="orange">Preview — sample data</Badge>}
     </div>
   )
+  const notices = isPreview ? null : <Suspense fallback={null}><NoticeBanner /></Suspense>
 
   // Roles without the people list (e.g. Employee) get a personal home.
   if (!canView && !isPreview) {
     return (
       <div className="mx-auto max-w-4xl space-y-6">
         {header}
+        {notices}
         <div className="grid gap-4 sm:grid-cols-2">
           <Link to="/me" className="block">
             <Card className="flex h-full items-center gap-4 transition hover:ring-primary-200">
@@ -113,6 +119,7 @@ export default function DashboardPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       {header}
+      {notices}
 
       <div data-tour="kpis" className="grid gap-4 sm:grid-cols-2 xl:grid-cols-4">
         <KpiTile

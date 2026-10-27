@@ -80,6 +80,8 @@ export const router = createBrowserRouter([
               guarded('employees.create', '/employees/new', page(() => import('@/pages/employees/AddEmployeePage'))),
               guarded('org.view', '/organization', page(() => import('@/pages/organization/OrganizationPage'))),
               guarded('roles.view', '/settings/roles', page(() => import('@/pages/settings/RolesPage'))),
+              // Part 5 communication (src/communication): everyone reads notices; publishing is checked inside.
+              { path: '/notices', element: page(() => import('@/communication/notices/pages/NoticesPage')) },
               // Part 4: AI assistant setup; the page itself checks Admin / handed-over HR Manager.
               { path: '/settings/assistant', element: page(() => import('@/AIassistant/setup/AssistantSetupPage')) },
               guarded('settings.manage', '/settings', page(() => import('@/pages/settings/SettingsPage'))),

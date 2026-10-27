@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
@@ -20,11 +20,17 @@ type FormValues = z.infer<typeof schema>
 // Always the same message, so nobody can learn which accounts exist.
 const LOGIN_FAILED = 'ID or password is wrong'
 
+// "Forgot password? Ask HR" (src/communication/password-requests), loaded only when opened.
+const ForgotPasswordDialog = lazy(() =>
+  import('@/communication/password-requests/components/ForgotPasswordDialog').then((m) => ({ default: m.ForgotPasswordDialog })))
+
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null)
+  const [forgot, setForgot] = useState(false)
   const {
     register,
     handleSubmit,
+    getValues,
     formState: { errors, isSubmitting },
   } = useForm<FormValues>({ resolver: zodResolver(schema) })
 
@@ -63,7 +69,15 @@ export default function LoginPage() {
         <Button type="submit" loading={isSubmitting} className="w-full">
           Sign in
         </Button>
+        <button type="button" onClick={() => setForgot(true)} className="block w-full text-center text-sm text-slate-500 hover:text-primary-700">
+          Forgot password? Ask HR
+        </button>
       </form>
+      {forgot && (
+        <Suspense fallback={null}>
+          <ForgotPasswordDialog open onClose={() => setForgot(false)} initial={getValues('identifier')} />
+        </Suspense>
+      )}
       <p className="mt-6 text-center text-sm text-slate-500">
         New company?{' '}
         <Link to="/register" className="font-medium text-primary-600 hover:text-primary-700">

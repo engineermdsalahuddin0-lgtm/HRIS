@@ -85,6 +85,7 @@ export const router = createBrowserRouter([
               // Helpdesk: anyone raises tickets; the database decides who sees which ticket.
               { path: '/helpdesk', element: page(() => import('@/communication/helpdesk/pages/HelpdeskPage')) },
               { path: '/helpdesk/:id', element: page(() => import('@/communication/helpdesk/pages/TicketPage')) },
+              guarded('users.reset_password', '/password-requests', page(() => import('@/communication/password-requests/pages/PasswordRequestsPage'))),
               // Part 4: AI assistant setup; the page itself checks Admin / handed-over HR Manager.
               { path: '/settings/assistant', element: page(() => import('@/AIassistant/setup/AssistantSetupPage')) },
               guarded('settings.manage', '/settings', page(() => import('@/pages/settings/SettingsPage'))),

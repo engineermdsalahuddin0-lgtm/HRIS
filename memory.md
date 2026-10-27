@@ -376,7 +376,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   **Hiring flow demo** (`/demo/hiring-flow`, dev `/preview/hiring-flow`): R1 → R7 as one clickable story using the real core
   calculations (`flow.ts` + `flow.test.ts`). Put any new demo in this folder, not next to the real pages.
 - **Known, not investigated**: `set_pf_membership` returns HTTP 400 in the browser console (Part 3C PF page).
-- **Next feature**: the user will name it in the next chat. Candidates already noted: Part 3D (hours compliance,
+- **Next feature (2026-10-27)**: Part 4 AI assistant — design in `docs/Part04Architecture.md`, decisions D1–D8 waiting
+  for the user, then build AI1–AI6. Other candidates already noted: Part 3D (hours compliance,
   grievance box, committees), final settlement module, pg_cron jobs (monthly snapshot, auto-convert on joining date,
   reminders, forgotten-post purge, daily close, audit purge), hiring funnel dashboard, PMS score for internal candidates.
 - **Organogram (2026-10-25, user spec)**: separate organogram grade table (user chose it over extending pay grades);
@@ -755,6 +756,19 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   reporting manager are checklist items done on the profile; close hiring = app deletes Storage files (Supabase blocks
   SQL deletes of storage rows), then `purge_post_applicants`. Known gap: notes in append-only decision histories and
   old interview comments in the audit log are kept. `of` is a reserved word — never use it as a SQL alias.
+
+### Part 4 AI assistant (planned, discussion only) — user requirements 2026-10-27
+- Design doc: `docs/Part04Architecture.md` (rewritten; the earlier generic RAG draft with a Python worker is replaced).
+- User rules: floating AI widget on every signed-in page; sidebar Setup → "AI assistant" that **only Admin and HR
+  Manager** may change; role-by-role checkbox matrix (like Roles & access) deciding which messages/topics each role
+  gets; **the AI has no right to read the database** — it only shows dashboard updates and rules/regulation/law/policy,
+  both role based.
+- Design answer: the AI gets only two pre-filtered packages from the DB (knowledge passages + an update digest of
+  counts/statuses), no tools, no service-role reads; a ticked topic still needs the role's existing permission;
+  law = verified `statutory_references` rows; Claude key reused from R3 `org_integrations`; no Excel/JSON indexing.
+- Open (doc §10, D1–D8, my recommendations, not yet confirmed): Updates without AI key, HR editing its own ticks,
+  embedding provider (platform key), DOCX as PDF in v1, plan gating, chat history, log retention, daily limits.
+- Build order AI1–AI6 (doc §11). No code written yet.
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

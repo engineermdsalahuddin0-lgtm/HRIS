@@ -932,6 +932,14 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   subfolders. **Naming rule always enforced**: code from department + type, never from the folder; moving never renames.
 - Guiding rule (user, 2026-10-27): **the user only opens a folder and uploads**; the system names, defaults, routes for
   approval and prevents duplicates / mismatches (features.md §2a). Keep every form minimal.
+- D2 decisions (user, 2026-10-27; full list `src/DMS/architecture.md` §6a): requests by Admin / HR Manager (anyone)
+  and Manager (own department); **custodians** per folder (the person who handles the work, e.g. transport → Karim;
+  department Manager by default) upload and get reminders; every upload goes to central review (Admin, plus
+  `dms.approve` holders); **never auto-approve** — "Review overdue" / "Upload overdue" stay until acted on;
+  **Admin's own uploads publish directly** (audited); D1 documents stay published. Open: review period (3 working
+  days proposed), two approvers?, policy acknowledgement?
+- **Later, with TMS (Transport Management System)**: add base folder "Transport & Vehicles" (registration, fitness,
+  tax token, route permit, insurance + vehicle number). Not now — user, 2026-10-27.
 - Build steps D1–D6 (migrations `20261104000100…0600`); open questions per step in architecture.md §7. Ask before
   starting D1; seed document-type list to be reviewed with the user first.
 

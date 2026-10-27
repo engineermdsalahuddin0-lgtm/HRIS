@@ -209,9 +209,38 @@ The user applies each migration and its test in the Supabase SQL Editor in order
 
 ---
 
+## 6a. D2 decisions (user, 2026-10-27) — planned, no code yet
+
+**Responsibility and requests**
+- Who may request a document: **Admin and HR Manager** (anyone, any department), **Manager** (people of their own
+  department only).
+- **Responsibility (custodian)**: the person who handles the work owns its papers, because the Admin does not know
+  them (e.g. "Transport → Karim"). Admin / HR set it once per folder (or type); a department's Manager is responsible
+  for their department's documents by default. A custodian may upload into that folder even without `dms.upload`,
+  gets its expiry reminders, and gets a "Renewal due" task automatically.
+- A **request** is short ("Karim, upload all transport papers", optional folder / type / due date / note); the
+  uploader fills in numbers and dates. Requests and responsibilities send an in-app notification and an email.
+
+**Central review**
+- Every upload goes to review before readers see it. Reviewers: **Admin (everything, centrally)** and holders of
+  `dms.approve` (e.g. HR Manager, or a Manager for their own department) so work does not stop when the Admin is away.
+- Reject needs a reason; the uploader fixes and sends again.
+- **No automatic approval, ever.** After the review period (proposed 3 working days) the item shows as
+  **"Review overdue"** and stays there until an Admin or Manager decides.
+- Request not uploaded by its due date → **"Upload overdue"** on the requester's and the Admin's dashboard, plus a
+  notification; it stays until done or cancelled.
+- **The Admin's own uploads publish directly** (the Admin is the top authority); the audit records
+  "published by Admin without review". Everyone else's uploads, including HR Manager's, go to review.
+- **Documents already published in D1 stay as they are** (no re-review).
+
+**Later (not D2): Transport Management System (TMS).** When TMS is built, add a base folder
+**"Transport & Vehicles"** with expiry types: Registration Certificate, Fitness Certificate, Tax Token,
+Route Permit, Insurance (plus a vehicle number field), linked to the TMS vehicle record. Not added now.
+
 ## 7. Open questions (ask before the step that needs them)
-- D2: Is one approver enough for every type, or do some types (policy, procedure) need two?
-- D2: Should employees be asked to acknowledge a newly published policy (reuse the notice acknowledgement)?
+- D2: Review period before "Review overdue": 3 working days proposed — confirm.
+- D2: Is one approver enough for every type, or do some types (policy, procedure) need two? (open)
+- D2: Should employees be asked to acknowledge a newly published policy (reuse the notice acknowledgement)? (open)
 - D4: Who in the client company sets retention years? The UI will refuse to dispose until a rule exists.
 - D5: Which category maps to which assistant topic (proposed defaults in features.md §5)?
 - Later: OCR for scanned PDFs through the company's chat model (vision) — cost per page must be shown first.

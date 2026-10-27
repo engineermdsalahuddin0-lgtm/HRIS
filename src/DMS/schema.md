@@ -71,6 +71,11 @@ Where D1 differs from the plan below, D1 is the truth:
 - Not done in D5: XLSX indexing, AI auto-fill on upload, server-side magic-byte check (all need new Edge Function
   code that cannot be run here); OCR.
 
+## As built: D6 (`20261104000600_dms_d6_audit.sql`, test `dms_d6_audit_test.sql`)
+- `dms_access_reviews` (who signed, when, note, snapshot of every DMS right and custodian); due 90 days after the
+  last one. RPCs `get_dms_access_review`, `sign_dms_access_review` (dms.manage), `list_dms_audit` (dms.manage /
+  dms.audit: row audit + named `dms.*` events + downloads; filters from / to / kind / code / document; CSV in the UI).
+
 ---
 
 Planned (original plan, kept for the later steps). Conventions (handbook A3, A10): every org table has `org_id uuid not null`,

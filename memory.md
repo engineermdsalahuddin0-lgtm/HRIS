@@ -310,7 +310,13 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   Edge Function `supabase/functions/assistant` (test_key, ingest, index_guide, ask)
 - **DMS (D1)**: `get_dms_setup`, `set_dms_profiles`, `save_dms_folder`, `save_dms_doc_type`, `get_dms_library`,
   `list_dms_documents`, `get_dms_document`, `dms_next_code`, `dms_register_upload`, `dms_confirm_upload`,
-  `dms_cancel_upload`, `update_dms_document`, `archive_dms_document`, `dms_file_path`, `get_dms_overview`
+  `dms_cancel_upload`, `update_dms_document`, `archive_dms_document`, `dms_file_path`, `get_dms_overview`;
+  D2 `dms_decide`, `list_dms_tasks`, `list_dms_people`, `create_dms_request`, `cancel_dms_request`,
+  `save_dms_custodian`, `save_dms_settings`; D3 `get_dms_compliance`, `get_dms_document_clauses`,
+  `set_dms_document_clauses`; D4 `get_dms_records`, `save_dms_retention_rule`, `place_dms_hold`, `release_dms_hold`,
+  `request_dms_disposal`, `approve_dms_disposal`, `complete_dms_disposal`, `cancel_dms_disposal`; D5
+  `save_dms_doc_type_ai`, `get_dms_document_ai` (+ `assistant_resource_path` returns `dms:<id>`); D6 `list_dms_audit`,
+  `get_dms_access_review`, `sign_dms_access_review`. Full list: `src/DMS/schema.md` "As built"
 - **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
   `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
 - 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
@@ -341,7 +347,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   - communication: `notices.manage` (HR), `notices.department` (Manager: own department only), `helpdesk.manage` (HR),
     `helpdesk.handle` (HR; give to IT etc.); password requests use the existing `users.reset_password`
   - dms: `dms.manage` (HR), `dms.upload` (HR, Manager: own department), `dms.upload_all` (HR),
-    `dms.view_confidential` (HR, Manager); readers need no permission (read rule in the database)
+    `dms.view_confidential` (HR, Manager), `dms.approve` (HR, Manager: own department), `dms.audit` (nobody by
+    default: read-only auditor), `dms.records` (nobody by default: retention, holds, disposal); readers need no
+    permission (read rule in the database); folder custodians upload without a permission
 - **HR Manager** default: org view/manage, all employees.*, users.reset_password, roles.view, all attendance except
   lock_period, shifts/roster/holidays/swaps/geofences, all leave, all overtime, compensation view/edit, bonuses,
   deductions, payment accounts view/edit, payroll.view_own/prepare/review. **Not**: increments.approve,
@@ -387,7 +395,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `bridge.ts`) · `/settings/assistant` (assistant.manage) tabs Overview / API keys / Resources / Model settings /
   Role access / Messages / Test as role / Usage (Admin)
 - DMS (`src/DMS/`): `/documents` tabs Overview (steps, counts, licences by expiry, upload, folders, naming card) /
-  Library (folder tree, search, upload, new folder) / Expiry & renewals / Setup (dms.manage); `?tab= ?folder= ?doc=`
+  Library (folder tree, search, upload, new folder) / My tasks (requested from me, my uploads, requests I made) /
+  Review (Admin, dms.approve) / Expiry & renewals / ISO compliance (dms.manage, dms.audit) / Retention (dms.records) /
+  Audit log (dms.manage, dms.audit; access review) / Setup (dms.manage: ISO, review & reminders, folders +
+  custodians, types + AI switch, department codes); `?tab= ?folder= ?doc=`. AI assistant Setup → Resources now only
+  indexes DMS documents (upload moved to Documents).
 - Communication (`src/communication/`, sidebar section Communication): `/notices` (For me / Manage, `?open=<id>`) ·
   `/helpdesk` (my / assigned / all / setup) · `/helpdesk/:id` · `/password-requests` · dashboard `NoticeBanner` ·
   login page "Forgot password? Ask HR"
@@ -439,6 +451,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **DMS D3 ISO checklist** | `20261104000300_dms_d3_compliance` | ⏳ not applied | `dms_d3_compliance_test.sql` (3) |
 | **DMS D4 records** | `20261104000400_dms_d4_records` | ⏳ not applied | `dms_d4_records_test.sql` (5) |
 | **DMS D5 AI link** | `20261104000500_dms_d5_ai` + **redeploy Edge Function `assistant`** (reads `r.bucket`) | ⏳ not applied | `dms_d5_ai_test.sql` (5) |
+| **DMS D6 audit** | `20261104000600_dms_d6_audit` | ⏳ not applied | `dms_d6_audit_test.sql` (3) |
 - Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
   (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405
@@ -448,7 +461,16 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 ### A9a. Handoff — where work stopped (2026-10-25, last commit `ec84577`, tree clean)
 - **Finished**: recruitment/onboarding R1–R7 (full hiring cycle) + Department Organogram + interactive organogram demo.
   Handbook for all of it: `src/onboarding-process/architecture.md` (§1 status, §2 decisions 1–25, §10b organogram).
-- **Latest (2026-10-27, evening): DMS D1 built** (`src/DMS/`, route `/documents`, sidebar Communication → Documents).
+- **Latest (2026-10-27, night): DMS D2–D6 built** (commits `16dd9d7`, `b8bb6fb`, `0e4f234`, `de2018c`, then D6). Local:
+  28 SQL suites, 192 unit tests, build pass; not browser-checked. **User must apply in order, each followed by its
+  test:** `20261104000200_dms_d2_governance` → `dms_d2_governance_test.sql`, `…0300_dms_d3_compliance` →
+  `dms_d3_compliance_test.sql`, `…0400_dms_d4_records` → `dms_d4_records_test.sql`, `…0500_dms_d5_ai` →
+  `dms_d5_ai_test.sql`, `…0600_dms_d6_audit` → `dms_d6_audit_test.sql`; then **redeploy the Edge Function
+  `assistant`** (it now downloads DMS files from `dms-documents`). Choices made without asking (user said "do the rest"):
+  review period 3 working days (setting), one approver, policy acknowledgement postponed, `dms.records` and
+  `dms.audit` given to nobody by default, department-only documents never go to the AI. Still not built: XLSX
+  indexing, AI auto-fill on upload, server-side magic-byte check, OCR, the "Transport & Vehicles" folder (with TMS).
+- **Earlier (2026-10-27, evening): DMS D1 built** (`src/DMS/`, route `/documents`, sidebar Communication → Documents).
   Folders (base / ISO / custom), system naming `{DEPT}-{TYPE}-{SEQ}_v{n}`, duplicate refusal (hash; same type +
   department + title), versions / renewals, read rule (classification, department scope, restricted roles),
   licences by expiry with 30 June default, Setup tab. Local: 23 SQL suites, 192 unit tests, build pass; not

@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { pushEmails, rpc } from '@/communication/shared/api'
 import { detectKind } from '../core/dms'
 import type {
-  ComplianceProfile, DmsDocument, DocumentAi, DocumentClauses, DocumentDetail, DocumentFilter, Library, Overview, Person, Records, Setup, Tasks,
+  AccessReview, AuditRow, ComplianceProfile, DmsDocument, DocumentAi, DocumentClauses, DocumentDetail, DocumentFilter, Library, Overview, Person, Records, Setup, Tasks,
 } from '../core/types'
 
 const BUCKET = 'dms-documents'
@@ -58,6 +58,15 @@ export function useSaveDocTypeAi() {
       rpc<void>('save_dms_doc_type_ai', { p_id: id, p_enabled: enabled, p_topic: topic }),
     onSuccess: refresh,
   })
+}
+
+export const useAudit = (filter: Record<string, unknown>) =>
+  useQuery({ queryKey: ['dms', 'audit', filter], queryFn: () => rpc<AuditRow[]>('list_dms_audit', { p: filter }) })
+export const useAccessReview = () => useQuery({ queryKey: ['dms', 'access-review'], queryFn: () => rpc<AccessReview>('get_dms_access_review') })
+
+export function useSignAccessReview() {
+  const refresh = useRefresh()
+  return useMutation({ mutationFn: (note: string) => rpc<string>('sign_dms_access_review', { p_note: note }), onSuccess: refresh })
 }
 
 export const useRecords = (enabled: boolean) =>

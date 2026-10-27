@@ -190,6 +190,19 @@ export interface Records {
   }[]
 }
 
+export interface AuditRow {
+  at: string; kind: 'change' | 'download'; action: string; entity: string; document_id: string | null
+  doc_code: string | null; title: string | null; by: string | null; detail: Record<string, unknown> | null
+}
+export interface RightsSnapshot {
+  roles: { role: string; system_key: string | null; rights: string[]; people: string[] }[]
+  custodians: { folder: string; person: string | null }[]
+}
+export interface AccessReview {
+  current: RightsSnapshot; last_reviewed_at: string | null; due: boolean; can_sign: boolean
+  history: { id: string; reviewed_at: string; reviewed_by: string | null; note: string | null; holders: RightsSnapshot }[]
+}
+
 export interface Person { user_id: string; name: string; department_id?: string | null; department?: string | null }
 
 export interface Overview {

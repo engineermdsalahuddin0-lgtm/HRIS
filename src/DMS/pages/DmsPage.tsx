@@ -9,6 +9,7 @@ import { addDays, buildTree, expiryBadge } from '../core/dms'
 import type { DmsDocument, ExpiryStatus, Library } from '../core/types'
 import { uploadMessage, useDocuments, useLibrary, useOverview, useSaveFolder } from '../data/api'
 import { useMyContext } from '@/lib/appContext'
+import { AuditPanel } from '../components/AuditPanel'
 import { CompliancePanel } from '../components/CompliancePanel'
 import { DocumentModal } from '../components/DocumentModal'
 import { RecordsPanel } from '../components/RecordsPanel'
@@ -18,7 +19,7 @@ import { SetupPanel } from '../components/SetupPanel'
 import { MyTasks, ReviewQueue } from '../components/TasksPanel'
 import { UploadForm } from '../components/UploadForm'
 
-type Tab = 'overview' | 'library' | 'tasks' | 'review' | 'expiry' | 'iso' | 'records' | 'setup'
+type Tab = 'overview' | 'library' | 'tasks' | 'review' | 'expiry' | 'iso' | 'records' | 'audit' | 'setup'
 type OpenDoc = { id: string; mode: 'view' | 'version'; requestId?: string }
 
 /**
@@ -60,6 +61,7 @@ export default function DmsPage() {
     { key: 'expiry', label: 'Expiry & renewals' },
     ...(auditor ? [{ key: 'iso' as Tab, label: 'ISO compliance' }] : []),
     ...(records ? [{ key: 'records' as Tab, label: 'Retention' }] : []),
+    ...(auditor ? [{ key: 'audit' as Tab, label: 'Audit log' }] : []),
     ...(lib.can.manage ? [{ key: 'setup' as Tab, label: 'Setup' }] : []),
   ]
 
@@ -78,6 +80,7 @@ export default function DmsPage() {
       {tab === 'review' && lib.can.review && <ReviewQueue onOpen={(id, mode) => setOpen({ id, mode })} />}
       {tab === 'expiry' && <ExpiryTab onOpen={(d, mode) => setOpen({ id: d.id, mode })} canUpload={lib.can.upload} />}
       {tab === 'iso' && auditor && <CompliancePanel onOpen={(id) => setOpen({ id, mode: 'view' })} onSetup={lib.can.manage ? () => go({ tab: 'setup' }) : undefined} />}
+      {tab === 'audit' && auditor && <AuditPanel onOpen={(id) => setOpen({ id, mode: 'view' })} />}
       {tab === 'records' && records && <RecordsPanel onOpen={(id) => setOpen({ id, mode: 'view' })} />}
       {tab === 'setup' && lib.can.manage && <SetupPanel />}
       {open && <DocumentModal key={`${open.id}-${open.mode}`} id={open.id} initialMode={open.mode} requestId={open.requestId} library={lib} onClose={() => setOpen(null)} />}

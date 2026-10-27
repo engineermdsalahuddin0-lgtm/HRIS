@@ -18,7 +18,9 @@ Password: 1234Nabidbhuia
    "assumptions to confirm" are recorded in Part B and **override** the docs.
 3. `git log --oneline | head -20` and `git status` to see where work stopped; read **A9a Handoff** for open items.
 4. Before coding, run `npm run test:all` (unit + database tests) to confirm a green baseline.
-5. Language: the user writes Bangla/Banglish → answer in Bangla, technical terms in English. The user wants visible
+5. **Feature tracker**: `docs/FeatureTracker.md` lists every feature as done / left. Update it after every task,
+   together with A9.
+6. Language: the user writes Bangla/Banglish → answer in Bangla, technical terms in English. The user wants visible
    UI early, a commit per step, and this file updated after every step.
 
 ## A1. Project at a glance

@@ -82,6 +82,9 @@ export const router = createBrowserRouter([
               guarded('roles.view', '/settings/roles', page(() => import('@/pages/settings/RolesPage'))),
               // Part 5 communication (src/communication): everyone reads notices; publishing is checked inside.
               { path: '/notices', element: page(() => import('@/communication/notices/pages/NoticesPage')) },
+              // Helpdesk: anyone raises tickets; the database decides who sees which ticket.
+              { path: '/helpdesk', element: page(() => import('@/communication/helpdesk/pages/HelpdeskPage')) },
+              { path: '/helpdesk/:id', element: page(() => import('@/communication/helpdesk/pages/TicketPage')) },
               // Part 4: AI assistant setup; the page itself checks Admin / handed-over HR Manager.
               { path: '/settings/assistant', element: page(() => import('@/AIassistant/setup/AssistantSetupPage')) },
               guarded('settings.manage', '/settings', page(() => import('@/pages/settings/SettingsPage'))),

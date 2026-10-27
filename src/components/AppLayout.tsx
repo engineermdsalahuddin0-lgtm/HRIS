@@ -4,7 +4,7 @@ import type { LucideIcon } from 'lucide-react'
 import {
   Award, Banknote, CircleHelp, BookOpen, Building2, HandCoins, PiggyBank, Receipt, Scale, Star, CalendarClock, CalendarDays, Clock, FileText, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
   ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X, Gauge, UserPlus, Megaphone, Bot, MessagesSquare, Network, PlayCircle,
-  Sparkles, BellRing,
+  Sparkles, BellRing, LifeBuoy,
 } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
 import { useOrgLogo } from '@/lib/files'
@@ -51,6 +51,7 @@ export const NAV: NavItem[] = [
   // DEMO (src/demo, remove with the folder)
   { to: '/demo/hiring-flow', label: 'Hiring flow demo', icon: PlayCircle, anyOf: ['workforce.view', 'workforce.manage', 'headcount.manage', 'recruit.manage', 'vacancy.request', 'recruit.department'] },
   { to: '/notices', label: 'Notices', icon: BellRing, section: 'Communication' },
+  { to: '/helpdesk', label: 'Helpdesk', icon: LifeBuoy },
   { to: '/payroll', label: 'Payroll runs', icon: Banknote, anyOf: ['payroll.prepare', 'payroll.review', 'payroll.approve', 'payroll.reopen', 'payroll.lock'], section: 'Payroll' },
   { to: '/compensation', label: 'Compensation', icon: Wallet, anyOf: ['compensation.view', 'increments.approve', 'bonuses.manage', 'deductions.manage'] },
   { to: '/salary', label: 'Salary structure', icon: Layers, anyOf: ['compensation.view', 'compensation.edit'] },
@@ -89,6 +90,8 @@ const TITLES: [string, string][] = [
   ['/settings/roles', 'Roles & access'],
   ['/settings/assistant', 'AI assistant'],
   ['/notices', 'Notices'],
+  ['/helpdesk', 'Helpdesk'],
+  ['/password-requests', 'Password requests'],
   ['/preview/assistant', 'AI assistant'],
   ['/settings/payroll', 'Payroll settings'],
   ['/settings/statutory', 'Statutory settings'],

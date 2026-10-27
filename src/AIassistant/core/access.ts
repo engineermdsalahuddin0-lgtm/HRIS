@@ -96,6 +96,37 @@ export function readiness(setup: AssistantSetup): { steps: ReadinessStep[]; read
   return { steps, ready: setup.enabled && steps.every((s) => s.done) }
 }
 
+/** Readiness from the real setup (get_assistant_setup): chat key, embedding key, resources, a role switched on. */
+export function serverReadiness(s: {
+  settings: { enabled: boolean }
+  keys: { chat: { status: string; provider: string; last4: string | null } | null; embed_effective: { provider: string; model: string; ready: boolean; slot: string } | null }
+  resources_ready: number
+  roles: { enabled: boolean }[]
+}): { steps: ReadinessStep[]; ready: boolean } {
+  const chat = s.keys.chat
+  const embedding = s.keys.embed_effective
+  const rolesOn = s.roles.filter((r) => r.enabled).length
+  const steps: ReadinessStep[] = [
+    {
+      key: 'key', label: 'API keys',
+      done: chat?.status === 'tested' && !!embedding?.ready,
+      detail: !chat ? 'Give the chat key.'
+        : chat.status !== 'tested' ? 'Test the chat key.'
+        : !embedding ? 'Claude needs a separate embedding key (Voyage, OpenAI or Gemini).'
+        : !embedding.ready ? 'Test the embedding key.'
+        : `Chat ${chat.provider} ••••${chat.last4} · embeddings ${embedding.provider}`,
+    },
+    {
+      key: 'resources', label: 'Resources',
+      done: s.resources_ready > 0,
+      detail: s.resources_ready > 0 ? `${s.resources_ready} ready` : 'Upload at least one PDF, DOCX or JSON file.',
+    },
+    { key: 'hyper', label: 'Model settings', done: true, detail: 'Recommended values work; adjust if you like.' },
+    { key: 'roles', label: 'Role access', done: rolesOn > 0, detail: `${rolesOn} of ${s.roles.length} roles switched on` },
+  ]
+  return { steps, ready: s.settings.enabled && steps.every((x) => x.done) }
+}
+
 /** Summary shown before saving the matrix ("Manager: + Labour law, − Headcount"). */
 export function matrixChanges(before: AssistantSetup['matrix'], after: AssistantSetup['matrix']): Record<RoleKey, string[]> {
   const out = {} as Record<RoleKey, string[]>

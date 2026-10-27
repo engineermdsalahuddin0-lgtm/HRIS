@@ -13,8 +13,6 @@ import { UserMenu } from '@/components/UserMenu'
 import { SpotlightTour } from '@/components/spotlight/SpotlightTour'
 import { useSpotlightTour } from '@/components/spotlight/useSpotlightTour'
 import { DASHBOARD_TOUR } from '@/components/spotlight/dashboardTour'
-import { useCanOpenAssistantSetup } from '@/AIassistant/nav'
-import type { MyContext } from '@/lib/types'
 
 // The floating assistant loads after the page, so it never grows the first download.
 const AssistantWidget = lazy(() => import('@/AIassistant/widget/AssistantWidget').then((m) => ({ default: m.AssistantWidget })))
@@ -25,8 +23,6 @@ interface NavItem {
   icon: LucideIcon
   /** Shown when the role has any of these permissions (UI only; the DB enforces it). */
   anyOf?: string[]
-  /** Extra rule for items that do not follow a permission (AI assistant: Admin, or HR when handed over). */
-  showIf?: (context: MyContext, extra: { assistantSetup: boolean }) => boolean
   platformOnly?: boolean
   section?: string
 }
@@ -68,10 +64,8 @@ export const NAV: NavItem[] = [
     anyOf: ['shifts.manage', 'roster.manage', 'holidays.manage', 'attendance.settings', 'geofences.manage', 'leave.manage_types', 'overtime.manage_policy'],
   },
   { to: '/settings/roles', label: 'Roles & access', icon: ShieldCheck, anyOf: ['roles.view'] },
-  {
-    to: '/settings/assistant', label: 'AI assistant', icon: Sparkles,
-    showIf: (_, x) => x.assistantSetup,
-  },
+  // Admin always; HR Manager only after the Admin hands it over (the database guards who may hold it).
+  { to: '/settings/assistant', label: 'AI assistant', icon: Sparkles, anyOf: ['assistant.manage'] },
   { to: '/audit', label: 'Audit log', icon: ScrollText, anyOf: ['audit.view'] },
   { to: '/settings', label: 'Settings', icon: Settings, anyOf: ['settings.manage'] },
   { to: '/platform', label: 'Platform', icon: Globe, platformOnly: true, section: 'Platform' },
@@ -130,11 +124,9 @@ const titleFor = (path: string) =>
 
 function useNavItems() {
   const context = useMyContext()
-  const assistantSetup = useCanOpenAssistantSetup(context.role?.system_key)
   return NAV.filter((i) => {
     if (i.platformOnly) return context.is_platform_admin
     if (!context.organization) return false
-    if (i.showIf) return i.showIf(context, { assistantSetup })
     return !i.anyOf || i.anyOf.some((p) => context.permissions.includes(p))
   })
 }

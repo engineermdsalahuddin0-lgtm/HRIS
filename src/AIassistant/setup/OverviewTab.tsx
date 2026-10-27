@@ -1,20 +1,18 @@
-import { CheckCircle2, Circle, ChevronRight, Sparkles } from 'lucide-react'
-import { Button, Card, Input, cx } from '@/components/ui'
+import { useState } from 'react'
+import { CheckCircle2, ChevronRight, Circle, Sparkles } from 'lucide-react'
+import { errorMessage } from '@/lib/identity'
+import { Alert, Button, Card, Input, cx } from '@/components/ui'
 import { Select, Switch } from '@/components/kit'
-import { readiness } from '../core/access'
-import type { AssistantSetup, RoleKey } from '../core/types'
-import { useAssistantStore } from '../data/store'
+import { serverReadiness } from '../core/access'
+import type { ServerSetup } from '../data/api'
+import { useDelegation, useSaveSettings } from '../data/api'
 import type { SetupTab } from './AssistantSetupPage'
 
 const STEP_TAB: Record<string, SetupTab> = { key: 'key', resources: 'resources', hyper: 'model', roles: 'roles' }
 
-export function OverviewTab({ editor, onGo }: { editor: RoleKey; onGo: (tab: SetupTab) => void }) {
-  const setup = useAssistantStore((s) => s.setup)
-  const update = useAssistantStore((s) => s.update)
-  const reset = useAssistantStore((s) => s.reset)
-  const { steps, ready } = readiness(setup)
+export function OverviewTab({ setup, onGo }: { setup: ServerSetup; onGo: (tab: SetupTab) => void }) {
+  const { steps, ready } = serverReadiness(setup)
   const doneCount = steps.filter((s) => s.done).length
-
   return (
     <div className="grid gap-6 lg:grid-cols-[1fr_360px]">
       <Card>
@@ -25,9 +23,8 @@ export function OverviewTab({ editor, onGo }: { editor: RoleKey; onGo: (tab: Set
           <div>
             <h3 className="text-lg font-semibold text-slate-900">{ready ? 'The assistant is ready' : `${doneCount} of ${steps.length} steps done`}</h3>
             <p className="text-sm text-slate-500">
-              {ready
-                ? 'Employees can ask questions now. The Updates tab always works, even without a key.'
-                : !setup.enabled ? 'The assistant is switched off for the company.' : 'Finish the steps below and the assistant goes live.'}
+              {ready ? 'Employees can ask questions now. The Updates tab always works, even without a key.'
+                : !setup.settings.enabled ? 'The assistant is switched off for the company.' : 'Finish the steps below and the assistant goes live.'}
             </p>
           </div>
         </div>
@@ -36,9 +33,7 @@ export function OverviewTab({ editor, onGo }: { editor: RoleKey; onGo: (tab: Set
             <li key={s.key}>
               <button type="button" onClick={() => onGo(STEP_TAB[s.key])}
                 className="flex w-full items-center gap-3 rounded-xl p-3 text-left ring-1 ring-slate-200 hover:bg-slate-50">
-                {s.done
-                  ? <CheckCircle2 className="size-5 shrink-0 text-green-600" aria-label="Done" />
-                  : <Circle className="size-5 shrink-0 text-slate-300" aria-label="Not done" />}
+                {s.done ? <CheckCircle2 className="size-5 shrink-0 text-green-600" aria-label="Done" /> : <Circle className="size-5 shrink-0 text-slate-300" aria-label="Not done" />}
                 <span className="min-w-0 flex-1">
                   <span className="block text-sm font-medium text-slate-900">{i + 1}. {s.label}</span>
                   <span className="block text-xs text-slate-500">{s.detail}</span>
@@ -49,15 +44,16 @@ export function OverviewTab({ editor, onGo }: { editor: RoleKey; onGo: (tab: Set
           ))}
         </ol>
       </Card>
-
-      <GeneralCard setup={setup} editor={editor} update={update} onReset={reset} />
+      <GeneralCard key={JSON.stringify(setup.settings) + setup.hr_can_manage} setup={setup} />
     </div>
   )
 }
 
-function GeneralCard({ setup, editor, update, onReset }: {
-  setup: AssistantSetup; editor: RoleKey; update: (p: Partial<AssistantSetup>) => void; onReset: () => void
-}) {
+function GeneralCard({ setup }: { setup: ServerSetup }) {
+  const save = useSaveSettings()
+  const delegate = useDelegation()
+  const [g, setG] = useState({ enabled: setup.settings.enabled, name: setup.settings.name, language_mode: setup.settings.language_mode })
+  const dirty = g.enabled !== setup.settings.enabled || g.name !== setup.settings.name || g.language_mode !== setup.settings.language_mode
   return (
     <Card className="space-y-5">
       <h3 className="font-semibold text-slate-900">General</h3>
@@ -66,32 +62,30 @@ function GeneralCard({ setup, editor, update, onReset }: {
           <p className="text-sm font-medium text-slate-800">Assistant on</p>
           <p className="text-xs text-slate-500">Off hides the floating button for everyone.</p>
         </div>
-        <Switch label="Assistant on" checked={setup.enabled} onChange={(v) => update({ enabled: v })} />
+        <Switch label="Assistant on" checked={g.enabled} onChange={(v) => setG({ ...g, enabled: v })} />
       </div>
-      <Input label="Assistant name" name="assistant_name" value={setup.name} maxLength={40}
-        onChange={(e) => update({ name: e.target.value })} onBlur={(e) => !e.target.value.trim() && update({ name: 'Olympus Assistant' })} />
-      <Select label="Answer language" name="language_mode" value={setup.languageMode}
-        onChange={(e) => update({ languageMode: e.target.value as AssistantSetup['languageMode'] })}
+      <Input label="Assistant name" name="assistant_name" value={g.name} maxLength={40} onChange={(e) => setG({ ...g, name: e.target.value })} />
+      <Select label="Answer language" name="language_mode" value={g.language_mode}
+        onChange={(e) => setG({ ...g, language_mode: e.target.value as typeof g.language_mode })}
         options={[
           { value: 'follow', label: 'Same as the question (Bangla or English)' },
           { value: 'bn', label: 'Always Bangla' },
           { value: 'en', label: 'Always English' },
         ]} />
+      {save.isError && <Alert>{errorMessage(save.error)}</Alert>}
+      <div className="flex items-center justify-end gap-3">
+        {save.isSuccess && !dirty && <span className="text-sm text-green-700">Saved</span>}
+        <Button disabled={!dirty || g.name.trim().length < 2} loading={save.isPending} onClick={() => save.mutate({ ...g, name: g.name.trim() })}>Save</Button>
+      </div>
       <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
         <div>
           <p className="text-sm font-medium text-slate-800">HR Manager may manage the assistant</p>
-          <p className="text-xs text-slate-500">
-            {editor === 'admin' ? 'Only an Admin can change this.' : 'An Admin gave you this. Only an Admin can take it back.'}
-          </p>
+          <p className="text-xs text-slate-500">{setup.is_admin ? 'Only an Admin can change this.' : 'An Admin gave you this. Only an Admin can take it back.'}</p>
         </div>
-        <Switch label="HR Manager may manage the assistant" checked={setup.hrCanManage} disabled={editor !== 'admin'}
-          onChange={(v) => update({ hrCanManage: v })} />
+        <Switch label="HR Manager may manage the assistant" checked={setup.hr_can_manage} disabled={!setup.is_admin || delegate.isPending}
+          onChange={(v) => delegate.mutate(v)} />
       </div>
-      {editor === 'admin' && (
-        <Button variant="ghost" className="w-full" onClick={() => window.confirm('Clear the whole preview setup in this browser?') && onReset()}>
-          Reset preview
-        </Button>
-      )}
+      {delegate.isError && <Alert>{errorMessage(delegate.error)}</Alert>}
     </Card>
   )
 }

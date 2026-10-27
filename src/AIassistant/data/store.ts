@@ -6,7 +6,8 @@ import { createJSONStorage, persist } from 'zustand/middleware'
 import { DEFAULT_SETUP } from '../core/catalog'
 import { estimateDocument } from '../core/resources'
 import type { AssistantSetup, Hyperparameters, ProviderKey, Resource } from '../core/types'
-import { DELEGATION_EVENT, STORE_KEY } from '../nav'
+
+const STORE_KEY = 'olympus.ai-assistant.v1'
 
 const PROCESSING_MS = 2500
 
@@ -43,10 +44,7 @@ export const useAssistantStore = create<AssistantStore>()(
     (set, get) => ({
       setup: DEFAULT_SETUP,
       usage: { day: today(), count: 0 },
-      update: (patch) => {
-        set({ setup: { ...get().setup, ...patch } })
-        if ('hrCanManage' in patch) window.dispatchEvent(new Event(DELEGATION_EVENT))
-      },
+      update: (patch) => set({ setup: { ...get().setup, ...patch } }),
       setKeyResult: (provider, last4, ok) =>
         set({ setup: { ...get().setup, provider, keyLast4: last4, keyStatus: ok ? 'tested' : 'failed', keyCheckedAt: new Date().toISOString() } }),
       removeKey: () => set({ setup: { ...get().setup, keyLast4: null, keyStatus: 'missing', keyCheckedAt: null } }),
@@ -81,10 +79,7 @@ export const useAssistantStore = create<AssistantStore>()(
         const u = get().usage
         set({ usage: u.day === today() ? { ...u, count: u.count + 1 } : { day: today(), count: 1 } })
       },
-      reset: () => {
-        set({ setup: DEFAULT_SETUP, usage: { day: today(), count: 0 } })
-        window.dispatchEvent(new Event(DELEGATION_EVENT))
-      },
+      reset: () => set({ setup: DEFAULT_SETUP, usage: { day: today(), count: 0 } }),
     }),
     {
       name: STORE_KEY,

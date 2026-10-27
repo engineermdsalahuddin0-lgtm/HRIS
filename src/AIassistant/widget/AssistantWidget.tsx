@@ -1,10 +1,15 @@
 import { useEffect, useRef, useState } from 'react'
+import { useNavigate } from 'react-router-dom'
 import { Sparkles, X } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
 import { cx } from '@/components/ui'
+import { SpotlightTour } from '@/components/spotlight/SpotlightTour'
+import type { AskDetail } from '../bridge'
+import { ASK_EVENT, setAssistantAvailable } from '../bridge'
 import type { UpdateItem } from '../core/types'
+import type { AskResult } from '../data/api'
 import { useMyConfig, useMyUpdates } from '../data/api'
-import { ChatView } from './ChatView'
+import { LiveChat } from './LiveChat'
 import { UpdatesView } from './UpdatesView'
 
 type Tab = 'updates' | 'ask'
@@ -23,8 +28,28 @@ export function AssistantWidget() {
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('updates')
   const buttonRef = useRef<HTMLButtonElement>(null)
+  const navigate = useNavigate()
+  const [pending, setPending] = useState<AskDetail | null>(null)
+  const [highlight, setHighlight] = useState<NonNullable<AskResult['highlight']> | null>(null)
   const items: UpdateItem[] = (updates.data ?? []).map((u) => ({ ...u, topicKey: u.topic }))
   const actionCount = items.filter((u) => u.tone === 'action').length
+  const canAsk = !!config.data?.enabled && !!config.data?.can_ask
+
+  // Error alerts offer "Ask the assistant" only while Ask works.
+  useEffect(() => {
+    setAssistantAvailable(canAsk)
+    if (!canAsk) return
+    const onAsk = (e: Event) => { setPending((e as CustomEvent<AskDetail>).detail); setTab('ask'); setOpen(true) }
+    window.addEventListener(ASK_EVENT, onAsk)
+    return () => { window.removeEventListener(ASK_EVENT, onAsk); setAssistantAvailable(false) }
+  }, [canAsk])
+
+  // "Show me": open the page, close the panel, spotlight the control.
+  const showMe = (h: NonNullable<AskResult['highlight']>) => {
+    navigate(h.route)
+    setOpen(false)
+    setHighlight(h)
+  }
 
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
@@ -42,6 +67,8 @@ export function AssistantWidget() {
 
   return (
     <div className="print:hidden">
+      <SpotlightTour open={!!highlight} onClose={() => setHighlight(null)}
+        steps={highlight ? [{ target: `[data-tour="${highlight.target}"]`, title: highlight.title, body: 'Here it is. Press Esc or the button to close.' }] : []} />
       {open && (
         <section role="dialog" aria-label={c.name}
           className={cx(
@@ -74,7 +101,10 @@ export function AssistantWidget() {
             </div>
           ) : (
             <div className="flex min-h-0 flex-1 flex-col">
-              {c.can_ask ? <ChatView role="employee" firstName={firstName} /> : (
+              {c.can_ask ? (
+                <LiveChat greeting={c.greeting} suggestions={c.suggestions} left={c.left} firstName={firstName}
+                  pending={pending} onPendingDone={() => setPending(null)} onHighlight={showMe} />
+              ) : (
                 <div className="flex h-full flex-col items-center justify-center gap-2 p-8 text-center">
                   <Sparkles className="size-8 text-slate-300" aria-hidden />
                   <p className="font-medium text-slate-700">Ask is not ready yet</p>

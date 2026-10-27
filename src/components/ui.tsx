@@ -1,5 +1,6 @@
 import type { ButtonHTMLAttributes, InputHTMLAttributes, ReactNode } from 'react'
-import { forwardRef } from 'react'
+import { forwardRef, useRef } from 'react'
+import { askAssistant, useAssistantAvailable } from '@/AIassistant/bridge'
 
 export const cx = (...c: (string | false | null | undefined)[]) => c.filter(Boolean).join(' ')
 
@@ -76,9 +77,18 @@ export function Alert({ tone = 'error', children }: { tone?: 'error' | 'success'
     success: 'bg-green-50 text-green-700 ring-green-200',
     info: 'bg-primary-50 text-primary-700 ring-primary-100',
   }[tone]
+  const assistant = useAssistantAvailable()
+  const ref = useRef<HTMLDivElement>(null)
   return (
-    <div role={tone === 'error' ? 'alert' : 'status'} className={cx('rounded-xl px-4 py-3 text-sm ring-1', styles)}>
+    <div ref={ref} role={tone === 'error' ? 'alert' : 'status'} className={cx('rounded-xl px-4 py-3 text-sm ring-1', styles)}>
       {children}
+      {/* Error help: the assistant gets the message text only (src/AIassistant/bridge.ts). */}
+      {tone === 'error' && assistant && (
+        <button type="button" className="mt-1 block text-xs font-medium underline hover:no-underline"
+          onClick={() => askAssistant({ question: 'What does this error mean and what should I do?', errorText: (ref.current?.innerText ?? '').replace(/Ask the assistant\s*$/, '').trim().slice(0, 500) })}>
+          Ask the assistant
+        </button>
+      )}
     </div>
   )
 }

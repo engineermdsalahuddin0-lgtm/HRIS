@@ -62,7 +62,7 @@ export default function AssistantSetupPage() {
       {tab === 'model' && <ModelTab setup={s} />}
       {tab === 'roles' && <RoleAccessTab setup={s} />}
       {tab === 'messages' && <MessagesTab setup={s} />}
-      {tab === 'test' && <TestTab />}
+      {tab === 'test' && <TestTab setup={s} />}
     </div>
   )
 }

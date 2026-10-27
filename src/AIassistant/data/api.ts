@@ -192,6 +192,41 @@ export const ingestOnce = (resourceId: string) =>
 
 export const useIndexGuide = () => useSetupMutation(() => callAssistant<{ indexed: number; articles: number }>({ action: 'index_guide' }))
 
+// ----------------------------------------------------------------------------- ask (AI5)
+export interface LiveCitation {
+  n: number
+  source: 'resource' | 'guide'
+  resource_id: string | null
+  name: string
+  location: string
+  section: string
+  passage?: string
+  route: string | null
+}
+
+export interface AskResult {
+  kind: 'answer' | 'dont_know' | 'not_allowed' | 'personal_data' | 'updates' | 'refused'
+  text: string
+  citations: LiveCitation[]
+  links: { route: string; title: string }[]
+  highlight: { route: string; target: string; title: string } | null
+  usedTopics?: string[]
+  conversation_id?: string
+  log_id?: number
+  left?: number | null
+}
+
+export const askLive = (p: { question: string; route: string; conversation_id: string | null; error_text?: string; preview_role_id?: string }) =>
+  callAssistant<AskResult>({ action: 'ask', ...p })
+
+export interface History {
+  conversation_id: string
+  messages: { sender: 'user' | 'ai'; content: string; kind: string | null; citations: LiveCitation[]; created_at: string }[]
+}
+
+export const useHistory = (enabled: boolean) =>
+  useQuery({ queryKey: ['assistant', 'me', 'history'], enabled, staleTime: Infinity, queryFn: () => rpc<History | null>('assistant_history') })
+
 export const useSaveRoleMessages = () =>
   useSetupMutation(({ roleId, messages }: { roleId: string; messages: ServerRole['messages'] }) =>
     rpc('save_assistant_role_messages', { p_role_id: roleId, p: messages }))

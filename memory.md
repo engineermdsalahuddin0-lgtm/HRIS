@@ -380,8 +380,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   calculations (`flow.ts` + `flow.test.ts`). Put any new demo in this folder, not next to the real pages.
 - **Known, not investigated**: `set_pf_membership` returns HTTP 400 in the browser console (Part 3C PF page).
 - **Part 4 AI assistant (2026-10-27)**: design `docs/Part04Architecture.md`; **UI done on preview data** in
-  `src/AIassistant/` (widget on every page, Setup → AI assistant). Next: backend AI1–AI6 (doc §11) replacing
-  `data/store.ts`; D5–D8 still to confirm. Other candidates already noted: Part 3D (hours compliance,
+  `src/AIassistant/` (widget on every page, Setup → AI assistant). All decisions D1–D8 settled. Backend AI1–AI6
+  (doc §11) only when the user says so ("do AI1"). `docs/Part05Architecture.md` = user's next module, untouched until
+  asked. Other candidates already noted: Part 3D (hours compliance,
   grievance box, committees), final settlement module, pg_cron jobs (monthly snapshot, auto-convert on joining date,
   reminders, forgotten-post purge, daily close, audit purge), hiring funnel dashboard, PMS score for internal candidates.
 - **Organogram (2026-10-25, user spec)**: separate organogram grade table (user chose it over extending pay grades);
@@ -775,7 +776,13 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   preview data. D1 yes; D2 Admin controls, may hand the setup over to HR Manager (switch on Overview, Admin-only);
   D3 platform embedding key; providers Claude + OpenAI + Gemini; hyperparameters model, temperature, answer
   length/style, top-k, minimum match, chunk size/overlap. JSON now indexed (one passage per record) with a
-  personal-data warning. D5–D8 still my recommendations.
+  personal-data warning. D5–D8 kept as my recommendations (user, 2026-10-27): Ask on PRO + ENTERPRISE / Updates
+  on all plans; chat history own only 90 days; question text 90 days; limits Employee 20, Manager 30, HR 50, Admin
+  none. D4 changed: DOCX cited by section with approx. page (no converter in Edge Functions).
+- **Backend written as an execution plan** (design doc §8 + §11, README "Backend files to come"): steps AI1–AI6 each
+  list files, UI parts to switch from `data/store.ts`, tests, SQL files for the user. User: "UI only now, backend
+  later — when I say, execute it". `docs/Part05Architecture.md` is the user's next module: do not read or touch it
+  until asked.
 - **UI built 2026-10-27** (preview, no backend): floating widget (Updates + Ask, Alt+A), `/settings/assistant` with
   7 tabs, state in localStorage `olympus.ai-assistant.v1` (only key last 4 kept). `nav.ts` keeps the module out of the
   first download. Build: main chunk now 509 kB (was 497) — only ~1 kB is new code; react-query moved from the `ui-`

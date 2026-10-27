@@ -36,7 +36,7 @@ Allowed types: `text`, `number`, `date`, `select` (with `options`), `boolean`. N
 |---|---|
 | `dms_settings` | `org_id` PK, `enabled`, `max_file_mb` (≤ 25), `reminder_steps` int[] (default `{60,30,7,0}`), `require_second_disposal_approver` (default true), `setup_completed_at` |
 | `dms_org_profiles` | (`org_id`, `profile_code`), `selected_at`, `selected_by`, `status` (active / inactive) |
-| `dms_categories` | `id`, `org_id`, `code` (`^[A-Z]{2,6}$`), `name`, `parent_id`, `origin` (`catalog` / `custom`), `catalog_code`, `locked`, `sort_order`, `status`; unique (`org_id`, `code`) |
+| `dms_categories` (the folder tree) | `id`, `org_id`, `code` (`^[A-Z0-9]{2,6}$`; generated for custom folders), `name`, `parent_id` (same org; depth ≤ 3 for custom), `origin` (`base` / `iso` / `custom`), `catalog_code`, `locked` (true for base / iso), `enabled` (switch off; refused while it holds documents unless they are moved), `sort_order`, `status`; unique (`org_id`, `code`), unique (`org_id`, `parent_id`, lower(`name`)) |
 | `dms_doc_types` | `id`, `org_id`, `category_id`, `code` (`^[A-Z]{2,4}$`), `name`, `origin`, `locked`, `field_schema`, `has_expiry`, `review_months`, `reminder_days`, `default_classification`, `ai_enabled`, `assistant_topic` (FK `assistant_topics.key`), `reviewer_mode` (none / role / dept_head / person), `reviewer_role_id`, `reviewer_employee_id`, `approver_mode` (role / dept_head / person), `approver_role_id`, `approver_employee_id`, `status`; unique (`org_id`, `category_id`, `code`) |
 | `dms_doc_type_clauses` | (`org_id`, `doc_type_id`, `profile_code`, `clause`) |
 | `dms_code_sequences` | (`org_id`, `dept_code`, `type_code`) PK, `last_seq`. Taken with `select … for update`; a number is never reused, even if the upload is cancelled |
@@ -98,6 +98,7 @@ department ids; `expiry_date` required when the type `has_expiry`.
 | `get_dms_setup()`, `save_dms_settings(...)` | `dms.manage` | D1 |
 | `list_dms_profiles()`, `set_dms_profiles(codes text[])` | read: any `dms.*`; write: `dms.manage` | D1 |
 | `save_dms_category(...)`, `save_dms_doc_type(...)` | `dms.manage` (locked codes cannot change) | D1 |
+| `create_dms_folder(parent_id, name)`, `rename_dms_folder`, `move_dms_document(document_id, folder_id)` | `dms.manage`, or `dms.upload` for subfolders and their own documents; moving never changes code or path | D1 |
 | `dms_register_upload(document_id?, doc_type_id, department_id, title, fields, classification, …, file meta)` | `dms.upload` (+ own department or `dms.upload_all`) | D1 |
 | `dms_confirm_upload(version_id)`, `dms_cancel_upload(version_id)` | uploader | D1 |
 | `list_dms_documents(filters)`, `get_dms_document(id)`, `get_dms_folders()` | reader access rules | D1 |
@@ -141,7 +142,7 @@ RPC path check, deletes only by the disposal Edge Function with the service role
 
 | Test | Checks (planned) |
 |---|---|
-| `dms_d1_foundation_test.sql` | org isolation; code format and no reuse after cancel; duplicate hash rejected; locked codes immutable; upload refused for another department without `upload_all`; reader cannot see drafts; no delete trigger |
+| `dms_d1_foundation_test.sql` | org isolation; base folders created without any ISO; custom folder upload still gets `{DEPT}-{TYPE}-{SEQ}`; move keeps code and path; code format and no reuse after cancel; duplicate hash rejected; locked codes immutable; upload refused for another department without `upload_all`; reader cannot see drafts; no delete trigger |
 | `dms_d2_governance_test.sql` | self-approval refused; publish supersedes previous version atomically; Confidential hidden from a plain employee; Restricted only for listed roles; reminders idempotent |
 | `dms_d3_compliance_test.sql` | multi-profile tags on one document; gap list correct; deselecting a profile keeps used categories |
 | `dms_d4_records_test.sql` | no rule → no disposal; hold blocks disposal; same person cannot request and approve; proof row written |

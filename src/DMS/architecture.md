@@ -19,6 +19,14 @@ User decisions (2026-10-27):
 4. **ISO profiles at launch: 9001, 27001, 14001, 45001**, plus the agent's suggestions (features.md §6).
 5. The DMS is the **only** resource source of the AI assistant (decided in Part 4 revision 2). The assistant's own
    upload adapter is retired once DMS step D5 is live.
+6. **Folders are flexible, names are not** (2026-10-27):
+   - **Base folders** (License & Compliance with BD statutory licences, Buyer Compliance, HR Policy, Contracts,
+     Records & Audits) come with every company, need no selection, and each can be switched off in Setup.
+   - **ISO folders** are optional and only add folders and checklist ticks. A company can start with no ISO at all.
+   - **Users create their own folders and subfolders** and put files in them.
+   - **Every file still follows the naming rule.** Whatever folder it sits in, the system names it
+     `{DEPT}-{TYPE}-{SEQ}_v{n}`; nobody types a file name. Moving a file to another folder changes neither its name
+     nor its storage path.
 
 ---
 
@@ -62,9 +70,17 @@ Added for this project:
 | Core | Database functions and constraints | Dev team, by migration only |
 | Storage + AI | Bucket `dms-documents`, `assistant_resources` / `assistant_chunks` | System only |
 
-**Selecting a profile copies** its categories and document types into the company's own tables, marked `locked`.
-The company can rename display labels, add custom categories under a Custom branch, and switch types off, but
-cannot change locked codes. Deselecting a profile hides its empty categories; categories that hold documents stay.
+**The folder tree has three kinds of folder**, all stored in one table (`dms_categories.origin`):
+
+| Kind | Comes from | Company may |
+|---|---|---|
+| `base` | Created for every company on DMS setup | Rename the label, switch off (hidden while empty), add subfolders. Code locked |
+| `iso` | Copied when an ISO profile is selected | Same as base. Deselecting the profile hides its empty folders; folders holding documents stay |
+| `custom` | Created by a user | Create, rename, nest (up to 3 levels), move, switch off when empty. Never deleted while it holds documents |
+
+**Folder ≠ name.** A document's code comes from its department and document type, never from its folder. A custom
+folder offers every active document type, plus a generic "General document" (`DOC`) type, so a file put anywhere is
+still named `{DEPT}-{TYPE}-{SEQ}_v{n}`. Moving a document between folders is a metadata change only (audited).
 
 ---
 

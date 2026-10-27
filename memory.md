@@ -904,6 +904,9 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   Internal**; profiles **ISO 9001, 27001, 14001, 45001** + agent suggestions (BD statutory licences on by default,
   buyer social compliance, 50001, 22000, 22301, 37001 as catalog extras). User's clients do not know ISO → a plain
   ISO guide is part of the product (features.md §6).
+- Folders (user, 2026-10-27): **flexible**. Base folders (licences, buyer compliance, HR policy, contracts, records,
+  general) for every company, each can be switched off; ISO folders optional; users create their own folders /
+  subfolders. **Naming rule always enforced**: code from department + type, never from the folder; moving never renames.
 - Build steps D1–D6 (migrations `20261104000100…0600`); open questions per step in architecture.md §7. Ask before
   starting D1; seed document-type list to be reviewed with the user first.
 

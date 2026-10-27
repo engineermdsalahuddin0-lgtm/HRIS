@@ -9,8 +9,8 @@ The step (D1–D6) that delivers each feature is shown in brackets.
 
 | Key | Default roles | Meaning |
 |---|---|---|
-| `dms.manage` | Admin (implicit), HR Manager | Setup: ISO profiles, file plan, document types, approvers, AI switch per type (D1) |
-| `dms.upload` | HR Manager, Manager | Upload documents and new versions for their departments; edit drafts they own (D1) |
+| `dms.manage` | Admin (implicit), HR Manager | Setup: ISO profiles, base folders on/off, any folder, document types, approvers, AI switch per type (D1) |
+| `dms.upload` | HR Manager, Manager | Upload documents and new versions for their departments; edit drafts they own; create subfolders and move their own documents between folders (D1) |
 | `dms.upload_all` | HR Manager | Upload for any department (D1) |
 | `dms.approve` | HR Manager | Review and approve versions they are named on; never their own (D2) |
 | `dms.view_confidential` | HR Manager, Manager | Read Confidential documents of their department (all departments with `dms.upload_all`) (D2) |
@@ -58,7 +58,11 @@ UI rules: loading / empty / error state everywhere, mobile-first, actions hidden
 - Mandatory metadata: title, category, type, department, owner, classification, language (EN / BN / both),
   effective date, review date (from the type's review period); type-specific fields (licence number, authority,
   issue / expiry date, reminder days) defined by the type's field list.
-- File plan: ISO categories (locked codes) + company Custom branch; display labels editable.
+- Folders: **base** folders for every company (switch off any), **ISO** folders when a standard is selected
+  (optional), **custom** folders and subfolders created by users (up to 3 levels). Labels editable; base and ISO
+  codes locked.
+- Naming is independent of the folder: every file, in any folder, is named by the system from department + type.
+  Custom folders offer all active types plus "General document" (`DOC`). Moving between folders never renames.
 - Library, folders as views, versions list, download with a 60-second link.
 
 ### Governance (D2)
@@ -100,9 +104,15 @@ UI rules: loading / empty / error state everywhere, mobile-first, actions hidden
 
 ## 4. Document types shipped with the profiles (first set)
 
+Base folders (every company): License & Compliance, Buyer Compliance, HR Policy, Contracts, Records & Audits,
+General. ISO folders: Quality Manual & Policy and Procedures (9001), Information security (27001), Environment
+(14001), Health & Safety (45001).
+
 | Category | Types (code) | Expiry fields |
 |---|---|---|
-| License & Compliance (BD statutory) | Trade Licence (TRD), Factory Licence (FCT), Fire Licence (FIR), Boiler Certificate (CRT), Environmental Clearance (ENV), BIDA / Import-Export Registration (REG), TIN / VAT / BIN Certificate (TAX) | number, authority, issue date, expiry date, reminder days |
+| General (base) | General document (DOC) — usable in any custom folder | — |
+| Buyer Compliance (base) | Social Audit Report (SAR), Corrective Action Plan (CAP), Buyer Certificate (BCT), Code of Conduct Acknowledgement (BCA) | certificate expiry |
+| License & Compliance (base, BD statutory) | Trade Licence (TRD), Factory Licence (FCT), Fire Licence (FIR), Boiler Certificate (CRT), Environmental Clearance (ENV), BIDA / Import-Export Registration (REG), TIN / VAT / BIN Certificate (TAX) | number, authority, issue date, expiry date, reminder days |
 | Quality Manual & Policy | Quality Manual (QMN), Policy (POL), Objectives (OBJ) | review date |
 | Procedures & Work instructions | Procedure (PRC), Work Instruction (WIN), Form / Template (FRM) | review date |
 | HR Policy | HR Policy (POL), Code of Conduct (COC), Handbook (HBK) | review date |
@@ -149,13 +159,14 @@ Suggested extras (catalog only, switched on when a client needs them):
 
 | Profile | Why it can matter here |
 |---|---|
-| **BD statutory licences** (not an ISO) | Trade, factory, fire, boiler, environmental clearance and tax certificates with expiry tracking. Every Bangladeshi company needs it, so it is on by default. |
-| **Buyer social compliance** (not an ISO) | BSCI / amfori, WRAP, SA8000, Sedex SMETA audits for garment exporters: same documents as 45001 plus wage, working-hour and grievance records. |
+Not ISO, and **not an option to select**: BD statutory licences (License & Compliance) and buyer social compliance
+(BSCI / amfori, WRAP, SA8000, Sedex SMETA) are **base folders** that every company gets. A company that does not
+need one (e.g. an IT firm without buyers) switches it off in Setup.
 | **ISO 50001** Energy | Large factories cutting energy cost; buyers with carbon targets. |
 | **ISO 22000** Food safety | Food and beverage companies only. |
 | **ISO 22301** Business continuity | Banks, IT and service companies that must keep running after a disaster. |
 | **ISO 37001** Anti-bribery | Companies selling to government or large multinationals. |
 
-Advice for a client who is unsure: start with **BD statutory licences + ISO 9001**. Add **45001 and 14001** for a
+Advice for a client who is unsure: the base folders already cover licences; start with **ISO 9001**. Add **45001 and 14001** for a
 factory, **27001** for a company that handles data. The same document (for example an internal audit report) is
 stored once and counts for every standard that needs it.

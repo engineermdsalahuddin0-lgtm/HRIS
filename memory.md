@@ -408,15 +408,15 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Onboarding R6 + R7 (live)** | — | ✅ applied, `recruit_r6_r7_offer_joining_test.sql` passed on Supabase 2026-10-25 | |
 | **Department organogram** | `20261101000100_organogram` | ✅ applied, `organogram_test.sql` passed on Supabase 2026-10-25 | `organogram_test.sql` (9) |
 | **Organogram fix** | `20261101000200_organogram_fix_volatile` | ✅ applied (implied: test check 9 passed on Supabase 2026-10-25); `list_organogram_grades` was STABLE but seeds grades → HTTP 405 | (organogram test check 9: no STABLE public function writes) |
-| **Comm C1 notices** | `20261102000100_comm_c1_notices` | ⏳ not applied | `comm_c1_notices_test.sql` (8) |
-| **Comm C2 helpdesk** | `20261102000200_comm_c2_helpdesk` | ⏳ not applied (needs C1) | `comm_c2_helpdesk_test.sql` (6) |
-| **Comm C3 password requests** | `20261102000300_comm_c3_password_requests` | ⏳ not applied (needs C2) | `comm_c3_password_requests_test.sql` (3) |
-| **AI1 assistant foundation** | `20261103000100_assistant_ai1_foundation` | ⏳ not applied (needs C3) | `assistant_ai1_foundation_test.sql` (5) |
-| **AI3 assistant updates** | `20261103000200_assistant_ai3_updates` | ⏳ not applied | `assistant_ai3_updates_test.sql` (3) |
-| **AI4 assistant resources + guide** | `20261103000300_assistant_ai4_resources` | ⏳ not applied | `assistant_ai4_resources_test.sql` (4) |
-| **AI5 assistant ask** | `20261103000400_assistant_ai5_ask` | ⏳ not applied | `assistant_ai5_ask_test.sql` (3) |
-| **AI6 assistant usage** | `20261103000500_assistant_ai6_usage` | ⏳ not applied | `assistant_ai6_usage_test.sql` (3) |
-| **Edge Function assistant** | `supabase/functions/assistant` | ⏳ not deployed | — (no Deno here: not type-checked or run locally) |
+| **Comm C1 notices** | `20261102000100_comm_c1_notices` | ✅ applied, passed (user, 2026-10-27) | `comm_c1_notices_test.sql` (8) |
+| **Comm C2 helpdesk** | `20261102000200_comm_c2_helpdesk` | ✅ applied, passed (user, 2026-10-27) | `comm_c2_helpdesk_test.sql` (6) |
+| **Comm C3 password requests** | `20261102000300_comm_c3_password_requests` | ✅ applied, passed (user, 2026-10-27) | `comm_c3_password_requests_test.sql` (3) |
+| **AI1 assistant foundation** | `20261103000100_assistant_ai1_foundation` | ✅ applied, passed (user, 2026-10-27) | `assistant_ai1_foundation_test.sql` (5) |
+| **AI3 assistant updates** | `20261103000200_assistant_ai3_updates` | ✅ applied, passed (user, 2026-10-27) | `assistant_ai3_updates_test.sql` (3) |
+| **AI4 assistant resources + guide** | `20261103000300_assistant_ai4_resources` | ✅ applied, passed (user, 2026-10-27) | `assistant_ai4_resources_test.sql` (4) |
+| **AI5 assistant ask** | `20261103000400_assistant_ai5_ask` | ✅ applied, passed (user, 2026-10-27) | `assistant_ai5_ask_test.sql` (3) |
+| **AI6 assistant usage** | `20261103000500_assistant_ai6_usage` | ✅ applied, passed (user, 2026-10-27) | `assistant_ai6_usage_test.sql` (3) |
+| **Edge Function assistant** | `supabase/functions/assistant` | ✅ deployed (user, 2026-10-27) | ⚠️ **INCOMPLETE**: never run against a real provider (company has no API key yet); see A9a |
 - Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
   (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405
@@ -426,11 +426,14 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 ### A9a. Handoff — where work stopped (2026-10-25, last commit `ec84577`, tree clean)
 - **Finished**: recruitment/onboarding R1–R7 (full hiring cycle) + Department Organogram + interactive organogram demo.
   Handbook for all of it: `src/onboarding-process/architecture.md` (§1 status, §2 decisions 1–25, §10b organogram).
-- **Latest (2026-10-27, later)**: AI assistant backend AI1–AI6 built (commits `bc82b2f`…), revision 2 of the design
-  (company keys only, app guide, page-aware, Show me, error help). **User must:** apply C1–C3 first, then
-  `20261103000100…0500` each followed by its `assistant_ai*_test.sql`; deploy the Edge Function `assistant`; then in
-  the app: API keys → index the app guide → upload a policy → Test as role. Not run against real providers by the
-  agent (no keys, no Deno): provider request shapes in `index.ts` must be verified on the first real test.
+- **⚠️ INCOMPLETE — AI assistant live test (open item, ask the user about it each session):** C1–C3, AI1–AI6 applied
+  and their tests passed on Supabase, Edge Function `assistant` deployed (all confirmed by the user 2026-10-27). Not
+  done: the company must buy an API key first; then in the app: API keys → Test key → index the app guide → upload a
+  policy → Test as role → ask from the widget. Provider request shapes in `supabase/functions/assistant/index.ts`
+  (Anthropic / OpenAI / Gemini chat, OpenAI / Gemini / Voyage embeddings) were never run by the agent; fix whatever
+  the first real test reports.
+- **Earlier (2026-10-27, later)**: AI assistant backend AI1–AI6 built (commits `bc82b2f`…), revision 2 of the design
+  (company keys only, app guide, page-aware, Show me, error help).
   Commit `3b5350c`: the UI shows before the backend exists. A missing RPC (PGRST202 / 404, `isBackendMissing` in
   `src/AIassistant/data/api.ts`) → widget uses `FALLBACK_CONFIG` (Updates empty, Ask says "not installed"); setup page
   uses `data/fallback.ts` with an install banner; Admin reaches it via `roles.manage`. Switches to real data by itself
@@ -891,6 +894,18 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   (`assistant_resources.source = 'dms'` prepared). No LangChain.
 - Choices while building: answers not streamed (revealed in the UI); Ask allowed on TRIAL too ("try everything");
   indexing runs from the browser in resumable batches of 48 chunks; scanned PDFs refused; usage + purge Admin only.
+
+### DMS (Document Management System) — planned, user answers 2026-10-27 (architecture only, no code)
+- Docs: `src/DMS/` (README, architecture, features, schema, security). Source draft `docs/DMS.md` (user's file,
+  FastAPI/S3/Celery stack) rewritten for Supabase. Target UI: the user's sample dashboard (Overview setup steps,
+  counts, licences by expiry, Upload / Folders / Fixed naming cards; tabs Library, Expiry & renewals, ISO compliance,
+  Retention, Access, Audit log).
+- Decisions: **Supabase stack**; roles as **`dms.*` permissions in Roles & access**; AI indexes **only Public +
+  Internal**; profiles **ISO 9001, 27001, 14001, 45001** + agent suggestions (BD statutory licences on by default,
+  buyer social compliance, 50001, 22000, 22301, 37001 as catalog extras). User's clients do not know ISO → a plain
+  ISO guide is part of the product (features.md §6).
+- Build steps D1–D6 (migrations `20261104000100…0600`); open questions per step in architecture.md §7. Ask before
+  starting D1; seed document-type list to be reviewed with the user first.
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

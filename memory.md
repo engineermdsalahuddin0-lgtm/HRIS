@@ -221,6 +221,14 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 - `org_integrations` new kinds `assistant_chat` (anthropic|openai|google) and `assistant_embed` (openai|google|voyage);
   bucket `assistant-resources/{org}/{resource}/v{n}.{ext}`; extension `vector` (PGlite: `@electric-sql/pglite-pgvector`)
 
+**DMS (D1, `src/DMS/schema.md` "As built")**
+- Catalog (global): `dms_iso_profiles`, `dms_catalog_folders` (base when `profile_code` null), `dms_catalog_doc_types`
+  (codes unique; `expiry_default` fiscal_year_end = 30 June). Company: `dms_settings` (profiles[], no_iso),
+  `dms_folders` (base|iso|custom, enabled), `dms_doc_types`, `dms_code_sequences` (org, dept code, type code),
+  `dms_documents` (doc_code, folder_id ≠ naming, classification, scope, restricted_role_ids, fields, expiry,
+  lifecycle pending|published|archived|cancelled), `dms_versions` (uploading|current|superseded|cancelled, hash unique,
+  own expiry/fields), `dms_access_log`; bucket `dms-documents/{org}/{doc}/v{n}.{ext}`; read rule `private.dms_can_read`
+
 **Platform / SaaS**
 - `platform_plans` (TRIAL/BASIC/PRO/ENTERPRISE, price_per_employee null = contact sales, max_employees, features)
 - `org_subscriptions` (one per org: plan, status trial|active|past_due|suspended|cancelled|expired, seats, price,
@@ -298,6 +306,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   service_role only `service_assistant_keys`, `service_assistant_resource`, `service_save_assistant_chunks`,
   `service_fail_assistant_resource`, `service_guide_articles`, `service_save_guide_chunks`.
   Edge Function `supabase/functions/assistant` (test_key, ingest, index_guide, ask)
+- **DMS (D1)**: `get_dms_setup`, `set_dms_profiles`, `save_dms_folder`, `save_dms_doc_type`, `get_dms_library`,
+  `list_dms_documents`, `get_dms_document`, `dms_next_code`, `dms_register_upload`, `dms_confirm_upload`,
+  `dms_cancel_upload`, `update_dms_document`, `archive_dms_document`, `dms_file_path`, `get_dms_overview`
 - **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
   `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
 - 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
@@ -327,6 +338,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
     `assistant.view_usage` (Admin only)
   - communication: `notices.manage` (HR), `notices.department` (Manager: own department only), `helpdesk.manage` (HR),
     `helpdesk.handle` (HR; give to IT etc.); password requests use the existing `users.reset_password`
+  - dms: `dms.manage` (HR), `dms.upload` (HR, Manager: own department), `dms.upload_all` (HR),
+    `dms.view_confidential` (HR, Manager); readers need no permission (read rule in the database)
 - **HR Manager** default: org view/manage, all employees.*, users.reset_password, roles.view, all attendance except
   lock_period, shifts/roster/holidays/swaps/geofences, all leave, all overtime, compensation view/edit, bonuses,
   deductions, payment accounts view/edit, payroll.view_own/prepare/review. **Not**: increments.approve,
@@ -371,6 +384,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   citations, page links, Show me spotlight; error alerts in `components/ui.tsx` offer "Ask the assistant" via
   `bridge.ts`) · `/settings/assistant` (assistant.manage) tabs Overview / API keys / Resources / Model settings /
   Role access / Messages / Test as role / Usage (Admin)
+- DMS (`src/DMS/`): `/documents` tabs Overview (steps, counts, licences by expiry, upload, folders, naming card) /
+  Library (folder tree, search, upload, new folder) / Expiry & renewals / Setup (dms.manage); `?tab= ?folder= ?doc=`
 - Communication (`src/communication/`, sidebar section Communication): `/notices` (For me / Manage, `?open=<id>`) ·
   `/helpdesk` (my / assigned / all / setup) · `/helpdesk/:id` · `/password-requests` · dashboard `NoticeBanner` ·
   login page "Forgot password? Ask HR"
@@ -417,6 +432,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **AI5 assistant ask** | `20261103000400_assistant_ai5_ask` | ✅ applied, passed (user, 2026-10-27) | `assistant_ai5_ask_test.sql` (3) |
 | **AI6 assistant usage** | `20261103000500_assistant_ai6_usage` | ✅ applied, passed (user, 2026-10-27) | `assistant_ai6_usage_test.sql` (3) |
 | **Edge Function assistant** | `supabase/functions/assistant` | ✅ deployed (user, 2026-10-27) | ⚠️ **INCOMPLETE**: never run against a real provider (company has no API key yet); see A9a |
+| **DMS D1 foundation** | `20261104000100_dms_d1_foundation` | ⏳ not applied (needs AI6) | `dms_d1_foundation_test.sql` (9) |
 - Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
   (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405
@@ -426,6 +442,13 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 ### A9a. Handoff — where work stopped (2026-10-25, last commit `ec84577`, tree clean)
 - **Finished**: recruitment/onboarding R1–R7 (full hiring cycle) + Department Organogram + interactive organogram demo.
   Handbook for all of it: `src/onboarding-process/architecture.md` (§1 status, §2 decisions 1–25, §10b organogram).
+- **Latest (2026-10-27, evening): DMS D1 built** (`src/DMS/`, route `/documents`, sidebar Communication → Documents).
+  Folders (base / ISO / custom), system naming `{DEPT}-{TYPE}-{SEQ}_v{n}`, duplicate refusal (hash; same type +
+  department + title), versions / renewals, read rule (classification, department scope, restricted roles),
+  licences by expiry with 30 June default, Setup tab. Local: 23 SQL suites, 192 unit tests, build pass; not
+  browser-checked (no browser tool). **User must:** apply `20261104000100_dms_d1_foundation.sql` then
+  `dms_d1_foundation_test.sql`; give departments a Code in Organization → Departments; then try an upload.
+  Next: D2 (approval, reminders) — ask the D2 questions in `src/DMS/architecture.md` §7 first.
 - **⚠️ INCOMPLETE — AI assistant live test (open item, ask the user about it each session):** C1–C3, AI1–AI6 applied
   and their tests passed on Supabase, Edge Function `assistant` deployed (all confirmed by the user 2026-10-27). Not
   done: the company must buy an API key first; then in the app: API keys → Test key → index the app guide → upload a

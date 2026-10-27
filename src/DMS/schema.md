@@ -1,6 +1,29 @@
 # DMS: Database schema
 
-Planned, not written. Conventions (handbook A3, A10): every org table has `org_id uuid not null`,
+## As built: D1 (`20261104000100_dms_d1_foundation.sql`, test `dms_d1_foundation_test.sql`, 9 checks)
+Where D1 differs from the plan below, D1 is the truth:
+- Catalog: `dms_iso_profiles` (8 standards), `dms_catalog_folders` (6 base + 9 ISO; `profile_code` null = base),
+  `dms_catalog_doc_types` (52 types, **codes unique across the catalog**; `expiry_default` `fiscal_year_end` = 30 June
+  for Trade Licence and IRC/ERC). Clause tables come in D3.
+- `dms_settings` holds `profiles text[]` and `no_iso` (no separate `dms_org_profiles`).
+- The folder tree is `dms_folders` (`origin` base / iso / custom, `enabled`), not `dms_categories`. A document has a
+  `folder_id` (where it is shown) and a `doc_type_id` (what names it) — independent.
+- `dms_doc_types` per company (copied from the catalog; custom types have no extra fields). Type code unique per company.
+- `dms_documents.lifecycle`: pending / published / archived / cancelled (approval states arrive in D2).
+  `owner_user_id` (a login), not an employee.
+- `dms_versions.status`: uploading / current / superseded / cancelled; each version keeps its own `expiry_date` and
+  `fields` (licence history). Unique hash per company among non-cancelled versions.
+- `dms_access_log` (downloads). Seeding runs once per company (`seed_dms_defaults`), so removed permissions or
+  folders are never brought back.
+- RPCs: `get_dms_setup`, `set_dms_profiles(codes, no_iso)`, `save_dms_folder`, `save_dms_doc_type`, `get_dms_library`,
+  `list_dms_documents(p)`, `get_dms_document`, `dms_next_code`, `dms_register_upload`, `dms_confirm_upload`,
+  `dms_cancel_upload`, `update_dms_document`, `archive_dms_document`, `dms_file_path`, `get_dms_overview(from, to)`.
+- Not in D1: the `dms` Edge Function (magic-byte re-check, auto-fill) moves to D5; until then the bucket MIME list,
+  the size limit and the kind/MIME match in `dms_register_upload` guard uploads, and files are only served as downloads.
+
+---
+
+Planned (original plan, kept for the later steps). Conventions (handbook A3, A10): every org table has `org_id uuid not null`,
 `unique (org_id, id)`, composite FKs `(org_id, x_id)`, RLS on with **no policies** (closed; RPC only), standard meta
 columns (`created_at/by`, `updated_at/by`), `attach_standard_triggers` (audit + no delete). Global catalog tables
 are read-only to clients and written only by migrations. Every RPC is `security definer`,

@@ -1,7 +1,9 @@
 # Document Management System (DMS): Architecture
 
 Source idea: `docs/DMS.md` (the user's draft, written for FastAPI + S3 + Celery). This file rewrites it for this
-project's stack and rules. **Status: planned, no code yet** (2026-10-27).
+project's stack and rules. **Status: D1 built (2026-10-27), not applied on Supabase; D2–D6 planned.**
+D1 also includes the expiry overview and the "Expiry & renewals" list (reminders stay in D2). Licence types with
+`expiry_default = fiscal_year_end` (Trade Licence, IRC/ERC) prefill 30 June (user decision 2026-10-27).
 
 Other files in this folder:
 | File | Holds |

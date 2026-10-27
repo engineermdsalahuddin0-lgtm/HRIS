@@ -85,6 +85,8 @@ export const router = createBrowserRouter([
               // Helpdesk: anyone raises tickets; the database decides who sees which ticket.
               { path: '/helpdesk', element: page(() => import('@/communication/helpdesk/pages/HelpdeskPage')) },
               { path: '/helpdesk/:id', element: page(() => import('@/communication/helpdesk/pages/TicketPage')) },
+              // DMS (src/DMS): everyone reads what the read rule allows; upload and setup are checked inside.
+              { path: '/documents', element: page(() => import('@/DMS/pages/DmsPage')) },
               guarded('users.reset_password', '/password-requests', page(() => import('@/communication/password-requests/pages/PasswordRequestsPage'))),
               // Part 4: AI assistant setup; the page itself checks Admin / handed-over HR Manager.
               { path: '/settings/assistant', element: page(() => import('@/AIassistant/setup/AssistantSetupPage')) },

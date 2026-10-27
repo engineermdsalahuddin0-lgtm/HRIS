@@ -54,7 +54,7 @@ function useIngestRunner(resources: ServerResource[] | undefined) {
 
 /** Upload PDF, DOCX and JSON; the Edge Function indexes them into the company's vector store. */
 export function ResourcesTab({ setup }: { setup: ServerSetup }) {
-  const list = useResources()
+  const list = useResources(!setup.backend_missing)
   const upload = useUploadResource()
   const update = useUpdateResource()
   const guide = useIndexGuide()
@@ -95,6 +95,9 @@ export function ResourcesTab({ setup }: { setup: ServerSetup }) {
     setProblems(found)
   }
 
+  if (setup.backend_missing) {
+    return <EmptyState title="Uploads open once the assistant is installed">The app guide and your documents are indexed on the server.</EmptyState>
+  }
   if (list.isPending) return <PageLoader />
   if (list.isError) return <Alert>{errorMessage(list.error)}</Alert>
   const rows = list.data.filter((r) => showArchived || r.status !== 'archived')

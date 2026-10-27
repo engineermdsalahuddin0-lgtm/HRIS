@@ -35,6 +35,8 @@ export interface ServerRole {
 
 export interface ServerSetup {
   is_admin: boolean
+  /** Set by the UI (data/fallback.ts) when the database part is not installed yet. */
+  backend_missing?: boolean
   settings: { enabled: boolean; name: string; language_mode: 'follow' | 'bn' | 'en'; hyper: ServerHyper; monthly_token_cap: number | null; retention_days: number }
   hr_can_manage: boolean
   keys: {
@@ -48,6 +50,16 @@ export interface ServerSetup {
   resources_ready: number
   resources_processing: number
   guide: { articles: number; indexed: number; indexed_at: string | null }
+}
+
+/**
+ * True when the AI assistant's database functions are not installed yet (migrations not applied):
+ * PostgREST answers PGRST202 / 404. The UI then shows its defaults instead of disappearing.
+ */
+export function isBackendMissing(e: unknown): boolean {
+  const err = e as { code?: string; message?: string; status?: number } | null
+  return !!err && (err.code === 'PGRST202' || err.code === '42883' || err.status === 404
+    || /Could not find the function|function .* does not exist/i.test(err.message ?? ''))
 }
 
 export async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
@@ -82,17 +94,48 @@ export interface MyConfig {
   left: number | null
   can_ask: boolean
   ask_blocked_reason: string | null
+  /** Set by the UI when the database part is not installed yet. */
+  backend_missing?: boolean
+}
+
+/** What the widget shows before the database part exists: Updates empty, Ask explains what is missing. */
+export const FALLBACK_CONFIG: MyConfig = {
+  enabled: true, name: 'Olympus Assistant', language_mode: 'follow',
+  greeting: 'Hi! Ask me about the app, company policies and your updates.', suggestions: [], notice: '',
+  not_allowed: 'This topic is not open for your role. Please ask HR.', daily_limit: null, used_today: 0, left: null,
+  can_ask: false, ask_blocked_reason: 'The assistant is not installed on the server yet. Your Admin finishes the setup (Setup → AI assistant).',
+  backend_missing: true,
 }
 
 export interface ServerUpdate { key: string; topic: string; title: string; detail: string; link: string; tone: 'info' | 'action' | 'good' }
 
 /** The widget's own settings for the signed-in person (AI3). */
 export const useMyConfig = (enabled = true) =>
-  useQuery({ queryKey: ['assistant', 'me', 'config'], enabled, staleTime: 60_000, queryFn: () => rpc<MyConfig>('assistant_my_config') })
+  useQuery({
+    queryKey: ['assistant', 'me', 'config'], enabled, staleTime: 60_000,
+    queryFn: async () => {
+      try {
+        return await rpc<MyConfig>('assistant_my_config')
+      } catch (e) {
+        if (isBackendMissing(e)) return FALLBACK_CONFIG
+        throw e
+      }
+    },
+  })
 
 /** The digest: counts and statuses the dashboard already shows, filtered by the role matrix. */
 export const useMyUpdates = (enabled = true) =>
-  useQuery({ queryKey: ['assistant', 'me', 'updates'], enabled, staleTime: 60_000, queryFn: () => rpc<ServerUpdate[]>('assistant_updates') })
+  useQuery({
+    queryKey: ['assistant', 'me', 'updates'], enabled, staleTime: 60_000,
+    queryFn: async () => {
+      try {
+        return await rpc<ServerUpdate[]>('assistant_updates')
+      } catch (e) {
+        if (isBackendMissing(e)) return []
+        throw e
+      }
+    },
+  })
 
 export const useServerSetup = (enabled = true) =>
   useQuery({ queryKey: KEY, enabled, queryFn: () => rpc<ServerSetup>('get_assistant_setup') })

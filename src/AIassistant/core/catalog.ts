@@ -79,7 +79,8 @@ export const TOPICS: Topic[] = [
   { key: 'up.payroll_status', group: 'updates', label: 'Payroll status', hint: 'Run status only, no amounts', needsAnyOf: ['payroll.prepare', 'payroll.approve'], sensitive: true },
   { key: 'up.hiring', group: 'updates', label: 'Hiring', hint: 'Open vacancies and applicants waiting', needsAnyOf: ['recruit.manage', 'workforce.view'] },
   { key: 'up.new_resources', group: 'updates', label: 'New policies', hint: '"New policy published" for documents the role may read', needsAnyOf: [] },
-  // Knowledge: what the uploaded resources are about.
+  // Knowledge: the app guide (written by us) and what the uploaded resources are about.
+  { key: 'kb.app_guide', group: 'knowledge', label: 'App guide', hint: 'How to use Olympus pages and features', needsAnyOf: [] },
   { key: 'kb.company_policy', group: 'knowledge', label: 'Company policies', hint: 'Leave, attendance, conduct, dress code', needsAnyOf: [] },
   { key: 'kb.hr_rules', group: 'knowledge', label: 'HR rules & procedures', hint: 'Joining, transfer, resignation, settlement', needsAnyOf: [] },
   { key: 'kb.circulars', group: 'knowledge', label: 'Notices & circulars', hint: 'Holiday notices, office closures', needsAnyOf: [] },
@@ -121,7 +122,7 @@ export const RECOMMENDED_HYPER: Hyperparameters = {
 }
 
 const allOn = (keys: string[]) => Object.fromEntries(TOPICS.map((t) => [t.key, keys.includes(t.key)]))
-const EVERYONE = ['up.my_day', 'up.my_leave', 'up.my_payslip', 'up.new_resources', 'kb.company_policy', 'kb.hr_rules', 'kb.circulars']
+const EVERYONE = ['up.my_day', 'up.my_leave', 'up.my_payslip', 'up.new_resources', 'kb.app_guide', 'kb.company_policy', 'kb.hr_rules', 'kb.circulars']
 
 const message = (greeting: string, suggestions: string[]): RoleMessages => ({
   greeting,

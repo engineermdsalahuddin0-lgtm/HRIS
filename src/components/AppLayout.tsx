@@ -64,8 +64,9 @@ export const NAV: NavItem[] = [
     anyOf: ['shifts.manage', 'roster.manage', 'holidays.manage', 'attendance.settings', 'geofences.manage', 'leave.manage_types', 'overtime.manage_policy'],
   },
   { to: '/settings/roles', label: 'Roles & access', icon: ShieldCheck, anyOf: ['roles.view'] },
-  // Admin always; HR Manager only after the Admin hands it over (the database guards who may hold it).
-  { to: '/settings/assistant', label: 'AI assistant', icon: Sparkles, anyOf: ['assistant.manage'] },
+  // Admin always (roles.manage is Admin-only, so it shows even before the assistant migrations);
+  // HR Manager only after the Admin hands it over (the database guards who may hold assistant.manage).
+  { to: '/settings/assistant', label: 'AI assistant', icon: Sparkles, anyOf: ['assistant.manage', 'roles.manage'] },
   { to: '/audit', label: 'Audit log', icon: ScrollText, anyOf: ['audit.view'] },
   { to: '/settings', label: 'Settings', icon: Settings, anyOf: ['settings.manage'] },
   { to: '/platform', label: 'Platform', icon: Globe, platformOnly: true, section: 'Platform' },

@@ -5,7 +5,8 @@ import { errorMessage } from '@/lib/identity'
 import { Alert, PageLoader } from '@/components/ui'
 import { PageHeader, Tabs } from '@/components/kit'
 import { serverReadiness } from '../core/access'
-import { useServerSetup } from '../data/api'
+import { isBackendMissing, useServerSetup } from '../data/api'
+import { fallbackSetup } from '../data/fallback'
 import { ApiKeyTab } from './ApiKeyTab'
 import { MessagesTab } from './MessagesTab'
 import { ModelTab } from './ModelTab'
@@ -25,16 +26,18 @@ export type SetupTab = 'overview' | 'key' | 'resources' | 'model' | 'roles' | 'm
 export default function AssistantSetupPage() {
   const ctx = useMyContext()
   const isPreview = useIsPreview()
-  const allowed = ctx.permissions.includes('assistant.manage')
+  // roles.manage is Admin-only, so the Admin opens this page even before the assistant migrations add assistant.manage.
+  const isAdmin = ctx.permissions.includes('roles.manage')
+  const allowed = isAdmin || ctx.permissions.includes('assistant.manage')
   const setup = useServerSetup(allowed && !isPreview)
   const [tab, setTab] = useState<SetupTab>('overview')
 
-  if (isPreview) return <div className="mx-auto max-w-3xl"><Alert tone="info">Sign in to set up the AI assistant; it needs the company's database.</Alert></div>
-  if (!allowed) return <Navigate to="/" replace />
-  if (setup.isPending) return <PageLoader />
-  if (setup.isError) return <div className="mx-auto max-w-3xl"><Alert>{errorMessage(setup.error)}</Alert></div>
+  if (!allowed && !isPreview) return <Navigate to="/" replace />
+  const missing = isPreview || (setup.isError && isBackendMissing(setup.error))
+  if (!missing && setup.isPending) return <PageLoader />
+  if (!missing && setup.isError) return <div className="mx-auto max-w-3xl"><Alert>{errorMessage(setup.error)}</Alert></div>
 
-  const s = setup.data
+  const s = missing ? fallbackSetup(isAdmin || isPreview) : setup.data!
   const { steps } = serverReadiness(s)
   const mark = (key: string, label: string) => (steps.find((x) => x.key === key)?.done ? `✓ ${label}` : label)
 
@@ -44,6 +47,13 @@ export default function AssistantSetupPage() {
         title="AI assistant"
         description="Give your API keys and documents, set the model, choose what each role may see. The assistant never reads employee data."
       />
+      {s.backend_missing && (
+        <Alert tone="info">
+          The assistant's server part is not installed yet, so these screens show the defaults and nothing can be saved.
+          To install it, run the AI assistant migrations (<code>20261103000100…0500</code>) in the Supabase SQL Editor and deploy the
+          Edge Function <code>assistant</code>. This page then switches to your company's real setup by itself.
+        </Alert>
+      )}
       <Tabs<SetupTab>
         value={tab}
         onChange={setTab}

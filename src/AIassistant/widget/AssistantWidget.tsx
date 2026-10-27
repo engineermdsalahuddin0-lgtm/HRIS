@@ -8,7 +8,7 @@ import type { AskDetail } from '../bridge'
 import { ASK_EVENT, setAssistantAvailable } from '../bridge'
 import type { UpdateItem } from '../core/types'
 import type { AskResult } from '../data/api'
-import { useMyConfig, useMyUpdates } from '../data/api'
+import { FALLBACK_CONFIG, useMyConfig, useMyUpdates } from '../data/api'
 import { LiveChat } from './LiveChat'
 import { UpdatesView } from './UpdatesView'
 
@@ -24,7 +24,9 @@ export function AssistantWidget() {
   const isPreview = useIsPreview()
   const live = !!ctx.organization && !isPreview
   const config = useMyConfig(live)
-  const updates = useMyUpdates(live && !!config.data?.enabled)
+  const updates = useMyUpdates(live && !!config.data?.enabled && !config.data?.backend_missing)
+  // Before the database part exists (or in the dev preview) the widget still shows, with Ask explaining why it waits.
+  const c = isPreview || config.isError ? FALLBACK_CONFIG : config.data
   const [open, setOpen] = useState(false)
   const [tab, setTab] = useState<Tab>('updates')
   const buttonRef = useRef<HTMLButtonElement>(null)
@@ -33,7 +35,7 @@ export function AssistantWidget() {
   const [highlight, setHighlight] = useState<NonNullable<AskResult['highlight']> | null>(null)
   const items: UpdateItem[] = (updates.data ?? []).map((u) => ({ ...u, topicKey: u.topic }))
   const actionCount = items.filter((u) => u.tone === 'action').length
-  const canAsk = !!config.data?.enabled && !!config.data?.can_ask
+  const canAsk = !!c?.enabled && !!c?.can_ask
 
   // Error alerts offer "Ask the assistant" only while Ask works.
   useEffect(() => {
@@ -60,8 +62,7 @@ export function AssistantWidget() {
     return () => window.removeEventListener('keydown', onKey)
   }, [open])
 
-  const c = config.data
-  if (!live || !c?.enabled) return null
+  if (!ctx.organization || !c?.enabled) return null
   const firstName = ctx.user?.full_name.split(' ')[0]
   const messages = { greeting: c.greeting, suggestions: c.suggestions, notice: c.notice, notAllowed: c.not_allowed }
 

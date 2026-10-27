@@ -44,6 +44,20 @@ Where D1 differs from the plan below, D1 is the truth:
 - RPCs: `get_dms_compliance(profile)`, `get_dms_document_clauses`, `set_dms_document_clauses`; `dms_can_read`
   now also lets `dms.audit` read everything.
 
+## As built: D4 (`20261104000400_dms_d4_records.sql`, test `dms_d4_records_test.sql`)
+- Permission `dms.records` (no default role). `dms_documents.archived_at`; lifecycle + `disposed`; version status +
+  `disposing`, `disposed`.
+- `dms_retention_rules` (one per type: start published / archived / expiry, 1–100 years, review | dispose, note,
+  active), `dms_legal_holds` (one active per document; release needs a reason), `dms_disposals` (requested →
+  approved → done | cancelled; approver ≠ requester; keeps code, title, version ids, paths, hashes).
+- Flow: request (due + no hold) → another holder approves (versions `disposing`, document hidden) → the browser
+  deletes the files through the Storage API (delete policy `private.dms_file_disposable`) → `complete_dms_disposal`
+  checks the files are gone, marks versions / document `disposed` (title "Disposed document", fields cleared).
+- RPCs: `get_dms_records`, `save_dms_retention_rule`, `place_dms_hold`, `release_dms_hold`, `request_dms_disposal`,
+  `approve_dms_disposal`, `complete_dms_disposal`, `cancel_dms_disposal`; `dms_doc_json` adds `legal_hold`,
+  `archived_at`; `archive_dms_document` sets `archived_at`.
+- Known limit: a disposed file's hash still blocks uploading the exact same file again (message names the code).
+
 ---
 
 Planned (original plan, kept for the later steps). Conventions (handbook A3, A10): every org table has `org_id uuid not null`,

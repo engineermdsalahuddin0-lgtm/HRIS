@@ -11,13 +11,14 @@ import { uploadMessage, useDocuments, useLibrary, useOverview, useSaveFolder } f
 import { useMyContext } from '@/lib/appContext'
 import { CompliancePanel } from '../components/CompliancePanel'
 import { DocumentModal } from '../components/DocumentModal'
+import { RecordsPanel } from '../components/RecordsPanel'
 import { DocumentTable } from '../components/DocumentTable'
 import { FolderTree } from '../components/FolderTree'
 import { SetupPanel } from '../components/SetupPanel'
 import { MyTasks, ReviewQueue } from '../components/TasksPanel'
 import { UploadForm } from '../components/UploadForm'
 
-type Tab = 'overview' | 'library' | 'tasks' | 'review' | 'expiry' | 'iso' | 'setup'
+type Tab = 'overview' | 'library' | 'tasks' | 'review' | 'expiry' | 'iso' | 'records' | 'setup'
 type OpenDoc = { id: string; mode: 'view' | 'version'; requestId?: string }
 
 /**
@@ -28,6 +29,7 @@ export default function DmsPage() {
   const ctx = useMyContext()
   // UI check only; the database decides (dms.manage or dms.audit).
   const auditor = ctx.permissions.includes('dms.manage') || ctx.permissions.includes('dms.audit')
+  const records = ctx.permissions.includes('dms.records')
   const library = useLibrary()
   const [params, setParams] = useSearchParams()
   const tab = (params.get('tab') as Tab | null) ?? 'overview'
@@ -54,6 +56,7 @@ export default function DmsPage() {
     ...(lib.can.review ? [{ key: 'review' as Tab, label: 'Review' }] : []),
     { key: 'expiry', label: 'Expiry & renewals' },
     ...(auditor ? [{ key: 'iso' as Tab, label: 'ISO compliance' }] : []),
+    ...(records ? [{ key: 'records' as Tab, label: 'Retention' }] : []),
     ...(lib.can.manage ? [{ key: 'setup' as Tab, label: 'Setup' }] : []),
   ]
 
@@ -72,6 +75,7 @@ export default function DmsPage() {
       {tab === 'review' && lib.can.review && <ReviewQueue onOpen={(id, mode) => setOpen({ id, mode })} />}
       {tab === 'expiry' && <ExpiryTab onOpen={(d, mode) => setOpen({ id: d.id, mode })} canUpload={lib.can.upload} />}
       {tab === 'iso' && auditor && <CompliancePanel onOpen={(id) => setOpen({ id, mode: 'view' })} onSetup={lib.can.manage ? () => go({ tab: 'setup' }) : undefined} />}
+      {tab === 'records' && records && <RecordsPanel onOpen={(id) => setOpen({ id, mode: 'view' })} />}
       {tab === 'setup' && lib.can.manage && <SetupPanel />}
       {open && <DocumentModal key={`${open.id}-${open.mode}`} id={open.id} initialMode={open.mode} requestId={open.requestId} library={lib} onClose={() => setOpen(null)} />}
     </div>

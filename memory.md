@@ -437,6 +437,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **DMS D1 foundation** | `20261104000100_dms_d1_foundation` | ✅ applied, passed on Supabase (user, 2026-10-27) | `dms_d1_foundation_test.sql` (9; since D2 it switches review off for itself) |
 | **DMS D2 governance** | `20261104000200_dms_d2_governance` | ⏳ not applied | `dms_d2_governance_test.sql` (8) |
 | **DMS D3 ISO checklist** | `20261104000300_dms_d3_compliance` | ⏳ not applied | `dms_d3_compliance_test.sql` (3) |
+| **DMS D4 records** | `20261104000400_dms_d4_records` | ⏳ not applied | `dms_d4_records_test.sql` (5) |
 - Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
   (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405

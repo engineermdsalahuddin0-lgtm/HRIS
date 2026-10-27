@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { pushEmails, rpc } from '@/communication/shared/api'
 import { detectKind } from '../core/dms'
 import type {
-  ComplianceProfile, DmsDocument, DocumentClauses, DocumentDetail, DocumentFilter, Library, Overview, Person, Setup, Tasks,
+  ComplianceProfile, DmsDocument, DocumentClauses, DocumentDetail, DocumentFilter, Library, Overview, Person, Records, Setup, Tasks,
 } from '../core/types'
 
 const BUCKET = 'dms-documents'
@@ -45,6 +45,46 @@ export function useSetClauses() {
   return useMutation({
     mutationFn: ({ id, tags }: { id: string; tags: { profile: string; clause: string }[] }) => rpc<void>('set_dms_document_clauses', { p_id: id, p_tags: tags }),
     onSuccess: refresh,
+  })
+}
+
+export const useRecords = (enabled: boolean) =>
+  useQuery({ queryKey: ['dms', 'records'], enabled, queryFn: () => rpc<Records>('get_dms_records') })
+
+/** Records actions: retention rule, hold, release, request / approve / cancel disposal. */
+export function useRecordsAction() {
+  const refresh = useRefresh()
+  return useMutation({ mutationFn: ({ fn, args }: { fn: string; args: Record<string, unknown> }) => rpc<unknown>(fn, args), onSuccess: refresh })
+}
+
+/** Approve, remove the files through the Storage API (policy: approved disposals only), then close it. */
+export function useApproveDisposal() {
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: async (id: string) => {
+      const { paths } = await rpc<{ paths: string[] }>('approve_dms_disposal', { p_id: id })
+      if (paths.length > 0) {
+        const { error } = await supabase.storage.from(BUCKET).remove(paths)
+        if (error) throw error
+      }
+      await rpc('complete_dms_disposal', { p_id: id })
+    },
+    onSettled: refresh,
+  })
+}
+
+/** Retry the file removal and closing of an approved disposal. */
+export function useFinishDisposal() {
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: async ({ id, paths }: { id: string; paths: string[] }) => {
+      if (paths.length > 0) {
+        const { error } = await supabase.storage.from(BUCKET).remove(paths)
+        if (error) throw error
+      }
+      await rpc('complete_dms_disposal', { p_id: id })
+    },
+    onSettled: refresh,
   })
 }
 

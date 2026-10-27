@@ -6,7 +6,8 @@ import { Alert, Badge, Button, Input, PageLoader } from '@/components/ui'
 import { Modal, Select } from '@/components/kit'
 import { CLASSIFICATION, expiryBadge, formatSize } from '../core/dms'
 import type { DocumentDetail, Library } from '../core/types'
-import { openFile, uploadMessage, useArchiveDocument, useDocument, useUpdateDocument } from '../data/api'
+import { useMyContext } from '@/lib/appContext'
+import { openFile, uploadMessage, useArchiveDocument, useDocument, useRecordsAction, useUpdateDocument } from '../data/api'
 import { ClauseTags } from './ClauseTags'
 import { AccessFields, TypeFields, type Access } from './FieldInputs'
 import { NewVersionForm } from './NewVersionForm'
@@ -19,6 +20,9 @@ export function DocumentModal({ id, library, initialMode = 'view', requestId, on
   id: string | null; library: Library; initialMode?: Mode; requestId?: string; onClose: () => void
 }) {
   const doc = useDocument(id)
+  const ctx = useMyContext()
+  const records = ctx.permissions.includes('dms.records')
+  const hold = useRecordsAction()
   const [mode, setMode] = useState<Mode>(initialMode)
   const [message, setMessage] = useState<string | null>(null)
   const archive = useArchiveDocument()
@@ -41,6 +45,14 @@ export function DocumentModal({ id, library, initialMode = 'view', requestId, on
             {(archive.error || fileError) && <Alert>{fileError ?? errorMessage(archive.error)}</Alert>}
             <Details doc={d} labels={Object.fromEntries((type?.field_schema ?? []).map((f) => [f.key, f.label]))} />
             {d.lifecycle === 'published' && <ClauseTags documentId={d.id} />}
+            {d.legal_hold && <Alert tone="info">On legal hold: it cannot be disposed until the hold is released (Records tab).</Alert>}
+            {records && !d.legal_hold && (d.lifecycle === 'published' || d.lifecycle === 'archived') && (
+              <button type="button" className="text-xs font-medium text-slate-600 underline hover:text-slate-900" onClick={() => {
+                const reason = window.prompt(`Why is ${d.doc_code} held? (e.g. the case number)`)
+                if (reason) hold.mutate({ fn: 'place_dms_hold', args: { p_document_id: d.id, p_reason: reason } }, { onSuccess: () => setMessage('Placed on legal hold.') })
+              }}>Place a legal hold</button>
+            )}
+            {hold.isError && <Alert>{errorMessage(hold.error)}</Alert>}
             <div>
               <h3 className="mb-2 text-sm font-semibold text-slate-900">Versions</h3>
               <ul className="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200">

@@ -78,7 +78,8 @@ export interface DmsDocument {
   expiry_status: ExpiryStatus | null
   days_left: number | null
   next_review_date: string | null
-  lifecycle: 'pending' | 'published' | 'archived' | 'cancelled'
+  lifecycle: 'pending' | 'published' | 'archived' | 'cancelled' | 'disposed'
+  legal_hold?: boolean
   created_at: string
   updated_at: string
 }
@@ -172,6 +173,18 @@ export interface ComplianceProfile { profile: string; name: string; edition: str
 
 export interface ClauseTag { profile: string; clause: string; topic: string; source?: 'type' | 'manual' }
 export interface DocumentClauses { tags: ClauseTag[]; can_tag: boolean; clauses: ClauseTag[] | null }
+
+export interface RetentionRule { start_event: 'published' | 'archived' | 'expiry'; retain_years: number; action: 'review' | 'dispose'; note: string | null }
+export interface Records {
+  rules: { doc_type_id: string; type_code: string; type_name: string; folder: string | null; rule: RetentionRule | null; documents: number }[]
+  due: (DmsDocument & { retention_action: 'review' | 'dispose'; retention_ends: string; disposal: { id: string; status: string } | null })[]
+  holds: { id: string; document_id: string; doc_code: string; title: string; reason: string; placed_by: string | null; placed_at: string }[]
+  disposals: {
+    id: string; document_id: string; doc_code: string; title: string; reason: string; status: 'requested' | 'approved' | 'done'
+    versions: number; requested_by: string | null; requested_at: string; requested_by_me: boolean; paths: string[]
+    approved_by: string | null; approved_at: string | null; completed_at: string | null; hashes: string[]
+  }[]
+}
 
 export interface Person { user_id: string; name: string; department_id?: string | null; department?: string | null }
 

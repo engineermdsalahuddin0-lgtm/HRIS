@@ -1,9 +1,10 @@
-import { useState } from 'react'
+import { Suspense, lazy, useState } from 'react'
 import { NavLink, Outlet, useLocation } from 'react-router-dom'
 import type { LucideIcon } from 'lucide-react'
 import {
   Award, Banknote, CircleHelp, BookOpen, Building2, HandCoins, PiggyBank, Receipt, Scale, Star, CalendarClock, CalendarDays, Clock, FileText, Fingerprint, Globe, Inbox, Layers, LayoutDashboard, Menu, ScrollText, Settings,
   ShieldCheck, SlidersHorizontal, Timer, UserRound, Users, Wallet, X, Gauge, UserPlus, Megaphone, Bot, MessagesSquare, Network, PlayCircle,
+  Sparkles,
 } from 'lucide-react'
 import { useIsPreview, useMyContext } from '@/lib/appContext'
 import { useOrgLogo } from '@/lib/files'
@@ -12,6 +13,11 @@ import { UserMenu } from '@/components/UserMenu'
 import { SpotlightTour } from '@/components/spotlight/SpotlightTour'
 import { useSpotlightTour } from '@/components/spotlight/useSpotlightTour'
 import { DASHBOARD_TOUR } from '@/components/spotlight/dashboardTour'
+import { useCanOpenAssistantSetup } from '@/AIassistant/nav'
+import type { MyContext } from '@/lib/types'
+
+// The floating assistant loads after the page, so it never grows the first download.
+const AssistantWidget = lazy(() => import('@/AIassistant/widget/AssistantWidget').then((m) => ({ default: m.AssistantWidget })))
 
 interface NavItem {
   to: string
@@ -19,6 +25,8 @@ interface NavItem {
   icon: LucideIcon
   /** Shown when the role has any of these permissions (UI only; the DB enforces it). */
   anyOf?: string[]
+  /** Extra rule for items that do not follow a permission (AI assistant: Admin, or HR when handed over). */
+  showIf?: (context: MyContext, extra: { assistantSetup: boolean }) => boolean
   platformOnly?: boolean
   section?: string
 }
@@ -57,6 +65,10 @@ export const NAV: NavItem[] = [
     anyOf: ['shifts.manage', 'roster.manage', 'holidays.manage', 'attendance.settings', 'geofences.manage', 'leave.manage_types', 'overtime.manage_policy'],
   },
   { to: '/settings/roles', label: 'Roles & access', icon: ShieldCheck, anyOf: ['roles.view'] },
+  {
+    to: '/settings/assistant', label: 'AI assistant', icon: Sparkles,
+    showIf: (_, x) => x.assistantSetup,
+  },
   { to: '/audit', label: 'Audit log', icon: ScrollText, anyOf: ['audit.view'] },
   { to: '/settings', label: 'Settings', icon: Settings, anyOf: ['settings.manage'] },
   { to: '/platform', label: 'Platform', icon: Globe, platformOnly: true, section: 'Platform' },
@@ -74,6 +86,8 @@ const TITLES: [string, string][] = [
   ['/time', 'Time setup'],
   ['/organization', 'Organization'],
   ['/settings/roles', 'Roles & access'],
+  ['/settings/assistant', 'AI assistant'],
+  ['/preview/assistant', 'AI assistant'],
   ['/settings/payroll', 'Payroll settings'],
   ['/settings/statutory', 'Statutory settings'],
   ['/tax', 'Income tax & TDS'],
@@ -110,14 +124,18 @@ const titleFor = (path: string) =>
 
 function useNavItems() {
   const context = useMyContext()
+  const assistantSetup = useCanOpenAssistantSetup(context.role?.system_key)
   return NAV.filter((i) => {
     if (i.platformOnly) return context.is_platform_admin
     if (!context.organization) return false
+    if (i.showIf) return i.showIf(context, { assistantSetup })
     return !i.anyOf || i.anyOf.some((p) => context.permissions.includes(p))
   })
 }
 
 const EXACT = new Set(['/', '/settings', '/attendance', '/platform'])
+// Dev /preview: nav items that have a preview page open it instead of the real (signed-in) route.
+const PREVIEW_PATHS: Record<string, string> = { '/': '/preview', '/settings/assistant': '/preview/assistant' }
 
 /** In the rail, labels appear when the rail expands (hover or keyboard focus); in the drawer they always show. */
 function NavList({ rail, onNavigate }: { rail: boolean; onNavigate?: () => void }) {
@@ -135,7 +153,7 @@ function NavList({ rail, onNavigate }: { rail: boolean; onNavigate?: () => void 
             </p>
           )}
           <NavLink
-            to={isPreview && to === '/' ? '/preview' : to}
+            to={isPreview ? (PREVIEW_PATHS[to] ?? to) : to}
             end={EXACT.has(to)}
             onClick={onNavigate}
             title={label}
@@ -255,6 +273,7 @@ export default function AppLayout() {
           <Outlet />
         </main>
       </div>
+      <Suspense fallback={null}><AssistantWidget /></Suspense>
     </div>
   )
 }

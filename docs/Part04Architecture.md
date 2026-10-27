@@ -10,6 +10,15 @@
    - the **dashboard updates** the user would see anyway, and
    - **rules, regulations, law and company policy**, also **role based**.
 
+**Follow-up (2026-10-27, second round):**
+5. Each company gives only **two things**: (1) an **API key** and (2) **uploadable resources: JSON, PDF, DOCX**.
+   It sets the **hyperparameters**, and then the assistant is ready. All processing happens in the backend.
+6. All module code lives in **one folder, `src/AIassistant/`** (see its README for the file map).
+7. Build the **UI first**, as a real module on preview data (browser storage); backend later.
+8. Answers: D1 yes · D2 control stays with Admin, who may hand the setup over to HR Manager · D3 platform
+   embedding key · providers Claude, OpenAI and Gemini · hyperparameters: model, temperature, answer length,
+   retrieval (top-k, minimum match), chunking (size, overlap).
+
 This document replaces the earlier generic RAG design (Python worker, Excel/JSON indexing). That design let the AI
 read any indexed data; the new requirement forbids it, so the scope is narrower and the security model is stricter.
 
@@ -38,8 +47,15 @@ packages from the database: **knowledge passages** and the **update digest** (se
 - **F3 Setup page** `/settings/assistant` in the sidebar **Setup** section, visible to Admin and HR Manager only.
 - **F4 Role matrix**: per role, tick which **update topics** and **knowledge topics** the assistant may use.
 - **F5 Per-role messages**: greeting, suggested questions, a pinned notice, the "not allowed" message, daily question limit.
-- **F6 Knowledge library**: upload policy documents (PDF, DOCX), set category, roles, effective date, version;
-  publish / archive; live processing status.
+- **F6 Resources**: upload PDF, DOCX and JSON; set topic and readers (topic roles, or only some roles), new version,
+  archive / restore; live processing status. JSON files that look like employee data (salary, NID, phone, bank
+  fields) ask for confirmation.
+- **F6b API key**: provider (Claude, OpenAI, Gemini) + key, saved encrypted and tested by the backend; the browser
+  keeps only the last 4 characters.
+- **F6c Model settings (hyperparameters)**: model, temperature, answer style and maximum length, top-k, minimum match,
+  chunk size and overlap (changing chunking re-processes the documents).
+- **F6d Readiness**: an Overview checklist (key tested, ≥ 1 resource ready, valid settings, ≥ 1 role on) says when
+  the assistant is ready.
 - **F7 Law references**: the verified `statutory_references` rows (Part 3C) appear automatically as the **Law** category.
 - **F8 Citations**: each answer cites `[1] Leave Policy 2026 · p.4 · Maternity leave`; clicking opens the document at that page.
 - **F9 Test as role**: the setup page can preview the assistant as any role before the change goes live.
@@ -95,14 +111,15 @@ packages from the database: **knowledge passages** and the **update digest** (se
 | **Postgres** | All rules: who may see which topic, the digest, knowledge search, limits, logs. Same patterns as every other part (closed tables, `require_permission`, audit). |
 | **Edge Function `assistant`** | Orchestrator. Calls the DB **as the user** for the prepared package, calls Claude, streams the answer, records it. It has no table access of its own. |
 | **Edge Function `knowledge-ingest`** | Turns an uploaded document into page-numbered passages and embeddings. Writes only knowledge tables, through one service-only RPC. |
-| **Claude** | Uses the org's Claude key from R3 (`org_integrations`), so no second AI setup for the customer. |
+| **LLM** | The company's own key: Claude, OpenAI or Gemini (stored encrypted, like the R3 key in `org_integrations`). |
 | **Embeddings** | A multilingual embedding model for Bangla + English (decision D3). |
 
 ### Why no Python worker any more
 The machine and the project have no Python, and the stack rule is "Postgres functions + Edge Functions". Claude reads
 PDFs directly (including scanned pages and Bangla text) and returns text per page, so OCR and PDF libraries are not
-needed. DOCX is converted to PDF before upload (decision D4). Excel and JSON are **not** indexed: they usually hold
-employee data, which the AI must not see.
+needed. DOCX is converted to PDF in the backend for true page numbers. **JSON** (user requirement) is indexed one
+passage per record, flattened to `key.path: value` lines and cited by JSON path; files that look like employee data
+get a warning before upload. Excel stays out.
 
 ---
 
@@ -242,7 +259,12 @@ own Updates tab.
 
 ## 7. Setup page — `/settings/assistant`
 
-Sidebar **Setup → AI assistant** (icon: sparkles). Visible only with `assistant.manage`.
+Sidebar **Setup → AI assistant** (icon: sparkles). Visible to Admin, and to HR Manager after an Admin hands it over
+(`assistant.manage` once the backend exists).
+
+**As built (UI preview, `src/AIassistant/setup/`):** tabs are **Overview** (readiness checklist + General below),
+**API key**, **Resources** (= Knowledge library), **Model settings** (hyperparameters), **Role access**,
+**Messages**, **Test as role**. Usage (Tab 6) waits for the backend logs.
 
 ### Tab 1 — General
 - Assistant **on/off** for the organization.
@@ -374,14 +396,20 @@ HR ticks → summary → save → audit row → applies on everyone's next quest
 
 ---
 
-## 10. Decisions (my recommendations — to confirm)
+## 10. Decisions
+
+| # | Question | Answer |
+|---|---|---|
+| D1 | Should Updates work even when the AI key is missing? | **Yes (user, 2026-10-27).** Updates need no AI; only the Ask tab needs the key. |
+| D2 | Who controls the setup? | **Admin (user, 2026-10-27).** HR Manager opens the setup only after an Admin switches on "HR Manager may manage the assistant"; even then sensitive topics (`kb.confidential`, `up.payroll_status`) for HR Manager are Admin-only ticks. |
+| D3 | Embedding provider | **Platform-level key (user, 2026-10-27)** held by Olympus, multilingual (Bangla + English); companies give only their LLM key. |
+| D3b | LLM providers | **Claude, OpenAI, Gemini (user, 2026-10-27)**; the model list per provider comes from the backend. |
+| D4 | DOCX | Converted to PDF in the backend (no "Save as PDF" step for HR). |
+
+Still recommendations, not yet confirmed:
 
 | # | Question | Recommendation |
 |---|---|---|
-| D1 | Should Updates work even when the AI key is missing? | **Yes.** Updates need no AI; only the Ask tab needs the key. |
-| D2 | May HR Manager change HR Manager's own ticks? | Yes, except sensitive topics (`kb.confidential`, `up.payroll_status`), which only Admin can tick for HR. |
-| D3 | Embedding provider | A multilingual embedding API (Bangla + English) with a **platform-level** key held by Olympus, so customers enter only the Claude key. Fallback: keyword search only. |
-| D4 | DOCX | Ask HR to "Save as PDF" in v1 (true page numbers); automatic conversion later. |
 | D5 | Plans | Assistant available on PRO and ENTERPRISE; Updates tab on all plans. |
 | D6 | Save chat history? | Yes, own history only, kept for 90 days. |
 | D7 | Question text retention in the log | 90 days, then removed by the purge job; counts stay. |
@@ -390,6 +418,9 @@ HR ticks → summary → save → audit row → applies on everyone's next quest
 ---
 
 ## 11. Build order (steps AI1–AI6, a commit per step, like R1–R7)
+
+**Done first (2026-10-27): the whole UI on preview data** in `src/AIassistant/` (widget, setup tabs, core rules with
+unit tests). The steps below now replace its data layer piece by piece.
 
 1. **AI1 Foundation**: migration for settings, topics, role matrix, role messages, permissions, seeds for existing
    orgs; SQL test (two orgs, four roles, "tick without permission does nothing").

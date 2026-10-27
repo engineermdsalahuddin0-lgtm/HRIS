@@ -324,6 +324,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   close hiring), public `/offer/:token` and `/joining-feedback/:token`; core logic in `src/onboarding-process/`
 - Visual helpers: `lib/calculationGuide.ts` (explainLine, taxSteps, weightedScore…), `components/references.tsx`
   (SourceBadge, ReferenceChips, ReferenceCard), `components/calcVisuals.tsx` (TaxBreakdown, SlabBar, NetFlow) — plain HTML bars
+- AI assistant (Part 4, UI on preview data, `src/AIassistant/`): floating `AssistantWidget` in AppLayout (every
+  signed-in page) · `/settings/assistant` (Admin; HR Manager when handed over) tabs Overview / API key / Resources /
+  Model settings / Role access / Messages / Test as role · dev `/preview/assistant`
 - Platform: `/platform` · `/platform/applications` · `/platform/organizations/:id`
 - Data hooks: `src/lib/hr.ts` (Part 1), `time.ts` (Part 2), `files.ts` (storage), `payroll.ts` (3A + money helpers),
   `payrollRuns.ts` (3B + CSV), `payslipText.ts` (EN/BN), `platform.ts`, `identity.ts` (phone/login/errors),
@@ -376,8 +379,9 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   **Hiring flow demo** (`/demo/hiring-flow`, dev `/preview/hiring-flow`): R1 → R7 as one clickable story using the real core
   calculations (`flow.ts` + `flow.test.ts`). Put any new demo in this folder, not next to the real pages.
 - **Known, not investigated**: `set_pf_membership` returns HTTP 400 in the browser console (Part 3C PF page).
-- **Next feature (2026-10-27)**: Part 4 AI assistant — design in `docs/Part04Architecture.md`, decisions D1–D8 waiting
-  for the user, then build AI1–AI6. Other candidates already noted: Part 3D (hours compliance,
+- **Part 4 AI assistant (2026-10-27)**: design `docs/Part04Architecture.md`; **UI done on preview data** in
+  `src/AIassistant/` (widget on every page, Setup → AI assistant). Next: backend AI1–AI6 (doc §11) replacing
+  `data/store.ts`; D5–D8 still to confirm. Other candidates already noted: Part 3D (hours compliance,
   grievance box, committees), final settlement module, pg_cron jobs (monthly snapshot, auto-convert on joining date,
   reminders, forgotten-post purge, daily close, audit purge), hiring funnel dashboard, PMS score for internal candidates.
 - **Organogram (2026-10-25, user spec)**: separate organogram grade table (user chose it over extending pay grades);
@@ -766,9 +770,16 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
 - Design answer: the AI gets only two pre-filtered packages from the DB (knowledge passages + an update digest of
   counts/statuses), no tools, no service-role reads; a ticked topic still needs the role's existing permission;
   law = verified `statutory_references` rows; Claude key reused from R3 `org_integrations`; no Excel/JSON indexing.
-- Open (doc §10, D1–D8, my recommendations, not yet confirmed): Updates without AI key, HR editing its own ticks,
-  embedding provider (platform key), DOCX as PDF in v1, plan gating, chat history, log retention, daily limits.
-- Build order AI1–AI6 (doc §11). No code written yet.
+- Second round (2026-10-27): each company gives only **an API key + resources (JSON, PDF, DOCX)** and sets the
+  hyperparameters; the backend does the rest. All code in **`src/AIassistant/`** (README = file map). UI first on
+  preview data. D1 yes; D2 Admin controls, may hand the setup over to HR Manager (switch on Overview, Admin-only);
+  D3 platform embedding key; providers Claude + OpenAI + Gemini; hyperparameters model, temperature, answer
+  length/style, top-k, minimum match, chunk size/overlap. JSON now indexed (one passage per record) with a
+  personal-data warning. D5–D8 still my recommendations.
+- **UI built 2026-10-27** (preview, no backend): floating widget (Updates + Ask, Alt+A), `/settings/assistant` with
+  7 tabs, state in localStorage `olympus.ai-assistant.v1` (only key last 4 kept). `nav.ts` keeps the module out of the
+  first download. Build: main chunk now 509 kB (was 497) — only ~1 kB is new code; react-query moved from the `ui-`
+  chunk into `index` (bundler chunking), total JS +71 kB all in lazy chunks.
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

@@ -80,6 +80,8 @@ export const router = createBrowserRouter([
               guarded('employees.create', '/employees/new', page(() => import('@/pages/employees/AddEmployeePage'))),
               guarded('org.view', '/organization', page(() => import('@/pages/organization/OrganizationPage'))),
               guarded('roles.view', '/settings/roles', page(() => import('@/pages/settings/RolesPage'))),
+              // Part 4: AI assistant setup; the page itself checks Admin / handed-over HR Manager.
+              { path: '/settings/assistant', element: page(() => import('@/AIassistant/setup/AssistantSetupPage')) },
               guarded('settings.manage', '/settings', page(() => import('@/pages/settings/SettingsPage'))),
               guarded('audit.view', '/audit', page(() => import('@/pages/audit/AuditLogPage'))),
               // Part 2: time & attendance
@@ -143,6 +145,7 @@ export const router = createBrowserRouter([
         { path: 'job-post', element: named(() => import('@/pages/onboarding/JobPostPage'), 'JobPostDemoPage') },
         { path: 'organogram', element: named(() => import('@/pages/onboarding/OrganogramDemo'), 'OrganogramDemoPage') },
         { path: 'hiring-flow', element: page(() => import('@/demo/hiring-flow/HiringFlowDemo')) }, // DEMO
+        { path: 'assistant', element: page(() => import('@/AIassistant/setup/AssistantSetupPage')) },
       ] }]
     : []),
   { path: '*', element: <Navigate to="/" replace /> },

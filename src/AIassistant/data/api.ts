@@ -67,6 +67,31 @@ export async function callAssistant<T>(body: Record<string, unknown>): Promise<T
 
 const KEY = ['assistant', 'setup']
 
+export interface MyConfig {
+  enabled: boolean
+  name: string
+  language_mode: 'follow' | 'bn' | 'en'
+  greeting: string
+  suggestions: string[]
+  notice: string
+  not_allowed: string
+  daily_limit: number | null
+  used_today: number
+  left: number | null
+  can_ask: boolean
+  ask_blocked_reason: string | null
+}
+
+export interface ServerUpdate { key: string; topic: string; title: string; detail: string; link: string; tone: 'info' | 'action' | 'good' }
+
+/** The widget's own settings for the signed-in person (AI3). */
+export const useMyConfig = (enabled = true) =>
+  useQuery({ queryKey: ['assistant', 'me', 'config'], enabled, staleTime: 60_000, queryFn: () => rpc<MyConfig>('assistant_my_config') })
+
+/** The digest: counts and statuses the dashboard already shows, filtered by the role matrix. */
+export const useMyUpdates = (enabled = true) =>
+  useQuery({ queryKey: ['assistant', 'me', 'updates'], enabled, staleTime: 60_000, queryFn: () => rpc<ServerUpdate[]>('assistant_updates') })
+
 export const useServerSetup = (enabled = true) =>
   useQuery({ queryKey: KEY, enabled, queryFn: () => rpc<ServerSetup>('get_assistant_setup') })
 

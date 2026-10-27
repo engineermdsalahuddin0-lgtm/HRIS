@@ -721,7 +721,7 @@ begin
        set enabled = coalesce((x ->> 'enabled')::boolean, enabled), daily_limit = case when x ? 'daily_limit' then v_limit else daily_limit end
      where role_id = r.id;
     for t in select * from public.assistant_topics loop
-      continue when not (x -> 'ticks') ? t.key;
+      continue when not coalesce((x -> 'ticks') ? t.key, false);
       v_want := (x -> 'ticks' ->> t.key)::boolean and private.role_can_use_topic(r.id, t);
       select allowed into v_old from public.assistant_role_topics where role_id = r.id and topic_key = t.key;
       continue when v_want is not distinct from v_old;

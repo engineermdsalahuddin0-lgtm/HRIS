@@ -161,6 +161,18 @@ export interface Tasks {
   counts: { requested_from_me: number; to_review: number; review_overdue: number; upload_overdue: number }
 }
 
+export interface ComplianceClause {
+  clause: string
+  topic: string
+  status: 'ok' | 'stale' | 'gap'
+  documents: { id: string; doc_code: string; title: string; version_name: string; source: 'type' | 'manual'; stale: boolean }[]
+  types: string[] | null
+}
+export interface ComplianceProfile { profile: string; name: string; edition: string; clauses: ComplianceClause[] }
+
+export interface ClauseTag { profile: string; clause: string; topic: string; source?: 'type' | 'manual' }
+export interface DocumentClauses { tags: ClauseTag[]; can_tag: boolean; clauses: ClauseTag[] | null }
+
 export interface Person { user_id: string; name: string; department_id?: string | null; department?: string | null }
 
 export interface Overview {

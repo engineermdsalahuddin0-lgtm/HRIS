@@ -35,6 +35,15 @@ Where D1 differs from the plan below, D1 is the truth:
 - Reminders run when DMS lists open (`private.run_dms_reminders`): current step only, never repeated; the first
   expiry step creates one renewal request for the owner.
 
+## As built: D3 (`20261104000300_dms_d3_compliance.sql`, test `dms_d3_compliance_test.sql`)
+- Permission `dms.audit` (read-only auditor: every document, checklist; given by the Admin).
+- `dms_iso_clauses` (our own topic wording + clause number), `dms_catalog_type_clauses` (type → clauses),
+  `dms_document_clauses` (manual tags, replaced as a set). New policy types ISP, EPL, OHP, ENP.
+- Evidence = published documents by type mapping + manual tags (`private.dms_evidence`); clause status ok / stale
+  (only expired or past-review evidence) / gap.
+- RPCs: `get_dms_compliance(profile)`, `get_dms_document_clauses`, `set_dms_document_clauses`; `dms_can_read`
+  now also lets `dms.audit` read everything.
+
 ---
 
 Planned (original plan, kept for the later steps). Conventions (handbook A3, A10): every org table has `org_id uuid not null`,

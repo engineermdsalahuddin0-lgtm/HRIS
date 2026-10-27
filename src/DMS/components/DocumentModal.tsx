@@ -7,6 +7,7 @@ import { Modal, Select } from '@/components/kit'
 import { CLASSIFICATION, expiryBadge, formatSize } from '../core/dms'
 import type { DocumentDetail, Library } from '../core/types'
 import { openFile, uploadMessage, useArchiveDocument, useDocument, useUpdateDocument } from '../data/api'
+import { ClauseTags } from './ClauseTags'
 import { AccessFields, TypeFields, type Access } from './FieldInputs'
 import { NewVersionForm } from './NewVersionForm'
 import { ReviewDecision } from './ReviewDecision'
@@ -39,6 +40,7 @@ export function DocumentModal({ id, library, initialMode = 'view', requestId, on
             {message && <Alert tone="success">{message}</Alert>}
             {(archive.error || fileError) && <Alert>{fileError ?? errorMessage(archive.error)}</Alert>}
             <Details doc={d} labels={Object.fromEntries((type?.field_schema ?? []).map((f) => [f.key, f.label]))} />
+            {d.lifecycle === 'published' && <ClauseTags documentId={d.id} />}
             <div>
               <h3 className="mb-2 text-sm font-semibold text-slate-900">Versions</h3>
               <ul className="divide-y divide-slate-100 rounded-xl ring-1 ring-slate-200">

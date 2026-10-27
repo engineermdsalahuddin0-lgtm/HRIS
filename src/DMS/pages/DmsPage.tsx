@@ -8,6 +8,8 @@ import { Modal, PageHeader, Table, Tabs, td, th } from '@/components/kit'
 import { addDays, buildTree, expiryBadge } from '../core/dms'
 import type { DmsDocument, ExpiryStatus, Library } from '../core/types'
 import { uploadMessage, useDocuments, useLibrary, useOverview, useSaveFolder } from '../data/api'
+import { useMyContext } from '@/lib/appContext'
+import { CompliancePanel } from '../components/CompliancePanel'
 import { DocumentModal } from '../components/DocumentModal'
 import { DocumentTable } from '../components/DocumentTable'
 import { FolderTree } from '../components/FolderTree'
@@ -15,7 +17,7 @@ import { SetupPanel } from '../components/SetupPanel'
 import { MyTasks, ReviewQueue } from '../components/TasksPanel'
 import { UploadForm } from '../components/UploadForm'
 
-type Tab = 'overview' | 'library' | 'tasks' | 'review' | 'expiry' | 'setup'
+type Tab = 'overview' | 'library' | 'tasks' | 'review' | 'expiry' | 'iso' | 'setup'
 type OpenDoc = { id: string; mode: 'view' | 'version'; requestId?: string }
 
 /**
@@ -23,6 +25,9 @@ type OpenDoc = { id: string; mode: 'view' | 'version'; requestId?: string }
  * ({DEPT}-{TYPE}-{SEQ}_v{n}), refuses duplicates and keeps every version.
  */
 export default function DmsPage() {
+  const ctx = useMyContext()
+  // UI check only; the database decides (dms.manage or dms.audit).
+  const auditor = ctx.permissions.includes('dms.manage') || ctx.permissions.includes('dms.audit')
   const library = useLibrary()
   const [params, setParams] = useSearchParams()
   const tab = (params.get('tab') as Tab | null) ?? 'overview'
@@ -48,6 +53,7 @@ export default function DmsPage() {
     { key: 'tasks', label: 'My tasks' },
     ...(lib.can.review ? [{ key: 'review' as Tab, label: 'Review' }] : []),
     { key: 'expiry', label: 'Expiry & renewals' },
+    ...(auditor ? [{ key: 'iso' as Tab, label: 'ISO compliance' }] : []),
     ...(lib.can.manage ? [{ key: 'setup' as Tab, label: 'Setup' }] : []),
   ]
 
@@ -65,6 +71,7 @@ export default function DmsPage() {
       {tab === 'tasks' && <MyTasks library={lib} onOpen={(id, mode, requestId) => setOpen({ id, mode, requestId })} />}
       {tab === 'review' && lib.can.review && <ReviewQueue onOpen={(id, mode) => setOpen({ id, mode })} />}
       {tab === 'expiry' && <ExpiryTab onOpen={(d, mode) => setOpen({ id: d.id, mode })} canUpload={lib.can.upload} />}
+      {tab === 'iso' && auditor && <CompliancePanel onOpen={(id) => setOpen({ id, mode: 'view' })} onSetup={lib.can.manage ? () => go({ tab: 'setup' }) : undefined} />}
       {tab === 'setup' && lib.can.manage && <SetupPanel />}
       {open && <DocumentModal key={`${open.id}-${open.mode}`} id={open.id} initialMode={open.mode} requestId={open.requestId} library={lib} onClose={() => setOpen(null)} />}
     </div>

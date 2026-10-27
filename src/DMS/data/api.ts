@@ -3,7 +3,9 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { pushEmails, rpc } from '@/communication/shared/api'
 import { detectKind } from '../core/dms'
-import type { DmsDocument, DocumentDetail, DocumentFilter, Library, Overview, Person, Setup, Tasks } from '../core/types'
+import type {
+  ComplianceProfile, DmsDocument, DocumentClauses, DocumentDetail, DocumentFilter, Library, Overview, Person, Setup, Tasks,
+} from '../core/types'
 
 const BUCKET = 'dms-documents'
 
@@ -32,6 +34,19 @@ export const useNextCode = (typeId: string, departmentId: string) =>
     enabled: !!typeId && !!departmentId,
     queryFn: () => rpc<string | null>('dms_next_code', { p_doc_type_id: typeId, p_department_id: departmentId }),
   })
+
+export const useCompliance = (enabled: boolean) =>
+  useQuery({ queryKey: ['dms', 'compliance'], enabled, queryFn: () => rpc<ComplianceProfile[]>('get_dms_compliance', { p_profile: null }) })
+export const useDocumentClauses = (id: string | null) =>
+  useQuery({ queryKey: ['dms', 'clauses', id], enabled: !!id, queryFn: () => rpc<DocumentClauses>('get_dms_document_clauses', { p_id: id }) })
+
+export function useSetClauses() {
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: ({ id, tags }: { id: string; tags: { profile: string; clause: string }[] }) => rpc<void>('set_dms_document_clauses', { p_id: id, p_tags: tags }),
+    onSuccess: refresh,
+  })
+}
 
 export const useTasks = () => useQuery({ queryKey: ['dms', 'tasks'], queryFn: () => rpc<Tasks>('list_dms_tasks') })
 export const usePeople = (enabled: boolean) =>

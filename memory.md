@@ -431,6 +431,10 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `20261103000100…0500` each followed by its `assistant_ai*_test.sql`; deploy the Edge Function `assistant`; then in
   the app: API keys → index the app guide → upload a policy → Test as role. Not run against real providers by the
   agent (no keys, no Deno): provider request shapes in `index.ts` must be verified on the first real test.
+  Commit `3b5350c`: the UI shows before the backend exists. A missing RPC (PGRST202 / 404, `isBackendMissing` in
+  `src/AIassistant/data/api.ts`) → widget uses `FALLBACK_CONFIG` (Updates empty, Ask says "not installed"); setup page
+  uses `data/fallback.ts` with an install banner; Admin reaches it via `roles.manage`. Switches to real data by itself
+  once installed. User's screenshot showed the old preview build → told to hard-refresh / restart `npm run dev`.
 - **Earlier (2026-10-27)**: Part 5 Communication C1 notices, C2 helpdesk, C3 password requests built (backend + UI,
   commits `64a686e`…`84fb7c6`), local tests green. **User must apply on Supabase, in order:**
   `20261102000100_comm_c1_notices.sql` → `comm_c1_notices_test.sql`, `20261102000200_comm_c2_helpdesk.sql` →

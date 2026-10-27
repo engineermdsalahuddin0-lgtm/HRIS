@@ -110,7 +110,7 @@ function ManageNotices({ onOpen, orgId }: { onOpen: (id: string) => void; orgId:
           <input type="checkbox" checked={showArchived} onChange={(e) => setShowArchived(e.target.checked)} className="size-4 accent-primary-600" />
           Show archived
         </label>
-        <Button onClick={() => { setResult(null); setEditing('new') }}><Plus className="size-4" /> New notice</Button>
+        <Button data-tour="new-notice" onClick={() => { setResult(null); setEditing('new') }}><Plus className="size-4" /> New notice</Button>
       </div>
       {result && <Alert tone="success">{result}</Alert>}
       {actionError && <Alert>{errorMessage(actionError)}</Alert>}

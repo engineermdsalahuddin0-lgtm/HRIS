@@ -101,8 +101,10 @@ export function serverReadiness(s: {
   settings: { enabled: boolean }
   keys: { chat: { status: string; provider: string; last4: string | null } | null; embed_effective: { provider: string; model: string; ready: boolean; slot: string } | null }
   resources_ready: number
+  guide?: { articles: number; indexed: number }
   roles: { enabled: boolean }[]
 }): { steps: ReadinessStep[]; ready: boolean } {
+  const guideIndexed = (s.guide?.indexed ?? 0) > 0
   const chat = s.keys.chat
   const embedding = s.keys.embed_effective
   const rolesOn = s.roles.filter((r) => r.enabled).length
@@ -117,9 +119,9 @@ export function serverReadiness(s: {
         : `Chat ${chat.provider} ••••${chat.last4} · embeddings ${embedding.provider}`,
     },
     {
-      key: 'resources', label: 'Resources',
-      done: s.resources_ready > 0,
-      detail: s.resources_ready > 0 ? `${s.resources_ready} ready` : 'Upload at least one PDF, DOCX or JSON file.',
+      key: 'resources', label: 'App guide & resources',
+      done: guideIndexed || s.resources_ready > 0,
+      detail: [guideIndexed ? 'App guide indexed' : 'Index the app guide', `${s.resources_ready} resource${s.resources_ready === 1 ? '' : 's'} ready`].join(' · '),
     },
     { key: 'hyper', label: 'Model settings', done: true, detail: 'Recommended values work; adjust if you like.' },
     { key: 'roles', label: 'Role access', done: rolesOn > 0, detail: `${rolesOn} of ${s.roles.length} roles switched on` },

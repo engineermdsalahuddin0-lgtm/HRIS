@@ -46,6 +46,8 @@ export interface ServerSetup {
   topics: ServerTopic[]
   roles: ServerRole[]
   resources_ready: number
+  resources_processing: number
+  guide: { articles: number; indexed: number; indexed_at: string | null }
 }
 
 export async function rpc<T>(fn: string, args?: Record<string, unknown>): Promise<T> {
@@ -121,6 +123,74 @@ export const useSaveHyper = () => useSetupMutation((p: ServerHyper) => rpc<strin
 export const useSaveMatrix = () =>
   useSetupMutation((roles: { role_id: string; enabled: boolean; daily_limit: number | null; ticks: Record<string, boolean> }[]) =>
     rpc('save_assistant_role_matrix', { p: { roles } }))
+
+// ----------------------------------------------------------------------------- resources (AI4)
+export interface ServerResource {
+  id: string
+  source: 'upload' | 'dms'
+  name: string
+  kind: 'pdf' | 'docx' | 'json'
+  size_bytes: number
+  topic_key: string
+  audience_role_ids: string[]
+  version: number
+  replaces_id: string | null
+  status: 'uploading' | 'processing' | 'ready' | 'failed' | 'archived'
+  error: string | null
+  units: number | null
+  chunks: number | null
+  processed_through: number
+  embedding_model: string | null
+  uploaded_at: string
+  updated_at: string
+  path: string
+  uploaded_by: string | null
+}
+
+const MIME: Record<ServerResource['kind'], string> = {
+  pdf: 'application/pdf',
+  docx: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  json: 'application/json',
+}
+
+export async function sha256Hex(file: File): Promise<string> {
+  const digest = await crypto.subtle.digest('SHA-256', await file.arrayBuffer())
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, '0')).join('')
+}
+
+export const useResources = (enabled = true) =>
+  useQuery({
+    queryKey: ['assistant', 'resources'],
+    enabled,
+    queryFn: () => rpc<ServerResource[]>('list_assistant_resources'),
+    // While something is indexing, refresh so the status moves on screen.
+    refetchInterval: (q) => ((q.state.data as ServerResource[] | undefined)?.some((r) => r.status === 'processing') ? 3000 : false),
+  })
+
+/** Hash → register (duplicates refused before upload) → upload to the fixed path → confirm. Indexing follows. */
+export const useUploadResource = () =>
+  useSetupMutation(async ({ file, kind, topicKey, audienceRoleIds, replacesId }: {
+    file: File; kind: ServerResource['kind']; topicKey: string; audienceRoleIds: string[]; replacesId?: string
+  }) => {
+    const r = await rpc<ServerResource>('register_assistant_resource', {
+      p: { name: file.name, kind, size_bytes: file.size, file_hash: await sha256Hex(file), topic_key: topicKey,
+           audience_role_ids: audienceRoleIds, replaces_id: replacesId ?? null },
+    })
+    const { error } = await supabase.storage.from('assistant-resources').upload(r.path, file, { contentType: MIME[kind], upsert: false })
+    if (error) throw error
+    await rpc('confirm_assistant_upload', { p_id: r.id })
+    return r
+  })
+
+export const useUpdateResource = () =>
+  useSetupMutation(({ id, p }: { id: string; p: { topic_key?: string; audience_role_ids?: string[]; action?: 'archive' | 'restore' | 'retry' } }) =>
+    rpc('update_assistant_resource', { p_id: id, p }))
+
+/** One indexing batch; call again while `more` is true. */
+export const ingestOnce = (resourceId: string) =>
+  callAssistant<{ status: ServerResource['status']; more: boolean; processed?: number; total?: number; error?: string }>({ action: 'ingest', resource_id: resourceId })
+
+export const useIndexGuide = () => useSetupMutation(() => callAssistant<{ indexed: number; articles: number }>({ action: 'index_guide' }))
 
 export const useSaveRoleMessages = () =>
   useSetupMutation(({ roleId, messages }: { roleId: string; messages: ServerRole['messages'] }) =>

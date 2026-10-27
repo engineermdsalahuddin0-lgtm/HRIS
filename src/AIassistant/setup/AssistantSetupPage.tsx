@@ -58,7 +58,7 @@ export default function AssistantSetupPage() {
       />
       {tab === 'overview' && <OverviewTab setup={s} onGo={setTab} />}
       {tab === 'key' && <ApiKeyTab setup={s} />}
-      {tab === 'resources' && <ResourcesTab uploader={ctx.user?.full_name ?? 'You'} />}
+      {tab === 'resources' && <ResourcesTab setup={s} />}
       {tab === 'model' && <ModelTab setup={s} />}
       {tab === 'roles' && <RoleAccessTab setup={s} />}
       {tab === 'messages' && <MessagesTab setup={s} />}

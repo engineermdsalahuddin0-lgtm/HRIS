@@ -34,7 +34,7 @@ export default function HelpdeskPage() {
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <PageHeader title="Helpdesk" description="Internal support tickets"
-        actions={<Button onClick={() => setCreating(true)}><Plus className="size-4" /> New ticket</Button>} />
+        actions={<Button data-tour="new-ticket" onClick={() => setCreating(true)}><Plus className="size-4" /> New ticket</Button>} />
       {message && <Alert tone="success">{message}</Alert>}
       {tabs.length > 1 && <Tabs<Tab> value={tab} onChange={setTab} tabs={tabs} />}
       {tab === 'setup' ? <HelpdeskSetup /> : <TicketTable key={tab} scope={tab} staffView={tab !== 'mine'} />}

@@ -518,7 +518,14 @@ begin
                 order by case r.system_key when 'admin' then 0 when 'hr_manager' then 1 when 'manager' then 2 when 'employee' then 3 else 4 end, r.name)
                 from public.roles r join public.assistant_role_settings rs on rs.role_id = r.id
                 where r.org_id = v_org and r.status = 'active'),
-      'resources_ready', (select count(*) from public.assistant_resources x where x.org_id = v_org and x.status = 'ready'))
+      'resources_ready', (select count(*) from public.assistant_resources x where x.org_id = v_org and x.status = 'ready'),
+      'resources_processing', (select count(*) from public.assistant_resources x where x.org_id = v_org and x.status = 'processing'),
+      -- App guide: articles we ship, and how many this company has indexed with its current embedding model.
+      'guide', jsonb_build_object(
+        'articles', (select count(*) from public.assistant_guide_articles),
+        'indexed', (select count(distinct c.guide_key) from public.assistant_chunks c where c.org_id = v_org and c.source = 'guide'
+                    and c.embedding_model = e.model),
+        'indexed_at', (select max(c.created_at) from public.assistant_chunks c where c.org_id = v_org and c.source = 'guide')))
     from public.assistant_settings s where s.org_id = v_org);
 end;
 $$;
@@ -591,6 +598,8 @@ declare
   v_model    text := p ->> 'model';
   v_key      text := nullif(btrim(coalesce(p ->> 'api_key', '')), '');
   v_exists   boolean;
+  v_before   text := (select provider || '/' || model from private.assistant_embed_source(private.current_org_id()));
+  v_after    text;
 begin
   perform private.require_permission('assistant.manage');
   if v_kind is null then
@@ -624,6 +633,12 @@ begin
   else
     insert into public.org_integrations (org_id, kind, provider, model, secret_enc, secret_last4)
     values (v_org, v_kind, v_provider, v_model, private.encrypt_secret(v_key), right(v_key, 4));
+  end if;
+  -- Another embedding model means other vectors: everything is indexed again with the new one.
+  v_after := (select provider || '/' || model from private.assistant_embed_source(v_org));
+  if v_before is distinct from v_after then
+    update public.assistant_resources set status = 'processing', processed_through = 0 where org_id = v_org and status = 'ready';
+    delete from public.assistant_chunks where org_id = v_org and source = 'guide';
   end if;
   perform private.write_audit(v_org, 'assistant.key_saved', 'org_integrations', null, null,
                               jsonb_build_object('slot', v_slot, 'provider', v_provider, 'model', v_model, 'new_key', v_key is not null));

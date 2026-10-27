@@ -5,7 +5,7 @@ import { errorMessage } from '@/lib/identity'
 import { Alert, Button, Input } from '@/components/ui'
 import { Select } from '@/components/kit'
 import { defaultExpiry, titleFromFileName, typesForFolder } from '../core/dms'
-import type { DmsDocument, Library } from '../core/types'
+import type { DmsDocument, DmsRequest, Library } from '../core/types'
 import type { UploadResult } from '../data/api'
 import { useDocuments, useNextCode, useUpload } from '../data/api'
 import { AccessFields, TypeFields, type Access } from './FieldInputs'
@@ -16,24 +16,28 @@ import { FileDrop } from './FileDrop'
  * has a default; the name is shown before saving. Existing documents of the same type and department
  * are offered as "upload a new version" so the same paper is never saved twice.
  */
-export function UploadForm({ library, folderId, onDone, onNewVersion }: {
+export function UploadForm({ library, folderId: givenFolder, request, onDone, onNewVersion }: {
   library: Library
   /** Upload inside this folder; without it the user picks a category. */
   folderId: string | null
+  /** Uploading for a request: its folder, type and department are fixed. */
+  request?: DmsRequest
   onDone: (r: UploadResult) => void
   onNewVersion: (doc: DmsDocument) => void
 }) {
   const upload = useUpload()
+  const folderId = request?.folder_id ?? givenFolder
   const categories = useMemo(() => library.folders.filter((f) => f.origin !== 'custom' && library.types.some((t) => t.folder_id === f.id)),
     [library])
   const [category, setCategory] = useState(folderId ? '' : (categories[0]?.id ?? ''))
   const targetFolder = folderId ?? category
   const types = typesForFolder(library.types, library.folders, targetFolder || null)
-  const [typeId, setTypeId] = useState(types.length === 1 ? types[0].id : '')
+  const [typeId, setTypeId] = useState(request?.doc_type_id ?? (types.length === 1 ? types[0].id : ''))
   const type = library.types.find((t) => t.id === typeId)
-  const [departmentId, setDepartmentId] = useState(
-    library.departments.some((d) => d.id === library.my_department_id) ? library.my_department_id! : (library.departments[0]?.id ?? ''))
-  const department = library.departments.find((d) => d.id === departmentId)
+  const [departmentId, setDepartmentId] = useState(request?.department_id ??
+    (library.departments.some((d) => d.id === library.my_department_id) ? library.my_department_id! : (library.departments[0]?.id ?? '')))
+  // A request fixes the department; the database checks its code.
+  const department = request ? { id: request.department_id, name: request.department ?? '', code: 'set' } : library.departments.find((d) => d.id === departmentId)
   const [file, setFile] = useState<File | null>(null)
   const [title, setTitle] = useState('')
   const [expiry, setExpiry] = useState(defaultExpiry(type))
@@ -69,6 +73,7 @@ export function UploadForm({ library, folderId, onDone, onNewVersion }: {
     if (!file || !type) return
     upload.mutate({
       file,
+      requestId: request?.id,
       expiryDate: type.has_expiry ? expiry : undefined,
       details: {
         title, folder_id: folderId ?? type.folder_id, doc_type_id: type.id, department_id: departmentId,
@@ -89,13 +94,18 @@ export function UploadForm({ library, folderId, onDone, onNewVersion }: {
 
   return (
     <form className="space-y-4" onSubmit={(e) => { e.preventDefault(); submit() }}>
+      {request && (
+        <Alert tone="info">
+          Requested by {request.requested_by}{request.due_date ? ` — due ${request.due_date}` : ''}{request.note ? `: ${request.note}` : ''}
+        </Alert>
+      )}
       {!folderId && (
         <Select label="Category" value={category} onChange={(e) => pickCategory(e.target.value)}
           options={categories.map((f) => ({ value: f.id, label: f.name }))} />
       )}
       <Select label="Document type" value={typeId} onChange={(e) => pickType(e.target.value)} placeholder="Choose…"
         options={types.map((t) => ({ value: t.id, label: t.name }))} />
-      {library.departments.length > 1 ? (
+      {!request && library.departments.length > 1 ? (
         <Select label="Department" value={departmentId} onChange={(e) => setDepartmentId(e.target.value)}
           options={library.departments.map((d) => ({ value: d.id, label: d.name }))} />
       ) : department && <p className="text-sm text-slate-600">Department: <span className="font-medium">{department.name}</span></p>}

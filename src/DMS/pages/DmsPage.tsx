@@ -7,15 +7,16 @@ import { Alert, Badge, Button, Card, EmptyState, Input, PageLoader, cx } from '@
 import { Modal, PageHeader, Table, Tabs, td, th } from '@/components/kit'
 import { addDays, buildTree, expiryBadge } from '../core/dms'
 import type { DmsDocument, ExpiryStatus, Library } from '../core/types'
-import { useDocuments, useLibrary, useOverview, useSaveFolder } from '../data/api'
+import { uploadMessage, useDocuments, useLibrary, useOverview, useSaveFolder } from '../data/api'
 import { DocumentModal } from '../components/DocumentModal'
 import { DocumentTable } from '../components/DocumentTable'
 import { FolderTree } from '../components/FolderTree'
 import { SetupPanel } from '../components/SetupPanel'
+import { MyTasks, ReviewQueue } from '../components/TasksPanel'
 import { UploadForm } from '../components/UploadForm'
 
-type Tab = 'overview' | 'library' | 'expiry' | 'setup'
-type OpenDoc = { id: string; mode: 'view' | 'version' }
+type Tab = 'overview' | 'library' | 'tasks' | 'review' | 'expiry' | 'setup'
+type OpenDoc = { id: string; mode: 'view' | 'version'; requestId?: string }
 
 /**
  * /documents: the document library. The user opens a folder and uploads; the system names the file
@@ -44,6 +45,8 @@ export default function DmsPage() {
   const tabs: { key: Tab; label: string }[] = [
     { key: 'overview', label: 'Overview' },
     { key: 'library', label: 'Library' },
+    { key: 'tasks', label: 'My tasks' },
+    ...(lib.can.review ? [{ key: 'review' as Tab, label: 'Review' }] : []),
     { key: 'expiry', label: 'Expiry & renewals' },
     ...(lib.can.manage ? [{ key: 'setup' as Tab, label: 'Setup' }] : []),
   ]
@@ -59,9 +62,11 @@ export default function DmsPage() {
       <Tabs<Tab> value={tab} onChange={(t) => go({ tab: t })} tabs={tabs} />
       {tab === 'overview' && <OverviewTab lib={lib} onOpen={(d, mode = 'view') => setOpen({ id: d.id, mode })} go={go} />}
       {tab === 'library' && <LibraryTab lib={lib} folder={folder} onFolder={(f) => go({ folder: f })} onOpen={(d) => setOpen({ id: d.id, mode: 'view' })} />}
+      {tab === 'tasks' && <MyTasks library={lib} onOpen={(id, mode, requestId) => setOpen({ id, mode, requestId })} />}
+      {tab === 'review' && lib.can.review && <ReviewQueue onOpen={(id, mode) => setOpen({ id, mode })} />}
       {tab === 'expiry' && <ExpiryTab onOpen={(d, mode) => setOpen({ id: d.id, mode })} canUpload={lib.can.upload} />}
       {tab === 'setup' && lib.can.manage && <SetupPanel />}
-      {open && <DocumentModal key={`${open.id}-${open.mode}`} id={open.id} initialMode={open.mode} library={lib} onClose={() => setOpen(null)} />}
+      {open && <DocumentModal key={`${open.id}-${open.mode}`} id={open.id} initialMode={open.mode} requestId={open.requestId} library={lib} onClose={() => setOpen(null)} />}
     </div>
   )
 }
@@ -90,10 +95,12 @@ function OverviewTab({ lib, onOpen, go }: {
     { done: o.steps.ai.done, title: '4. Index for AI assistant', text: 'Comes with the AI step: approved Public and Internal documents will be indexed with their source details.' },
   ]
   const doneCount = steps.filter((s) => s.done).length
-  const counts: [string, number, string][] = [
-    ['Documents', o.counts.documents, o.counts.documents ? 'In the library' : 'Upload to begin'],
-    ['Expiring in 60 days', o.counts.expiring_60, o.counts.expired ? `${o.counts.expired} already expired` : 'Licences and contracts'],
-    ['Indexed for AI', o.counts.indexed, 'Step 4 not started'],
+  const counts: [string, number, string, Tab | null][] = [
+    ['Documents', o.counts.documents, o.counts.documents ? 'In the library' : 'Upload to begin', 'library'],
+    ['Expiring in 60 days', o.counts.expiring_60, o.counts.expired ? `${o.counts.expired} already expired` : 'Licences and contracts', 'expiry'],
+    ['Awaiting approval', o.counts.awaiting_approval, o.counts.review_overdue ? `${o.counts.review_overdue} review overdue` : 'No pending items', lib.can.review ? 'review' : null],
+    ['Requested from me', o.counts.requested_from_me, o.counts.upload_overdue ? `${o.counts.upload_overdue} upload overdue` : 'Nothing overdue', 'tasks'],
+    ['Indexed for AI', o.counts.indexed, o.counts.indexed ? 'Answers can cite them' : 'Step 4 not started', null],
   ]
 
   return (
@@ -131,13 +138,14 @@ function OverviewTab({ lib, onOpen, go }: {
           </ul>
         </Card>
 
-        <div className="grid gap-3 sm:grid-cols-3">
-          {counts.map(([label, value, hint]) => (
-            <Card key={label} className="p-4">
+        <div className="grid grid-cols-2 gap-3 sm:grid-cols-3">
+          {counts.map(([label, value, hint, target]) => (
+            <button key={label} type="button" disabled={!target} onClick={() => target && go({ tab: target })}
+              className="rounded-2xl bg-white p-4 text-left shadow-sm ring-1 ring-slate-200 transition enabled:hover:ring-primary-300">
               <p className="text-xs text-slate-500">{label}</p>
-              <p className={cx('mt-1 text-2xl font-semibold', label.startsWith('Expiring') && value > 0 ? 'text-primary-700' : 'text-slate-900')}>{value}</p>
-              <p className="text-xs text-slate-500">{hint}</p>
-            </Card>
+              <p className={cx('mt-1 text-2xl font-semibold', value > 0 && label !== 'Documents' && label !== 'Indexed for AI' ? 'text-primary-700' : 'text-slate-900')}>{value}</p>
+              <p className={cx('text-xs', /overdue/.test(hint) ? 'font-medium text-red-600' : 'text-slate-500')}>{hint}</p>
+            </button>
           ))}
         </div>
 
@@ -161,7 +169,7 @@ function OverviewTab({ lib, onOpen, go }: {
           <Card className="space-y-3">
             <h3 className="text-base font-semibold text-slate-900">Upload document</h3>
             {saved && <Alert tone="success">{saved}</Alert>}
-            <UploadForm library={lib} folderId={null} onDone={(r) => setSaved(`Saved as ${r.version_name}.`)} onNewVersion={(d) => onOpen(d, 'version')} />
+            <UploadForm library={lib} folderId={null} onDone={(r) => setSaved(uploadMessage(r))} onNewVersion={(d) => onOpen(d, 'version')} />
           </Card>
         )}
         <Card className="space-y-2">
@@ -281,7 +289,7 @@ function LibraryTab({ lib, folder, onFolder, onOpen }: {
       {uploading && (
         <Modal open onClose={() => setUploading(false)} size="lg" title={current ? `Upload to ${current.name}` : 'Upload document'}>
           <UploadForm library={lib} folderId={current?.id ?? null}
-            onDone={(r) => { setUploading(false); setSaved(`Saved as ${r.version_name}.`) }}
+            onDone={(r) => { setUploading(false); setSaved(uploadMessage(r)) }}
             onNewVersion={(d) => { setUploading(false); onOpen(d) }} />
         </Modal>
       )}
@@ -305,7 +313,7 @@ function ExpiryTab({ onOpen, canUpload }: { onOpen: (d: DmsDocument, mode: 'view
           </button>
         ))}
       </div>
-      <p className="text-sm text-slate-500">Reminders by email at 60, 30 and 7 days come with the next step (D2). “Upload renewal” keeps the code and adds the next version.</p>
+      <p className="text-sm text-slate-500">The owner and the people responsible for the folder get reminders (60, 30, 7 days and on the day; set in Setup) and a renewal task. “Upload renewal” keeps the code and adds the next version.</p>
       {docs.isPending ? <PageLoader /> : docs.isError ? <Alert>{errorMessage(docs.error)}</Alert>
         : rows.length === 0 ? <EmptyState title="No documents with an expiry date here" />
         : <ExpiryRows docs={rows} onOpen={onOpen} canUpload={canUpload} />}

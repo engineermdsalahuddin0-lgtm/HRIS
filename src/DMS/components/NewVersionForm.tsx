@@ -9,7 +9,9 @@ import { FileDrop } from './FileDrop'
 import { TypeFields } from './FieldInputs'
 
 /** A changed file or a licence renewal: same code, next version. */
-export function NewVersionForm({ doc, type, onDone }: { doc: DmsDocument; type: DocType | undefined; onDone: (r: UploadResult) => void }) {
+export function NewVersionForm({ doc, type, requestId, onDone }: {
+  doc: DmsDocument; type: DocType | undefined; requestId?: string; onDone: (r: UploadResult) => void
+}) {
   const upload = useUpload()
   const [file, setFile] = useState<File | null>(null)
   const [expiry, setExpiry] = useState(renewalExpiry(type, doc.expiry_date))
@@ -18,10 +20,10 @@ export function NewVersionForm({ doc, type, onDone }: { doc: DmsDocument; type: 
   return (
     <form className="space-y-4" onSubmit={(e) => {
       e.preventDefault()
-      if (file) upload.mutate({ file, documentId: doc.id, expiryDate: doc.has_expiry ? expiry : undefined, fields, changeNote: note }, { onSuccess: onDone })
+      if (file) upload.mutate({ file, documentId: doc.id, requestId, expiryDate: doc.has_expiry ? expiry : undefined, fields, changeNote: note }, { onSuccess: onDone })
     }}>
       <p className="text-sm text-slate-600">
-        Will be saved as <span className="font-mono font-semibold">{doc.doc_code}_v{doc.version + 1}</span>; the current file stays in the history.
+        Will be saved as the next version of <span className="font-mono font-semibold">{doc.doc_code}</span>; the current file stays in the history.
       </p>
       <FileDrop file={file} onFile={setFile} />
       {doc.has_expiry && (

@@ -43,7 +43,7 @@ export interface Department { id: string; name: string; code: string | null }
 
 export interface Library {
   enabled: boolean
-  can: { manage: boolean; upload: boolean; upload_all: boolean }
+  can: { manage: boolean; upload: boolean; upload_all: boolean; review: boolean }
   my_department_id: string | null
   folders: Folder[]
   types: DocType[]
@@ -87,7 +87,14 @@ export interface DmsVersion {
   id: string
   version: number
   version_name: string
-  status: 'current' | 'superseded'
+  status: 'current' | 'superseded' | 'in_review' | 'rejected'
+  uploaded_by_me: boolean
+  review_due_date: string | null
+  review_overdue: boolean
+  reviewed_by: string | null
+  reviewed_at: string | null
+  review_comment: string | null
+  published_without_review: boolean
   original_file_name: string
   file_kind: FileKind
   size_bytes: number
@@ -101,8 +108,60 @@ export interface DmsVersion {
 export interface DocumentDetail extends DmsDocument {
   can_edit: boolean
   can_manage: boolean
+  can_review: boolean
+  custodians: string[]
   versions: DmsVersion[]
 }
+
+export interface DmsRequest {
+  id: string
+  kind: 'upload' | 'renewal'
+  status: 'open' | 'submitted' | 'done' | 'cancelled'
+  note: string | null
+  due_date: string | null
+  overdue: boolean
+  requested_by: string | null
+  assignee_user_id: string
+  assignee: string | null
+  department_id: string
+  department: string | null
+  folder_id: string | null
+  folder: string | null
+  doc_type_id: string | null
+  type_name: string | null
+  document_id: string | null
+  doc_code: string | null
+  doc_title: string | null
+  created_at: string
+}
+
+/** A version waiting for review, or one of my uploads under review / sent back. */
+export interface VersionTask extends DmsDocument {
+  version_id: string
+  version_status: 'in_review' | 'rejected'
+  pending_version: number
+  pending_version_name: string
+  submitted_at: string | null
+  review_due_date: string | null
+  review_overdue: boolean
+  review_comment: string | null
+  reviewed_at: string | null
+  uploaded_by_name: string | null
+  reviewed_by_name: string | null
+  original_file_name: string
+}
+
+export interface Tasks {
+  can_review: boolean
+  can_request: boolean
+  requested_from_me: DmsRequest[]
+  my_uploads: VersionTask[]
+  to_review: VersionTask[]
+  requests_i_made: DmsRequest[]
+  counts: { requested_from_me: number; to_review: number; review_overdue: number; upload_overdue: number }
+}
+
+export interface Person { user_id: string; name: string; department_id?: string | null; department?: string | null }
 
 export interface Overview {
   enabled: boolean
@@ -112,7 +171,10 @@ export interface Overview {
     documents: { done: boolean; total: number }
     ai: { done: boolean; indexed: number }
   }
-  counts: { documents: number; expiring_60: number; expired: number; awaiting_approval: number; indexed: number }
+  counts: {
+    documents: number; expiring_60: number; expired: number; awaiting_approval: number; indexed: number
+    review_overdue: number; upload_overdue: number; requested_from_me: number
+  }
   expiring: DmsDocument[]
 }
 
@@ -130,6 +192,11 @@ export interface Setup {
   enabled: boolean
   profiles: string[]
   no_iso: boolean
+  require_review: boolean
+  review_days: number
+  reminder_days: number[]
+  custodians: { folder_id: string; user_id: string; name: string }[]
+  people: Person[]
   catalog: IsoProfile[]
   folders: Folder[]
   types: DocType[]

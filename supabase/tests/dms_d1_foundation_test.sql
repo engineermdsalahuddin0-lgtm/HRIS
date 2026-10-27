@@ -69,6 +69,11 @@ begin
   perform set_config('t.role_manager', (select id from public.roles where system_key = 'manager')::text, true);
 end $$;
 
+-- D1 checks run without review (D2 adds review; its own test covers it).
+reset role;
+update public.dms_settings set require_review = false where org_id = current_setting('t.org')::uuid;
+set local role authenticated;
+
 -- ======================================================= 1. base folders, setup permission
 select set_config('request.jwt.claims', format('{"sub":"%s","role":"authenticated"}', current_setting('t.u_hana')), true);
 do $$

@@ -6,15 +6,16 @@ import { Alert, Badge, Button, Input, PageLoader } from '@/components/ui'
 import { Modal, Select } from '@/components/kit'
 import { CLASSIFICATION, expiryBadge, formatSize } from '../core/dms'
 import type { DocumentDetail, Library } from '../core/types'
-import { openFile, useArchiveDocument, useDocument, useUpdateDocument } from '../data/api'
+import { openFile, uploadMessage, useArchiveDocument, useDocument, useUpdateDocument } from '../data/api'
 import { AccessFields, TypeFields, type Access } from './FieldInputs'
 import { NewVersionForm } from './NewVersionForm'
+import { ReviewDecision } from './ReviewDecision'
 
 type Mode = 'view' | 'version' | 'edit'
 
 /** One document: details, version history with downloads, new version, edit, archive. */
-export function DocumentModal({ id, library, initialMode = 'view', onClose }: {
-  id: string | null; library: Library; initialMode?: Mode; onClose: () => void
+export function DocumentModal({ id, library, initialMode = 'view', requestId, onClose }: {
+  id: string | null; library: Library; initialMode?: Mode; requestId?: string; onClose: () => void
 }) {
   const doc = useDocument(id)
   const [mode, setMode] = useState<Mode>(initialMode)
@@ -30,7 +31,7 @@ export function DocumentModal({ id, library, initialMode = 'view', onClose }: {
       description={d ? <span className="font-mono">{d.version_name ?? d.doc_code}</span> : undefined}>
       {doc.isPending ? <PageLoader /> : doc.isError ? <Alert>{errorMessage(doc.error)}</Alert> : d && (
         mode === 'version' ? (
-          <NewVersionForm doc={d} type={type} onDone={(r) => { setMode('view'); setMessage(`Saved as ${r.version_name}.`) }} />
+          <NewVersionForm doc={d} type={type} requestId={requestId} onDone={(r) => { setMode('view'); setMessage(uploadMessage(r)) }} />
         ) : mode === 'edit' ? (
           <EditForm doc={d} library={library} onDone={() => { setMode('view'); setMessage('Saved.') }} onCancel={() => setMode('view')} />
         ) : (
@@ -44,12 +45,15 @@ export function DocumentModal({ id, library, initialMode = 'view', onClose }: {
                 {d.versions.map((v) => (
                   <li key={v.id} className="flex flex-wrap items-center gap-x-3 gap-y-1 px-3 py-2 text-sm">
                     <span className="font-mono text-xs font-semibold">{v.version_name}</span>
-                    {v.status === 'current' ? <Badge tone="green">Current</Badge> : <Badge>Old version</Badge>}
+                    <VersionBadge status={v.status} overdue={v.review_overdue} />
                     <span className="text-xs text-slate-500">
                       {formatDateTime(v.published_at ?? v.uploaded_at)} · {v.uploaded_by ?? '—'} · {v.file_kind.toUpperCase()} {formatSize(v.size_bytes)}
                       {v.expiry_date ? ` · expiry ${formatDate(v.expiry_date)}` : ''}
                     </span>
                     {v.change_note && <span className="w-full text-xs text-slate-600">{v.change_note}</span>}
+                    {v.status === 'in_review' && <span className="w-full text-xs text-slate-500">Waiting for review{v.review_due_date ? ` (due ${formatDate(v.review_due_date)})` : ''}</span>}
+                    {v.review_comment && <span className="w-full text-xs text-slate-600">{v.status === 'rejected' ? 'Sent back' : 'Reviewed'} by {v.reviewed_by}: {v.review_comment}</span>}
+                    {v.published_without_review && <span className="w-full text-xs text-slate-500">Published by the Admin without review</span>}
                     <button type="button" className="ml-auto inline-flex items-center gap-1 text-xs font-medium text-primary-700 hover:underline"
                       onClick={() => { setFileError(null); openFile(v.id).catch((e) => setFileError(errorMessage(e))) }}>
                       <Download className="size-3.5" aria-hidden /> Download
@@ -59,9 +63,16 @@ export function DocumentModal({ id, library, initialMode = 'view', onClose }: {
               </ul>
               <p className="mt-1 text-xs text-slate-500">Original file name: {d.versions[0]?.original_file_name ?? '—'} (kept for reference only)</p>
             </div>
+            {d.custodians.length > 0 && <p className="text-xs text-slate-500">Responsible for this folder: {d.custodians.join(', ')}</p>}
+            {d.can_review && d.versions.filter((v) => v.status === 'in_review' && !v.uploaded_by_me).map((v) => (
+              <div key={v.id} className="space-y-2 rounded-xl bg-primary-50 p-3">
+                <p className="text-sm font-medium text-slate-900">Review {v.version_name}</p>
+                <ReviewDecision versionId={v.id} onDone={(ok) => setMessage(ok ? `${v.version_name} approved and published.` : `${v.version_name} sent back to ${v.uploaded_by ?? 'the uploader'}.`)} />
+              </div>
+            ))}
             {d.can_edit && (
               <div className="flex flex-wrap gap-2">
-                {d.lifecycle === 'published' && (
+                {(d.lifecycle === 'published' || d.lifecycle === 'pending') && !d.versions.some((v) => v.status === 'in_review') && (
                   <Button onClick={() => { setMessage(null); setMode('version') }}><Upload className="size-4" />{d.has_expiry ? 'Upload renewal' : 'New version'}</Button>
                 )}
                 <Button variant="secondary" onClick={() => { setMessage(null); setMode('edit') }}><Pencil className="size-4" /> Edit details</Button>
@@ -82,6 +93,13 @@ export function DocumentModal({ id, library, initialMode = 'view', onClose }: {
       )}
     </Modal>
   )
+}
+
+function VersionBadge({ status, overdue }: { status: DocumentDetail['versions'][number]['status']; overdue: boolean }) {
+  if (status === 'current') return <Badge tone="green">Current</Badge>
+  if (status === 'in_review') return <Badge tone={overdue ? 'red' : 'orange'}>{overdue ? 'Review overdue' : 'In review'}</Badge>
+  if (status === 'rejected') return <Badge tone="red">Sent back</Badge>
+  return <Badge>Old version</Badge>
 }
 
 function Details({ doc: d, labels }: { doc: DocumentDetail; labels: Record<string, string> }) {

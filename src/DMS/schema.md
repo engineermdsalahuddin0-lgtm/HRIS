@@ -21,6 +21,20 @@ Where D1 differs from the plan below, D1 is the truth:
 - Not in D1: the `dms` Edge Function (magic-byte re-check, auto-fill) moves to D5; until then the bucket MIME list,
   the size limit and the kind/MIME match in `dms_register_upload` guard uploads, and files are only served as downloads.
 
+## As built: D2 (`20261104000200_dms_d2_governance.sql`, test `dms_d2_governance_test.sql`, 8 checks)
+- Permission `dms.approve` (HR Manager, Manager). Settings `require_review` (on), `review_days` (3 working days),
+  `reminder_days` ({60,30,7,0}).
+- `dms_versions` + statuses `in_review`, `rejected`; `submitted_at`, `review_due_date`, `reviewed_by/at`,
+  `review_comment`, `published_without_review`, `request_id`. A rejected file may be sent again (hash index skips it).
+- `dms_custodians` (folder, user, active), `dms_requests` (upload | renewal; open → submitted → done | cancelled),
+  `dms_reminders` (one row per document, kind, due date, step). Outbox `notifications.source` gains `dms`.
+- RPCs: `dms_decide`, `list_dms_tasks`, `list_dms_people`, `create_dms_request`, `cancel_dms_request`,
+  `save_dms_custodian`, `save_dms_settings`; redefined `dms_register_upload` (request_id, custodian),
+  `dms_confirm_upload` (Admin → published, others → in_review), `get_dms_document`, `get_dms_setup`,
+  `get_dms_overview`, `get_dms_library` (types for everyone), `dms_file_path`, `private.dms_file_access`.
+- Reminders run when DMS lists open (`private.run_dms_reminders`): current step only, never repeated; the first
+  expiry step creates one renewal request for the owner.
+
 ---
 
 Planned (original plan, kept for the later steps). Conventions (handbook A3, A10): every org table has `org_id uuid not null`,

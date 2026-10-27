@@ -1,9 +1,9 @@
 // DMS data hooks (RPCs of 20261104000100_dms_d1_foundation.sql).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
-import { rpc } from '@/communication/shared/api'
+import { pushEmails, rpc } from '@/communication/shared/api'
 import { detectKind } from '../core/dms'
-import type { DmsDocument, DocumentDetail, DocumentFilter, Library, Overview, Setup } from '../core/types'
+import type { DmsDocument, DocumentDetail, DocumentFilter, Library, Overview, Person, Setup, Tasks } from '../core/types'
 
 const BUCKET = 'dms-documents'
 
@@ -33,17 +33,30 @@ export const useNextCode = (typeId: string, departmentId: string) =>
     queryFn: () => rpc<string | null>('dms_next_code', { p_doc_type_id: typeId, p_department_id: departmentId }),
   })
 
+export const useTasks = () => useQuery({ queryKey: ['dms', 'tasks'], queryFn: () => rpc<Tasks>('list_dms_tasks') })
+export const usePeople = (enabled: boolean) =>
+  useQuery({ queryKey: ['dms', 'people'], enabled, queryFn: () => rpc<Person[]>('list_dms_people') })
+
 export interface UploadInput {
   file: File
   /** New version of this document; otherwise a new document from `details`. */
   documentId?: string
+  /** Uploading for a request: the database fills in what the request fixes. */
+  requestId?: string
   details?: Record<string, unknown>
   expiryDate?: string
   fields?: Record<string, string>
   changeNote?: string
 }
 
-export interface UploadResult { document_id: string; doc_code: string; version_name: string; version: number }
+export interface UploadResult {
+  document_id: string; doc_code: string; version_name: string; version: number
+  /** published (Admin, or review switched off) or in_review. */
+  status: 'published' | 'in_review'
+}
+
+export const uploadMessage = (r: UploadResult) =>
+  r.status === 'in_review' ? `Saved as ${r.version_name} and sent for review.` : `Saved and published as ${r.version_name}.`
 
 /**
  * Hash → register (the database names it and refuses duplicates before any upload) → upload to the
@@ -52,12 +65,13 @@ export interface UploadResult { document_id: string; doc_code: string; version_n
 export function useUpload() {
   const refresh = useRefresh()
   return useMutation({
-    mutationFn: async ({ file, documentId, details, expiryDate, fields, changeNote }: UploadInput): Promise<UploadResult> => {
+    mutationFn: async ({ file, documentId, requestId, details, expiryDate, fields, changeNote }: UploadInput): Promise<UploadResult> => {
       const detected = detectKind(file)
       if ('problem' in detected) throw new Error(detected.problem)
-      const reg = await rpc<UploadResult & { version_id: string; path: string }>('dms_register_upload', {
+      const reg = await rpc<Omit<UploadResult, 'status'> & { version_id: string; path: string }>('dms_register_upload', {
         p: {
           ...(documentId ? { document_id: documentId } : details),
+          ...(requestId ? { request_id: requestId } : {}),
           ...(expiryDate !== undefined ? { expiry_date: expiryDate || null } : {}),
           ...(fields ? { fields } : {}),
           change_note: changeNote || null,
@@ -69,11 +83,48 @@ export function useUpload() {
         await rpc('dms_cancel_upload', { p_version_id: reg.version_id }).catch(() => undefined)
         throw error
       }
-      await rpc('dms_confirm_upload', { p_version_id: reg.version_id })
-      return reg
+      const done = await rpc<{ status: UploadResult['status'] }>('dms_confirm_upload', { p_version_id: reg.version_id })
+      if (done.status === 'in_review') void pushEmails()
+      return { ...reg, status: done.status }
     },
     onSuccess: refresh,
   })
+}
+
+export function useDecide() {
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: ({ versionId, approve, comment }: { versionId: string; approve: boolean; comment?: string }) =>
+      rpc<{ status: string }>('dms_decide', { p_version_id: versionId, p_approve: approve, p_comment: comment || null }),
+    onSuccess: () => { void pushEmails(); return refresh() },
+  })
+}
+
+export function useCreateRequest() {
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: (p: Record<string, unknown>) => rpc<string>('create_dms_request', { p }),
+    onSuccess: () => { void pushEmails(); return refresh() },
+  })
+}
+
+export function useCancelRequest() {
+  const refresh = useRefresh()
+  return useMutation({ mutationFn: (id: string) => rpc<void>('cancel_dms_request', { p_id: id }), onSuccess: refresh })
+}
+
+export function useSaveCustodian() {
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: ({ folderId, userId, active }: { folderId: string; userId: string; active: boolean }) =>
+      rpc<void>('save_dms_custodian', { p_folder_id: folderId, p_user_id: userId, p_active: active }),
+    onSuccess: refresh,
+  })
+}
+
+export function useSaveSettings() {
+  const refresh = useRefresh()
+  return useMutation({ mutationFn: (p: Record<string, unknown>) => rpc<void>('save_dms_settings', { p }), onSuccess: refresh })
 }
 
 export function useUpdateDocument() {

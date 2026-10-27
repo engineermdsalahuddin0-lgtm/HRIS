@@ -6,7 +6,7 @@ import { Alert, Badge, Button, Card, Input, PageLoader, cx } from '@/components/
 import { Checkbox, Select, Switch, Table, td, th } from '@/components/kit'
 import { CLASSIFICATION } from '../core/dms'
 import type { Classification, Setup } from '../core/types'
-import { useSaveDocType, useSaveFolder, useSetProfiles, useSetup } from '../data/api'
+import { useSaveCustodian, useSaveDocType, useSaveFolder, useSaveSettings, useSetProfiles, useSetup } from '../data/api'
 
 /** dms.manage: ISO standards (optional), folders on/off and names, document types, department codes. */
 export function SetupPanel() {
@@ -16,6 +16,7 @@ export function SetupPanel() {
   return (
     <div className="space-y-6">
       <IsoCard setup={setup.data} />
+      <ReviewCard setup={setup.data} />
       <FoldersCard setup={setup.data} />
       <TypesCard setup={setup.data} />
       <DepartmentsCard setup={setup.data} />
@@ -103,9 +104,68 @@ function FoldersCard({ setup }: { setup: Setup }) {
             <button type="button" className="ml-auto text-xs font-medium text-primary-700 hover:underline" onClick={() => setEditing({ id: f.id, name: f.name })}>
               Rename
             </button>
+            {f.enabled && <Custodians setup={setup} folderId={f.id} />}
           </li>
         ))}
       </ul>
+    </Card>
+  )
+}
+
+/** The people responsible for a folder: they upload there without a role permission and get its reminders. */
+function Custodians({ setup, folderId }: { setup: Setup; folderId: string }) {
+  const save = useSaveCustodian()
+  const current = setup.custodians.filter((c) => c.folder_id === folderId)
+  const others = setup.people.filter((p) => !current.some((c) => c.user_id === p.user_id))
+  return (
+    <div className="flex w-full flex-wrap items-center gap-2 pl-14 text-xs">
+      <span className="text-slate-500">Responsible:</span>
+      {current.length === 0 && <span className="text-slate-400">nobody yet</span>}
+      {current.map((c) => (
+        <span key={c.user_id} className="inline-flex items-center gap-1 rounded-full bg-slate-100 px-2 py-0.5 text-slate-700">
+          {c.name}
+          <button type="button" aria-label={`Remove ${c.name}`} className="text-slate-400 hover:text-red-600"
+            onClick={() => save.mutate({ folderId, userId: c.user_id, active: false })}>×</button>
+        </span>
+      ))}
+      <select aria-label="Add a responsible person" className="rounded-lg border border-slate-300 bg-white px-2 py-0.5" value=""
+        onChange={(e) => e.target.value && save.mutate({ folderId, userId: e.target.value, active: true })}>
+        <option value="">+ Add person</option>
+        {others.map((p) => <option key={p.user_id} value={p.user_id}>{p.name}</option>)}
+      </select>
+      {save.isError && <span className="text-red-600">{errorMessage(save.error)}</span>}
+    </div>
+  )
+}
+
+function ReviewCard({ setup }: { setup: Setup }) {
+  const save = useSaveSettings()
+  const [review, setReview] = useState(setup.require_review)
+  const [days, setDays] = useState(String(setup.review_days))
+  const [steps, setSteps] = useState(setup.reminder_days.join(', '))
+  return (
+    <Card className="space-y-4">
+      <div>
+        <h3 className="text-base font-semibold text-slate-900">Review and reminders</h3>
+        <p className="text-sm text-slate-500">
+          Uploads wait for review by the Admin (or someone with “Review documents”) before anyone else sees them. The Admin's own uploads publish
+          directly. Nothing is ever approved by itself: past the review period it shows as “Review overdue”.
+        </p>
+      </div>
+      <form className="grid gap-3 sm:grid-cols-3" onSubmit={(e) => {
+        e.preventDefault()
+        save.mutate({ require_review: review, review_days: Number(days), reminder_days: steps.split(/[ ,]+/).filter(Boolean).map(Number) })
+      }}>
+        <div className="flex items-center gap-3 sm:col-span-3">
+          <Switch label="Review uploads before publishing" checked={review} onChange={setReview} />
+          <span className="text-sm text-slate-700">Review uploads before publishing</span>
+        </div>
+        <Input label="Review period (working days)" type="number" min={1} max={30} value={days} onChange={(e) => setDays(e.target.value)} />
+        <Input label="Reminders before expiry / review (days)" value={steps} onChange={(e) => setSteps(e.target.value)} hint="e.g. 60, 30, 7, 0" />
+        <div className="flex items-end"><Button type="submit" loading={save.isPending}>Save</Button></div>
+      </form>
+      {save.isError && <Alert>{errorMessage(save.error)}</Alert>}
+      {save.isSuccess && <Alert tone="success">Saved.</Alert>}
     </Card>
   )
 }

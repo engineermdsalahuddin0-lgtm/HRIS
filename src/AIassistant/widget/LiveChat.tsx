@@ -92,6 +92,8 @@ export function LiveChat({ greeting, suggestions, left: initialLeft, firstName, 
     try {
       const path = await rpc<string | null>('assistant_resource_path', { p_resource_id: c.resource_id })
       if (!path) throw new Error('You cannot open this document')
+      // DMS documents open their page in the document library.
+      if (path.startsWith('dms:')) { navigate(`/documents?tab=library&doc=${path.slice(4)}`); return }
       const { data, error: e } = await supabase.storage.from('assistant-resources').createSignedUrl(path, 300)
       if (e || !data) throw e ?? new Error('The file could not be opened')
       const page = /^\d+$/.test(c.location) ? `#page=${c.location}` : ''

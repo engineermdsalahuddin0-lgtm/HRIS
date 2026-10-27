@@ -187,6 +187,9 @@ export interface ServerResource {
   uploaded_at: string
   updated_at: string
   path: string
+  /** Storage bucket of the file (dms-documents for DMS documents). */
+  bucket?: string
+  dms_document_id?: string | null
   uploaded_by: string | null
 }
 

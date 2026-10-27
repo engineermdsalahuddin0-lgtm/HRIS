@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { CheckCircle2, ChevronRight, Circle, FolderPlus, Search, Sparkles, Upload } from 'lucide-react'
 import { errorMessage } from '@/lib/identity'
@@ -34,8 +34,11 @@ export default function DmsPage() {
   const [params, setParams] = useSearchParams()
   const tab = (params.get('tab') as Tab | null) ?? 'overview'
   const folder = params.get('folder')
-  const [open, setOpen] = useState<OpenDoc | null>(params.get('doc') ? { id: params.get('doc')!, mode: 'view' } : null)
-  const go = (next: Partial<{ tab: Tab; folder: string | null }>) => {
+  const [open, setOpen] = useState<OpenDoc | null>(null)
+  // ?doc= (from an assistant citation or a link) opens that document, also when the page is already open.
+  const docParam = params.get('doc')
+  useEffect(() => { if (docParam) setOpen({ id: docParam, mode: 'view' }) }, [docParam])
+  const go =(next: Partial<{ tab: Tab; folder: string | null }>) => {
     const p = new URLSearchParams(params)
     if (next.tab) p.set('tab', next.tab)
     if (next.folder !== undefined) {

@@ -58,6 +58,19 @@ Where D1 differs from the plan below, D1 is the truth:
   `archived_at`; `archive_dms_document` sets `archived_at`.
 - Known limit: a disposed file's hash still blocks uploading the exact same file again (message names the code).
 
+## As built: D5 (`20261104000500_dms_d5_ai.sql`, test `dms_d5_ai_test.sql`)
+- `dms_doc_types.ai_enabled`, `assistant_topic` (catalog defaults: policies and procedures on; licences, contracts,
+  records off). RPC `save_dms_doc_type_ai`, `get_dms_document_ai` (status or the reason it is not used).
+- `private.dms_sync_assistant(document)` via triggers on `dms_documents` (lifecycle, classification, scope,
+  current_version, type, title) and `dms_doc_types` (AI switch, topic): wanted = published + Public/Internal +
+  company-wide + AI on + PDF/DOCX/JSON ≤ 20 MB. Otherwise the resource is archived and its chunks deleted.
+- `assistant_resources` rows with `source = 'dms'`, `file_path` in `dms-documents`; `assistant_resource_json`
+  gives `bucket`; the Edge Function `assistant` downloads from `r.bucket` (**redeploy needed**). Citations:
+  `assistant_resource_path` returns `dms:<document id>` → the widget opens `/documents?doc=`.
+- A guard trigger stops changing DMS resources from the assistant side (topic, audience, archive).
+- Not done in D5: XLSX indexing, AI auto-fill on upload, server-side magic-byte check (all need new Edge Function
+  code that cannot be run here); OCR.
+
 ---
 
 Planned (original plan, kept for the later steps). Conventions (handbook A3, A10): every org table has `org_id uuid not null`,

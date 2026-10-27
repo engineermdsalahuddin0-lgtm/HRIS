@@ -4,7 +4,7 @@ import { supabase } from '@/lib/supabase'
 import { pushEmails, rpc } from '@/communication/shared/api'
 import { detectKind } from '../core/dms'
 import type {
-  ComplianceProfile, DmsDocument, DocumentClauses, DocumentDetail, DocumentFilter, Library, Overview, Person, Records, Setup, Tasks,
+  ComplianceProfile, DmsDocument, DocumentAi, DocumentClauses, DocumentDetail, DocumentFilter, Library, Overview, Person, Records, Setup, Tasks,
 } from '../core/types'
 
 const BUCKET = 'dms-documents'
@@ -44,6 +44,18 @@ export function useSetClauses() {
   const refresh = useRefresh()
   return useMutation({
     mutationFn: ({ id, tags }: { id: string; tags: { profile: string; clause: string }[] }) => rpc<void>('set_dms_document_clauses', { p_id: id, p_tags: tags }),
+    onSuccess: refresh,
+  })
+}
+
+export const useDocumentAi = (id: string | null) =>
+  useQuery({ queryKey: ['dms', 'ai', id], enabled: !!id, queryFn: () => rpc<DocumentAi>('get_dms_document_ai', { p_id: id }) })
+
+export function useSaveDocTypeAi() {
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: ({ id, enabled, topic }: { id: string; enabled: boolean; topic: string | null }) =>
+      rpc<void>('save_dms_doc_type_ai', { p_id: id, p_enabled: enabled, p_topic: topic }),
     onSuccess: refresh,
   })
 }

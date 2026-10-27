@@ -4,9 +4,9 @@ import { Plus } from 'lucide-react'
 import { errorMessage } from '@/lib/identity'
 import { Alert, Badge, Button, Card, Input, PageLoader, cx } from '@/components/ui'
 import { Checkbox, Select, Switch, Table, td, th } from '@/components/kit'
-import { CLASSIFICATION } from '../core/dms'
+import { AI_TOPICS, CLASSIFICATION } from '../core/dms'
 import type { Classification, Setup } from '../core/types'
-import { useSaveCustodian, useSaveDocType, useSaveFolder, useSaveSettings, useSetProfiles, useSetup } from '../data/api'
+import { useSaveCustodian, useSaveDocType, useSaveDocTypeAi, useSaveFolder, useSaveSettings, useSetProfiles, useSetup } from '../data/api'
 
 /** dms.manage: ISO standards (optional), folders on/off and names, document types, department codes. */
 export function SetupPanel() {
@@ -172,6 +172,7 @@ function ReviewCard({ setup }: { setup: Setup }) {
 
 function TypesCard({ setup }: { setup: Setup }) {
   const save = useSaveDocType()
+  const saveAi = useSaveDocTypeAi()
   const enabledFolders = setup.folders.filter((f) => f.enabled)
   const [draft, setDraft] = useState<{ code: string; name: string; folder_id: string; has_expiry: boolean; default_classification: Classification } | null>(null)
   const folderName = (id: string) => setup.folders.find((f) => f.id === id)?.name ?? '—'
@@ -208,8 +209,9 @@ function TypesCard({ setup }: { setup: Setup }) {
         </form>
       )}
       {save.isError && <Alert>{errorMessage(save.error)}</Alert>}
-      <Table minWidth={720} head={
-        <tr><th className={th}>On</th><th className={th}>Type</th><th className={th}>Folder</th><th className={th}>Expiry</th><th className={th}>Default access</th><th className={th}>Documents</th></tr>
+      {saveAi.isError && <Alert>{errorMessage(saveAi.error)}</Alert>}
+      <Table minWidth={860} head={
+        <tr><th className={th}>On</th><th className={th}>Type</th><th className={th}>Folder</th><th className={th}>Expiry</th><th className={th}>Default access</th><th className={th}>AI assistant</th><th className={th}>Documents</th></tr>
       }>
         {types.map((t) => (
           <tr key={t.id}>
@@ -230,6 +232,18 @@ function TypesCard({ setup }: { setup: Setup }) {
                 value={t.default_classification} onChange={(e) => save.mutate({ id: t.id, p: { default_classification: e.target.value } })}>
                 {(Object.keys(CLASSIFICATION) as Classification[]).map((k) => <option key={k} value={k}>{CLASSIFICATION[k].label}</option>)}
               </select>
+            </td>
+            <td className={td}>
+              <div className="flex items-center gap-2">
+                <Switch label={`${t.name} answers from the AI assistant`} checked={!!t.ai_enabled} disabled={saveAi.isPending}
+                  onChange={(v) => saveAi.mutate({ id: t.id, enabled: v, topic: t.assistant_topic ?? 'kb.company_policy' })} />
+                {t.ai_enabled && (
+                  <select aria-label={`${t.name} assistant topic`} className="rounded-lg border border-slate-300 bg-white px-2 py-1 text-xs"
+                    value={t.assistant_topic ?? 'kb.company_policy'} onChange={(e) => saveAi.mutate({ id: t.id, enabled: true, topic: e.target.value })}>
+                    {AI_TOPICS.map((x) => <option key={x.key} value={x.key}>{x.label}</option>)}
+                  </select>
+                )}
+              </div>
             </td>
             <td className={td}>{t.documents ?? 0}</td>
           </tr>

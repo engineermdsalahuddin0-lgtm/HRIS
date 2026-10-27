@@ -37,7 +37,11 @@ export interface DocType {
   default_classification: Classification
   active: boolean
   documents: number | null
+  ai_enabled?: boolean
+  assistant_topic?: string | null
 }
+
+export interface DocumentAi { status: 'not_indexed' | 'processing' | 'ready' | 'failed'; error: string | null; reason: string | null }
 
 export interface Department { id: string; name: string; code: string | null }
 

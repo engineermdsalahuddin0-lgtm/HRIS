@@ -67,6 +67,17 @@ export const CLASSIFICATION: Record<Classification, { label: string; hint: strin
   restricted: { label: 'Restricted', hint: 'Only the roles you choose' },
 }
 
+/** Assistant topics a document type can feed (confidential topics never: such documents are not sent). */
+export const AI_TOPICS: { key: string; label: string }[] = [
+  { key: 'kb.company_policy', label: 'Company policy' },
+  { key: 'kb.hr_rules', label: 'HR rules' },
+  { key: 'kb.circulars', label: 'Circulars' },
+  { key: 'kb.labour_law', label: 'Labour law' },
+  { key: 'kb.pay_policy', label: 'Pay policy' },
+  { key: 'kb.tax_pf_gratuity', label: 'Tax, PF, gratuity' },
+  { key: 'kb.manager_guide', label: 'Manager guide' },
+]
+
 export interface FolderNode extends Folder {
   children: FolderNode[]
   /** Documents in this folder and every folder below it. */

@@ -7,7 +7,7 @@ import { Modal, Select } from '@/components/kit'
 import { CLASSIFICATION, expiryBadge, formatSize } from '../core/dms'
 import type { DocumentDetail, Library } from '../core/types'
 import { useMyContext } from '@/lib/appContext'
-import { openFile, uploadMessage, useArchiveDocument, useDocument, useRecordsAction, useUpdateDocument } from '../data/api'
+import { openFile, uploadMessage, useArchiveDocument, useDocument, useDocumentAi, useRecordsAction, useUpdateDocument } from '../data/api'
 import { ClauseTags } from './ClauseTags'
 import { AccessFields, TypeFields, type Access } from './FieldInputs'
 import { NewVersionForm } from './NewVersionForm'
@@ -45,6 +45,7 @@ export function DocumentModal({ id, library, initialMode = 'view', requestId, on
             {(archive.error || fileError) && <Alert>{fileError ?? errorMessage(archive.error)}</Alert>}
             <Details doc={d} labels={Object.fromEntries((type?.field_schema ?? []).map((f) => [f.key, f.label]))} />
             {d.lifecycle === 'published' && <ClauseTags documentId={d.id} />}
+            {d.lifecycle === 'published' && <AiStatus documentId={d.id} />}
             {d.legal_hold && <Alert tone="info">On legal hold: it cannot be disposed until the hold is released (Records tab).</Alert>}
             {records && !d.legal_hold && (d.lifecycle === 'published' || d.lifecycle === 'archived') && (
               <button type="button" className="text-xs font-medium text-slate-600 underline hover:text-slate-900" onClick={() => {
@@ -107,6 +108,18 @@ export function DocumentModal({ id, library, initialMode = 'view', requestId, on
       )}
     </Modal>
   )
+}
+
+/** Whether the AI assistant can answer from this document, and why not. */
+function AiStatus({ documentId }: { documentId: string }) {
+  const ai = useDocumentAi(documentId)
+  if (!ai.data) return null
+  const { status, reason, error } = ai.data
+  const text = status === 'ready' ? 'The AI assistant answers from this document.'
+    : status === 'processing' ? 'Waiting to be indexed for the AI assistant (Setup → AI assistant → Resources).'
+    : status === 'failed' ? `Indexing for the AI assistant failed: ${error ?? 'unknown error'}`
+    : `Not used by the AI assistant. ${reason ?? ''}`
+  return <p className={status === 'failed' ? 'text-xs text-red-600' : 'text-xs text-slate-500'}>{text}</p>
 }
 
 function VersionBadge({ status, overdue }: { status: DocumentDetail['versions'][number]['status']; overdue: boolean }) {

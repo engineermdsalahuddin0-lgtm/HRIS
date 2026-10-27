@@ -260,7 +260,8 @@ async function ingest(user: Client, admin: Client, body: Record<string, unknown>
   try {
     const keys = await companyKeys(admin, ctx.orgId);
     if (!keys.embed) return await fail("No embedding key: add it on the API keys tab");
-    const { data: file, error: dl } = await admin.storage.from("assistant-resources").download(r.path);
+    // DMS documents live in their own bucket (DMS D5); older direct uploads in assistant-resources.
+    const { data: file, error: dl } = await admin.storage.from(r.bucket ?? "assistant-resources").download(r.path);
     if (dl || !file) return await fail("The file is missing in storage; upload it again");
     const { passages, units } = await toPassages(new Uint8Array(await file.arrayBuffer()), r.kind);
     const chunks = chunkPassages(passages, r.hyper.chunk_size, r.hyper.chunk_overlap);

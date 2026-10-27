@@ -227,6 +227,26 @@ export interface History {
 export const useHistory = (enabled: boolean) =>
   useQuery({ queryKey: ['assistant', 'me', 'history'], enabled, staleTime: Infinity, queryFn: () => rpc<History | null>('assistant_history') })
 
+// ----------------------------------------------------------------------------- usage (AI6, Admin only)
+export interface Usage {
+  days: number
+  total: number
+  by_kind: Record<string, number>
+  per_day: { day: string; questions: number }[]
+  per_role: { role: string; questions: number; people: number }[]
+  tokens_month: number
+  monthly_cap: number | null
+  unanswered: { question: string; route: string | null; asked_at: string }[]
+  not_helpful: { question: string; route: string | null; asked_at: string }[]
+  retention_days: number
+}
+
+export const useUsage = (days: number, enabled: boolean) =>
+  useQuery({ queryKey: ['assistant', 'usage', days], enabled, queryFn: () => rpc<Usage>('get_assistant_usage', { p_days: days }) })
+
+export const useRunPurge = () =>
+  useSetupMutation(() => rpc<{ questions_cleared: number; messages_deleted: number; conversations_deleted: number }>('run_assistant_purge'))
+
 export const useSaveRoleMessages = () =>
   useSetupMutation(({ roleId, messages }: { roleId: string; messages: ServerRole['messages'] }) =>
     rpc('save_assistant_role_messages', { p_role_id: roleId, p: messages }))

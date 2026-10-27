@@ -211,6 +211,16 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   (reply|note|event, append-only); bucket `helpdesk-files`
 - `password_requests` (pending|resolved|dismissed, masked login_hint), `private.password_request_log` (hashes, 1 day)
 
+**AI assistant (Part 4, AI1–AI6)** — design `docs/Part04Architecture.md` §12, code `src/AIassistant/`
+- `assistant_settings` (enabled, name, language_mode, hyper jsonb, monthly_token_cap, retention_days), `assistant_topics`
+  (global, incl. `kb.app_guide`), `assistant_role_settings` (per role: enabled, daily_limit, greeting, suggestions, notice,
+  not_allowed_message), `assistant_role_topics` (the matrix), `assistant_resources` (source upload|dms, hash, topic,
+  audience_role_ids, version, status uploading|processing|ready|failed|archived, processed_through, embedding_model),
+  `assistant_guide_articles` (global help per route: needs_any_of, tour_targets), `assistant_chunks` (per-company vector
+  store: vector(1024) HNSW + tsvector, embedding_model), `assistant_conversations`, `assistant_messages`, `assistant_query_log`
+- `org_integrations` new kinds `assistant_chat` (anthropic|openai|google) and `assistant_embed` (openai|google|voyage);
+  bucket `assistant-resources/{org}/{resource}/v{n}.{ext}`; extension `vector` (PGlite: `@electric-sql/pglite-pgvector`)
+
 **Platform / SaaS**
 - `platform_plans` (TRIAL/BASIC/PRO/ENTERPRISE, price_per_employee null = contact sales, max_employees, features)
 - `org_subscriptions` (one per org: plan, status trial|active|past_due|suspended|cancelled|expired, seats, price,
@@ -279,6 +289,15 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   `save_helpdesk_settings`, `save_helpdesk_category`; office time `private.add_office_minutes`,
   `office_minutes_between`, `office_days_between`; password `request_password_help` (anon), `list_password_requests`,
   `resolve_password_request`, `dismiss_password_request`
+- **AI assistant**: setup `get_assistant_setup`, `save_assistant_settings`, `set_assistant_delegation` (Admin),
+  `save_assistant_key`, `record_assistant_key_test`, `remove_assistant_key`, `save_assistant_hyper`,
+  `save_assistant_role_matrix`, `save_assistant_role_messages`; resources `register_assistant_resource`,
+  `confirm_assistant_upload`, `update_assistant_resource`, `list_assistant_resources`; widget `assistant_my_config`,
+  `assistant_updates`, `assistant_prepare`, `assistant_record_answer`, `assistant_feedback`, `assistant_history`,
+  `assistant_resource_path`, `assistant_preview_as_role`; usage `get_assistant_usage`, `run_assistant_purge`;
+  service_role only `service_assistant_keys`, `service_assistant_resource`, `service_save_assistant_chunks`,
+  `service_fail_assistant_resource`, `service_guide_articles`, `service_save_guide_chunks`.
+  Edge Function `supabase/functions/assistant` (test_key, ingest, index_guide, ask)
 - **Performance**: `save_performance_cycle`, `set_performance_cycle_status`, `list_performance_cycles`, `get_performance_cycle`,
   `get_performance_review`, `save_performance_review`, `list_my_performance_reviews`, `acknowledge_performance_review`
 - 3C engine hook: `private.calculate_slip` = `calculate_slip_core` (3B) + `apply_statutory_lines` (PF, TDS) + `finalize_slip_totals`;
@@ -304,6 +323,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
     `payment.export`
   - 3C: `tax.view_profiles`, `tax.manage`, `pf.manage`, `gratuity.manage` (HR default all four)
   - performance: `performance.manage` (HR), `performance.review` (HR + Manager, own team only)
+  - assistant: `assistant.manage` (Admin; HR Manager only via the Admin hand-over, a trigger refuses other roles),
+    `assistant.view_usage` (Admin only)
   - communication: `notices.manage` (HR), `notices.department` (Manager: own department only), `helpdesk.manage` (HR),
     `helpdesk.handle` (HR; give to IT etc.); password requests use the existing `users.reset_password`
 - **HR Manager** default: org view/manage, all employees.*, users.reset_password, roles.view, all attendance except
@@ -346,9 +367,10 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
   close hiring), public `/offer/:token` and `/joining-feedback/:token`; core logic in `src/onboarding-process/`
 - Visual helpers: `lib/calculationGuide.ts` (explainLine, taxSteps, weightedScore…), `components/references.tsx`
   (SourceBadge, ReferenceChips, ReferenceCard), `components/calcVisuals.tsx` (TaxBreakdown, SlabBar, NetFlow) — plain HTML bars
-- AI assistant (Part 4, UI on preview data, `src/AIassistant/`): floating `AssistantWidget` in AppLayout (every
-  signed-in page) · `/settings/assistant` (Admin; HR Manager when handed over) tabs Overview / API key / Resources /
-  Model settings / Role access / Messages / Test as role · dev `/preview/assistant`
+- AI assistant (Part 4, real data, `src/AIassistant/`): floating `AssistantWidget` in AppLayout (Updates / Ask with
+  citations, page links, Show me spotlight; error alerts in `components/ui.tsx` offer "Ask the assistant" via
+  `bridge.ts`) · `/settings/assistant` (assistant.manage) tabs Overview / API keys / Resources / Model settings /
+  Role access / Messages / Test as role / Usage (Admin)
 - Communication (`src/communication/`, sidebar section Communication): `/notices` (For me / Manage, `?open=<id>`) ·
   `/helpdesk` (my / assigned / all / setup) · `/helpdesk/:id` · `/password-requests` · dashboard `NoticeBanner` ·
   login page "Forgot password? Ask HR"
@@ -389,8 +411,14 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **Comm C1 notices** | `20261102000100_comm_c1_notices` | ⏳ not applied | `comm_c1_notices_test.sql` (8) |
 | **Comm C2 helpdesk** | `20261102000200_comm_c2_helpdesk` | ⏳ not applied (needs C1) | `comm_c2_helpdesk_test.sql` (6) |
 | **Comm C3 password requests** | `20261102000300_comm_c3_password_requests` | ⏳ not applied (needs C2) | `comm_c3_password_requests_test.sql` (3) |
-- Local (2026-10-27): all 17 SQL suites pass in PGlite; vitest 192 tests; typecheck + build pass (main chunk 515 kB:
-  bundler moved `components/ui.tsx` and react-query from shared chunks into `index`; first-load size ~unchanged).
+| **AI1 assistant foundation** | `20261103000100_assistant_ai1_foundation` | ⏳ not applied (needs C3) | `assistant_ai1_foundation_test.sql` (5) |
+| **AI3 assistant updates** | `20261103000200_assistant_ai3_updates` | ⏳ not applied | `assistant_ai3_updates_test.sql` (3) |
+| **AI4 assistant resources + guide** | `20261103000300_assistant_ai4_resources` | ⏳ not applied | `assistant_ai4_resources_test.sql` (4) |
+| **AI5 assistant ask** | `20261103000400_assistant_ai5_ask` | ⏳ not applied | `assistant_ai5_ask_test.sql` (3) |
+| **AI6 assistant usage** | `20261103000500_assistant_ai6_usage` | ⏳ not applied | `assistant_ai6_usage_test.sql` (3) |
+| **Edge Function assistant** | `supabase/functions/assistant` | ⏳ not deployed | — (no Deno here: not type-checked or run locally) |
+- Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
+  (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405
   on Supabase but passes in PGlite. A function that seeds or logs must stay VOLATILE (the organogram test lints this).
 - R6 → R7 → organogram + fix are all applied.
@@ -398,7 +426,12 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 ### A9a. Handoff — where work stopped (2026-10-25, last commit `ec84577`, tree clean)
 - **Finished**: recruitment/onboarding R1–R7 (full hiring cycle) + Department Organogram + interactive organogram demo.
   Handbook for all of it: `src/onboarding-process/architecture.md` (§1 status, §2 decisions 1–25, §10b organogram).
-- **Latest (2026-10-27)**: Part 5 Communication C1 notices, C2 helpdesk, C3 password requests built (backend + UI,
+- **Latest (2026-10-27, later)**: AI assistant backend AI1–AI6 built (commits `bc82b2f`…), revision 2 of the design
+  (company keys only, app guide, page-aware, Show me, error help). **User must:** apply C1–C3 first, then
+  `20261103000100…0500` each followed by its `assistant_ai*_test.sql`; deploy the Edge Function `assistant`; then in
+  the app: API keys → index the app guide → upload a policy → Test as role. Not run against real providers by the
+  agent (no keys, no Deno): provider request shapes in `index.ts` must be verified on the first real test.
+- **Earlier (2026-10-27)**: Part 5 Communication C1 notices, C2 helpdesk, C3 password requests built (backend + UI,
   commits `64a686e`…`84fb7c6`), local tests green. **User must apply on Supabase, in order:**
   `20261102000100_comm_c1_notices.sql` → `comm_c1_notices_test.sql`, `20261102000200_comm_c2_helpdesk.sql` →
   `comm_c2_helpdesk_test.sql`, `20261102000300_comm_c3_password_requests.sql` → `comm_c3_password_requests_test.sql`.
@@ -842,6 +875,18 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
   as paused while waiting; first response = first public reply or status change by staff; confidential tickets can
   only be assigned to holders of helpdesk.manage; managers' notices always target their own department (DB fills it);
   ticket files are added as a first message right after creation (storage needs the ticket id).
+
+### Part 4 AI assistant revision 2 — user answers 2026-10-27 (built the same day)
+- The AI should **guide users in the app** (where to go, how a feature works) besides answering policy questions.
+- **No platform key**: each company enters every credential in the UI; vectors per company with its own key.
+  Claude has no embeddings → a second embedding key (Voyage recommended; OpenAI / Gemini possible); OpenAI / Gemini chat
+  keys embed by themselves. Always 1024 dimensions. "Pretraining" = indexing (explained to the user).
+- Guide: answer + page link, Show me highlight, page-aware, error help (all four chosen). Role lacks the feature →
+  exactly "Your role is not permitted for that feature."
+- App guide indexed with the company's key. When the DMS is built it becomes the **only** resource source
+  (`assistant_resources.source = 'dms'` prepared). No LangChain.
+- Choices while building: answers not streamed (revealed in the UI); Ask allowed on TRIAL too ("try everything");
+  indexing runs from the browser in resumable batches of 48 chunks; scanned PDFs refused; usage + purge Admin only.
 
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).

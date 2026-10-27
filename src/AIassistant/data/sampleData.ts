@@ -1,6 +1,4 @@
-// Sample resources and dashboard numbers for the preview. "Load sample resources" on the
-// Resources tab adds these, so the widget and "Test as role" can be tried without real files.
-import type { DashboardSnapshot } from '../core/digest'
+// Sample resources for the unit tests of the access rules (core/access.ts).
 import type { Resource } from '../core/types'
 
 const daysAgo = (n: number) => new Date(Date.now() - n * 24 * 3600 * 1000).toISOString()
@@ -64,15 +62,3 @@ export const SAMPLE_RESOURCES: Resource[] = [
     ],
   }),
 ]
-
-/** What the dashboard would show today; the backend builds this from the real dashboard functions. */
-export const SAMPLE_SNAPSHOT: DashboardSnapshot = {
-  myDay: { checkedInAt: '09:02', late: false, shift: 'General shift 9:00–18:00' },
-  myLeave: { casualLeft: 7, sickLeft: 12, pending: 1 },
-  myPayslip: { month: 'October', ready: true },
-  teamToday: { present: 18, late: 2, absent: 1 },
-  approvals: { leave: 2, overtime: 1, swaps: 0 },
-  headcount: { active: 248, newThisMonth: 6 },
-  payroll: { month: 'October', status: 'reviewed' },
-  hiring: { openVacancies: 4, applicantsWaiting: 37 },
-}

@@ -13,8 +13,9 @@ import { OverviewTab } from './OverviewTab'
 import { ResourcesTab } from './ResourcesTab'
 import { RoleAccessTab } from './RoleAccessTab'
 import { TestTab } from './TestTab'
+import { UsageTab } from './UsageTab'
 
-export type SetupTab = 'overview' | 'key' | 'resources' | 'model' | 'roles' | 'messages' | 'test'
+export type SetupTab = 'overview' | 'key' | 'resources' | 'model' | 'roles' | 'messages' | 'test' | 'usage'
 
 /**
  * Setup → AI assistant (assistant.manage: Admin, or HR Manager after the Admin hands it over).
@@ -54,6 +55,7 @@ export default function AssistantSetupPage() {
           { key: 'roles', label: 'Role access' },
           { key: 'messages', label: 'Messages' },
           { key: 'test', label: 'Test as role' },
+          ...(ctx.permissions.includes('assistant.view_usage') ? [{ key: 'usage' as SetupTab, label: 'Usage' }] : []),
         ]}
       />
       {tab === 'overview' && <OverviewTab setup={s} onGo={setTab} />}
@@ -63,6 +65,7 @@ export default function AssistantSetupPage() {
       {tab === 'roles' && <RoleAccessTab setup={s} />}
       {tab === 'messages' && <MessagesTab setup={s} />}
       {tab === 'test' && <TestTab setup={s} />}
+      {tab === 'usage' && <UsageTab />}
     </div>
   )
 }

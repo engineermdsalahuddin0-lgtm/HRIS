@@ -52,8 +52,13 @@ export function OverviewTab({ setup, onGo }: { setup: ServerSetup; onGo: (tab: S
 function GeneralCard({ setup }: { setup: ServerSetup }) {
   const save = useSaveSettings()
   const delegate = useDelegation()
-  const [g, setG] = useState({ enabled: setup.settings.enabled, name: setup.settings.name, language_mode: setup.settings.language_mode })
+  const [g, setG] = useState({
+    enabled: setup.settings.enabled, name: setup.settings.name, language_mode: setup.settings.language_mode,
+    monthly_token_cap: setup.settings.monthly_token_cap,
+  })
   const dirty = g.enabled !== setup.settings.enabled || g.name !== setup.settings.name || g.language_mode !== setup.settings.language_mode
+    || g.monthly_token_cap !== setup.settings.monthly_token_cap
+  const capOk = g.monthly_token_cap == null || (g.monthly_token_cap >= 1000 && g.monthly_token_cap <= 1_000_000_000)
   return (
     <Card className="space-y-5">
       <h3 className="font-semibold text-slate-900">General</h3>
@@ -72,10 +77,14 @@ function GeneralCard({ setup }: { setup: ServerSetup }) {
           { value: 'bn', label: 'Always Bangla' },
           { value: 'en', label: 'Always English' },
         ]} />
+      <Input label="Monthly token limit (optional)" name="monthly_token_cap" type="number" min={1000} placeholder="No limit"
+        value={g.monthly_token_cap ?? ''} error={capOk ? undefined : 'Between 1,000 and 1,000,000,000'}
+        hint="When reached, Ask stops until next month; Updates keep working."
+        onChange={(e) => setG({ ...g, monthly_token_cap: e.target.value === '' ? null : Math.round(Number(e.target.value)) })} />
       {save.isError && <Alert>{errorMessage(save.error)}</Alert>}
       <div className="flex items-center justify-end gap-3">
         {save.isSuccess && !dirty && <span className="text-sm text-green-700">Saved</span>}
-        <Button disabled={!dirty || g.name.trim().length < 2} loading={save.isPending} onClick={() => save.mutate({ ...g, name: g.name.trim() })}>Save</Button>
+        <Button disabled={!dirty || g.name.trim().length < 2 || !capOk} loading={save.isPending} onClick={() => save.mutate({ ...g, name: g.name.trim() })}>Save</Button>
       </div>
       <div className="flex items-center justify-between gap-3 border-t border-slate-100 pt-5">
         <div>

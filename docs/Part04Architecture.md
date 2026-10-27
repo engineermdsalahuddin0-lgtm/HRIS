@@ -1,8 +1,9 @@
 # Part 4 — Olympus AI Assistant — Architecture
 
 **Product:** Olympus HRIS · **Part:** 4 (AI assistant) · **Code:** `src/AIassistant/` (file map in its `README.md`)
-**Status (2026-10-27):** **UI done on preview data** (browser storage, simulated processing and answers).
-**Backend: designed here, not built.** It is built later, step by step (AI1–AI6, section 11).
+**Status (2026-10-27):** **AI1–AI6 built** (migrations `20261103000100…0500`, Edge Function `assistant`, UI on real
+data) following **section 12 (revision 2)**; not yet applied on Supabase. Sections 3 and 11 describe the earlier
+preview stage and the plan; section 12 and `src/AIassistant/README.md` describe what exists now.
 
 > **How to use this document later.** Say "do AI1" (or AI2 …). Each step in section 11 lists the files to create,
 > the UI parts to switch from preview to real data, the tests, and what the user runs in the SQL Editor. Steps run in

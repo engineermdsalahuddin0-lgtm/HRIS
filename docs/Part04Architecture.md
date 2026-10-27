@@ -294,7 +294,7 @@ until then an Admin button on Usage.
 |---|---|---|
 | D1 | Updates without an AI key? | **Yes** (user). Only Ask needs the key. |
 | D2 | Who controls the setup? | **Admin** (user). HR Manager gets `assistant.manage` only when Admin hands it over; even then sensitive ticks for HR Manager stay Admin-only, and only Admin can change the hand-over. |
-| D3 | Embeddings | **Platform-level key** (user), one multilingual model, 1024 dimensions. The exact model and its price are confirmed at the start of AI4 (from the provider's current docs, not memory). |
+| D3 | Embeddings | **Replaced by section 12:** no platform key; the company's own embedding key (same key as chat for OpenAI / Gemini; a second key, Voyage recommended, when chat is Claude); always 1024 dimensions. |
 | D3b | LLM providers | **Claude, OpenAI, Gemini** (user). Model list per provider is kept in the database check and in `PROVIDERS`. |
 | D3c | Hyperparameters | **Model, temperature, answer length + style, top-k, minimum match, chunk size + overlap** (user). |
 | D4 | DOCX pages | No converter in Edge Functions: DOCX is cited by **section**, with an approximate page ("about p.3"). PDF keeps real pages. |
@@ -386,7 +386,47 @@ Migration file names continue after `20261101000200`. Every step: `npm run test:
 
 ---
 
-## 12. Pitfalls
+## 12. Revision 2 (user, 2026-10-27): app guide, company keys only, DMS later
+
+These rules **override** the earlier sections where they differ.
+
+1. **No platform key.** Every company gives all credentials in the UI; nobody edits backend code per company.
+   API key tab has two slots:
+   - **Chat model**: Anthropic Claude / OpenAI / Google Gemini + key.
+   - **Embedding model**: when chat is OpenAI or Gemini, the same key is used automatically. When chat is Claude
+     (no embedding API), a second key is asked for: **Voyage AI** (recommended), OpenAI or Gemini.
+   All keys encrypted in `org_integrations` (`kind = 'assistant_chat' | 'assistant_embed'`); only the Edge Function
+   reads them (service role). Vectors are always **1024 dimensions** (each provider is asked for 1024), so one column
+   and one HNSW index serve every company. Changing the embedding provider or model re-indexes that company.
+   (Confirm each provider's model name and 1024 support from current docs at the start of AI4.)
+2. **Per-company vector store** = rows of `assistant_chunks` with `org_id`, RLS-closed, every search filtered by org.
+   It is "indexing", not training: chunks are embedded and searched; the model learns nothing.
+3. **App guide** (new knowledge source, topic `kb.app_guide`, on for every role by default):
+   - Global table `assistant_guide_articles`, written by us and seeded by migrations: `key`, `route`, `title`(+bn),
+     `body` (what the page does, steps), `needs_any_of` (permissions), `tour_targets` (`data-tour` ids), `keywords`.
+   - Indexed into each company's `assistant_chunks` with **the company's embedding key** (source `guide`).
+   - **Role rule:** an article whose `needs_any_of` the user does not hold is never given to the model; asking about
+     it returns exactly: **"Your role is not permitted for that feature."**
+4. **Guide behaviour in the widget:**
+   - **Answer + page link** (only routes the user may open).
+   - **Highlight ("Show me")**: the answer may carry `{ route, target }`; the widget opens the page and runs a one-step
+     Spotlight on that `data-tour` target.
+   - **Page-aware**: every question sends the current route; guide articles of that route rank first.
+   - **Error help**: error alerts get an "Ask the assistant" link that opens the widget with the error text and the
+     route (only the message, never data).
+5. **Source adapter for resources**: `assistant_resources.source` = `upload` now, `dms` later (`dms_document_id`,
+   `dms_version_id`). When the DMS exists it becomes the **only** source: the Resources tab turns into "choose DMS
+   documents / folders", approved new versions re-index automatically, citations open the DMS viewer. Engine and chat
+   stay the same.
+6. **One Edge Function `assistant`**, actions `test_key`, `ingest` (resource, batched), `index_guide`, `ask` (SSE).
+   No LangChain: chunking, embeddings, pgvector search and the LLM call are small and run in Deno with the providers'
+   APIs (`unpdf` / `mammoth` as in `recruit-ai`).
+
+Revised build order: **AI1** foundation (+ guide table, two key slots, vector) → **AI2** setup UI on real data
+(+ test_key) → **AI3** updates digest → **AI4** resources + ingest + guide indexing → **AI5** ask (page-aware,
+links, highlight, error help) → **AI6** usage + purge.
+
+## 13. Pitfalls
 - Giving the model any tool or RPC that reads business tables "just for one feature".
 - Filtering by role **after** retrieval instead of inside the SQL.
 - Letting the matrix grant something the role's permissions do not allow.

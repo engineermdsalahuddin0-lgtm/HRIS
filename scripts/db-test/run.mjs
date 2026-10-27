@@ -3,6 +3,7 @@
 // Usage: npm run test:db   (exit code 1 on the first failure)
 import { PGlite } from '@electric-sql/pglite'
 import { pgcrypto } from '@electric-sql/pglite/contrib/pgcrypto'
+import { vector } from '@electric-sql/pglite-pgvector'
 import fs from 'node:fs'
 import path from 'node:path'
 import { fileURLToPath } from 'node:url'
@@ -11,7 +12,8 @@ const here = path.dirname(fileURLToPath(import.meta.url))
 const root = path.resolve(here, '../..')
 const verbose = process.argv.includes('--verbose')
 
-const db = new PGlite({ extensions: { pgcrypto } })
+// pgvector: the AI assistant's per-company vector store (Supabase has it built in).
+const db = new PGlite({ extensions: { pgcrypto, vector } })
 const notices = []
 
 async function run(label, sql, collect = false) {

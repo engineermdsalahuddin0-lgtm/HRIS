@@ -122,7 +122,7 @@ Details of each item: `memory.md` A9 (status board) and each module's architectu
 | Module | Status | Note |
 |---|---|---|
 | 16 Assets: registry, asset requests | ⬜ | |
-| 17 Fleet: vehicles, drivers → Transport Management System (TMS) | ⬜ | Brings the DMS transport folder |
+| 17 Fleet → Transport Management System (TMS) | 📝 | Designed (`src/TMS/`); building T1–T5: fleet, trips + fuel + GPS points, maintenance + inventory, costs |
 | 18 Travel & expense: conveyance bills, visits | ⬜ | |
 | 19 Reports & insights | ⬜ | |
 | 20 Integrations: API keys, webhooks, accounting | ⬜ | |

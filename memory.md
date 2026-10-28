@@ -973,6 +973,16 @@ Other §9 assumptions treated as accepted (30-day basis, base per org, maker-che
 - Build steps D1–D6 (migrations `20261104000100…0600`); open questions per step in architecture.md §7. Ask before
   starting D1; seed document-type list to be reviewed with the user first.
 
+### TMS (Transport Management System) — user answers 2026-10-28
+- Docs: `src/TMS/` (README with a step tracker, architecture, features, schema, security). Source: Part 5 Module 17
+  (Fleet) widened with international TMS practice and Bangladesh needs (BRTA papers, CNG in m³, fuel fraud flags,
+  tolls / traffic fines, outside drivers).
+- Decisions: location from the driver's phone now (trip start / end and fuel fills only), GPS device later; all
+  uses (staff / official, delivery / logistics, field sales); drivers = HR employees + outside drivers; first build
+  = everything (fleet, trips + fuel + location, maintenance + inventory, cost dashboard). Vehicle papers live in the
+  DMS ("Transport & Vehicles" folder) linked to the vehicle / driver.
+- Steps T1–T5, migrations `20261105000100…0500`; one commit per step; README step tracker kept current.
+
 ## Open decisions / pending from user
 - **Lockout**: relying on Supabase's built-in IP rate limit. Options: Password Verification Hook (may need paid plan).
 - **Phone login**: Supabase Phone provider is **disabled** (`phone_provider_disabled`). Phone-only logins can't sign in

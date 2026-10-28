@@ -1,5 +1,5 @@
 // Pure TMS helpers: labels, Bangladeshi registration numbers, licence classes, fuel units.
-import type { Fuel, LicenceClass, VehicleStatus, VehicleType } from './types'
+import type { Fuel, LicenceClass, TripStatus, VehicleStatus, VehicleType } from './types'
 
 export const VEHICLE_TYPE: Record<VehicleType, string> = {
   car: 'Car', microbus: 'Microbus', pickup: 'Pickup', covered_van: 'Covered van', truck: 'Truck', bus: 'Bus',
@@ -25,6 +25,22 @@ export const VEHICLE_STATUS: Record<VehicleStatus, { label: string; tone: 'green
   off_road: { label: 'Off road', tone: 'red' },
   disposed: { label: 'Disposed', tone: 'slate' },
 }
+
+export const TRIP_STATUS: Record<TripStatus, { label: string; tone: 'green' | 'orange' | 'red' | 'slate' }> = {
+  requested: { label: 'Waiting for approval', tone: 'orange' },
+  approved: { label: 'Approved, needs a vehicle', tone: 'orange' },
+  rejected: { label: 'Refused', tone: 'red' },
+  assigned: { label: 'Vehicle assigned', tone: 'green' },
+  in_progress: { label: 'On the road', tone: 'green' },
+  completed: { label: 'Completed', tone: 'slate' },
+  cancelled: { label: 'Cancelled', tone: 'slate' },
+}
+
+export const TRIP_KIND = { staff: 'Staff / official', delivery: 'Delivery', field: 'Field visit' } as const
+export const EXPENSE_KIND = { toll: 'Toll', parking: 'Parking', fine: 'Fine / case', food: 'Food', other: 'Other' } as const
+
+/** A Google Maps link for a stored GPS point (no map library or key needed). */
+export const mapsLink = (p: { lat: number; lng: number }) => `https://www.google.com/maps?q=${p.lat},${p.lng}`
 
 /** "dhaka metro-ga   12-3456" → "DHAKA METRO-GA 12-3456" (same rule as the database). */
 export const normRegNo = (s: string) => s.trim().replace(/\s+/g, ' ').toUpperCase()

@@ -8,39 +8,55 @@ import { PageHeader, Table, Tabs, td, th } from '@/components/kit'
 import { expiryBadge } from '@/DMS/core/dms'
 import { LICENCE_CLASS, VEHICLE_STATUS, VEHICLE_TYPE, formatKm } from '../core/tms'
 import type { Driver, Fleet, Vehicle } from '../core/types'
-import { useFleet, useTmsOverview } from '../data/api'
+import { useFleet, useTmsMe, useTmsOverview } from '../data/api'
 import { DriverForm, VehicleForm } from '../components/FleetForms'
+import { MyTripsPanel, TripsPanel } from '../components/TripsPanel'
 import { VehicleModal } from '../components/VehicleModal'
 
-type Tab = 'overview' | 'vehicles' | 'drivers'
+type Tab = 'overview' | 'trips' | 'my-trips' | 'vehicles' | 'drivers'
 
-/** /transport: the Transport Management System. Tabs by permission; the database checks every action. */
+/**
+ * /transport: the Transport Management System. Everyone can request a vehicle (Trips); drivers get My trips;
+ * the desk and approvers see the fleet. The database checks every action.
+ */
 export default function TmsPage() {
-  const fleet = useFleet()
+  const me = useTmsMe()
+  const seeFleet = !!me.data?.can.see_fleet
+  const fleet = useFleet(seeFleet)
   const [params, setParams] = useSearchParams()
-  const tab = (params.get('tab') as Tab | null) ?? 'overview'
   const go = (t: Tab) => setParams({ tab: t }, { replace: true })
-  if (fleet.isPending) return <PageLoader />
-  if (fleet.isError) {
+  if (me.isPending || (seeFleet && fleet.isPending)) return <PageLoader />
+  const error = me.error ?? fleet.error
+  if (error) {
     return (
       <div className="mx-auto max-w-3xl space-y-4">
         <PageHeader title="Transport" />
-        <Alert>{errorMessage(fleet.error)}</Alert>
+        <Alert>{errorMessage(error)}</Alert>
       </div>
     )
   }
+  const m = me.data!
   const f = fleet.data
+  const tabs: { key: Tab; label: string; count?: number }[] = [
+    ...(seeFleet ? [{ key: 'overview' as Tab, label: 'Overview' }] : []),
+    { key: 'trips', label: 'Trips', count: (m.to_approve + m.to_assign) || undefined },
+    ...(m.driver ? [{ key: 'my-trips' as Tab, label: 'My trips', count: m.my_open_trips || undefined }] : []),
+    ...(seeFleet && f ? [
+      { key: 'vehicles' as Tab, label: 'Vehicles', count: f.vehicles.filter((v) => v.status !== 'disposed').length },
+      { key: 'drivers' as Tab, label: 'Drivers', count: f.drivers.filter((d) => d.status !== 'inactive').length },
+    ] : []),
+  ]
+  const asked = params.get('tab') as Tab | null
+  const tab: Tab = asked && tabs.some((t) => t.key === asked) ? asked : m.driver && m.my_open_trips ? 'my-trips' : tabs[0].key
   return (
     <div className="mx-auto max-w-7xl space-y-6">
       <PageHeader title="Transport" description="Vehicles, drivers, papers, trips, fuel and costs in one place." />
-      <Tabs<Tab> value={tab} onChange={go} tabs={[
-        { key: 'overview', label: 'Overview' },
-        { key: 'vehicles', label: 'Vehicles', count: f.vehicles.filter((v) => v.status !== 'disposed').length },
-        { key: 'drivers', label: 'Drivers', count: f.drivers.filter((d) => d.status !== 'inactive').length },
-      ]} />
+      <Tabs<Tab> value={tab} onChange={go} tabs={tabs} />
       {tab === 'overview' && <OverviewTab onGo={go} />}
-      {tab === 'vehicles' && <VehiclesTab fleet={f} />}
-      {tab === 'drivers' && <DriversTab fleet={f} />}
+      {tab === 'trips' && <TripsPanel me={m} />}
+      {tab === 'my-trips' && <MyTripsPanel />}
+      {tab === 'vehicles' && f && <VehiclesTab fleet={f} />}
+      {tab === 'drivers' && f && <DriversTab fleet={f} />}
     </div>
   )
 }

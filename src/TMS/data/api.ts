@@ -1,14 +1,15 @@
 // TMS data hooks (RPCs of 20261105000*_tms_*.sql).
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { rpc } from '@/communication/shared/api'
-import type { Driver, Fleet, TmsOverview, VehicleDetail } from '../core/types'
+import { supabase } from '@/lib/supabase'
+import { pushEmails, rpc, safeFileName } from '@/communication/shared/api'
+import type { AssignOptions, Driver, Fleet, TmsMe, TmsOverview, Trip, TripDetail, VehicleDetail } from '../core/types'
 
 function useRefresh() {
   const qc = useQueryClient()
   return () => qc.invalidateQueries({ queryKey: ['tms'] })
 }
 
-export const useFleet = () => useQuery({ queryKey: ['tms', 'fleet'], queryFn: () => rpc<Fleet>('get_tms_fleet') })
+export const useFleet = (enabled = true) => useQuery({ queryKey: ['tms', 'fleet'], enabled, queryFn: () => rpc<Fleet>('get_tms_fleet') })
 export const useTmsOverview = (enabled: boolean) =>
   useQuery({ queryKey: ['tms', 'overview'], enabled, queryFn: () => rpc<TmsOverview>('get_tms_overview') })
 export const useVehicle = (id: string | null) =>
@@ -23,6 +24,58 @@ export function useSaveVehicle() {
 export function useSaveDriver() {
   const refresh = useRefresh()
   return useMutation({ mutationFn: ({ id, p }: { id: string | null; p: Record<string, unknown> }) => rpc<string>('save_tms_driver', { p_id: id, p }), onSuccess: refresh })
+}
+
+export const useTmsMe = () => useQuery({ queryKey: ['tms', 'me-all'], queryFn: () => rpc<TmsMe>('get_tms_me') })
+export const useTrips = (scope: 'mine' | 'approve' | 'all' | 'driver', enabled = true) =>
+  useQuery({ queryKey: ['tms', 'trips', scope], enabled, queryFn: () => rpc<Trip[]>('list_tms_trips', { p: { scope } }) })
+export const useTrip = (id: string | null) =>
+  useQuery({ queryKey: ['tms', 'trip', id], enabled: !!id, queryFn: () => rpc<TripDetail>('get_tms_trip', { p_id: id }) })
+export const useAssignOptions = (id: string | null) =>
+  useQuery({ queryKey: ['tms', 'assign-options', id], enabled: !!id, queryFn: () => rpc<AssignOptions>('tms_assign_options', { p_id: id }) })
+
+/** Trip actions: create, decide, assign, cancel, start, end (each refreshes the transport data). */
+export function useTripAction() {
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: ({ fn, args }: { fn: string; args: Record<string, unknown> }) => rpc<unknown>(fn, args),
+    onSuccess: () => { void pushEmails(); return refresh() },
+  })
+}
+
+/** Adds a trip expense; the receipt (optional) goes to tms-files/{org}/trip/{trip}/ first. */
+export function useAddExpense() {
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: async ({ orgId, tripId, p, file }: { orgId: string; tripId: string; p: Record<string, unknown>; file: File | null }) => {
+      let receipt_path: string | null = null
+      if (file) {
+        receipt_path = `${orgId}/trip/${tripId}/${Date.now()}-${safeFileName(file.name)}`
+        const { error } = await supabase.storage.from('tms-files').upload(receipt_path, file, { contentType: file.type, upsert: false })
+        if (error) throw error
+      }
+      return rpc<string>('add_tms_trip_expense', { p_id: tripId, p: { ...p, receipt_path } })
+    },
+    onSuccess: refresh,
+  })
+}
+
+export async function openTmsFile(path: string): Promise<void> {
+  const { data, error } = await supabase.storage.from('tms-files').createSignedUrl(path, 60)
+  if (error || !data) throw error ?? new Error('The file could not be opened')
+  window.open(data.signedUrl, '_blank', 'noopener')
+}
+
+/** One GPS reading from the phone (only when the driver presses Start / End or logs fuel). */
+export function currentPosition(): Promise<{ lat: number; lng: number; accuracy_m: number } | null> {
+  return new Promise((resolve) => {
+    if (!('geolocation' in navigator)) return resolve(null)
+    navigator.geolocation.getCurrentPosition(
+      (p) => resolve({ lat: +p.coords.latitude.toFixed(6), lng: +p.coords.longitude.toFixed(6), accuracy_m: Math.round(p.coords.accuracy) }),
+      () => resolve(null),
+      { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
+    )
+  })
 }
 
 /** Links a DMS document (vehicle paper or licence copy) to a vehicle or a driver. */

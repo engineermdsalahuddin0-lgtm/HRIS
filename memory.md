@@ -454,6 +454,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **DMS D6 audit** | `20261104000600_dms_d6_audit` | ✅ applied, passed (user, 2026-10-28) | `dms_d6_audit_test.sql` (3) |
 | **DMS null-safe access fix** | `20261104000700_dms_null_safe_access` | ⏳ not applied — **apply first** (security fix for the live DMS) | `dms_d7_null_safe_access_test.sql` (2) |
 | **TMS T1 fleet** | `20261105000100_tms_t1_fleet` | ⏳ not applied | `tms_t1_fleet_test.sql` (5); `dms_d1` test now counts ≥ 6 base folders |
+| **TMS T2 trips** | `20261105000200_tms_t2_trips` | ⏳ not applied | `tms_t2_trips_test.sql` (4) |
 - Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
   (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405

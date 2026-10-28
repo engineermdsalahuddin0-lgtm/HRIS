@@ -88,6 +88,62 @@ export interface ExpiringItem {
   expiry_status: ExpiryStatus
 }
 
+export type TripStatus = 'requested' | 'approved' | 'rejected' | 'assigned' | 'in_progress' | 'completed' | 'cancelled'
+export type TripKind = 'staff' | 'delivery' | 'field'
+
+export interface Trip {
+  id: string
+  kind: TripKind
+  status: TripStatus
+  purpose: string
+  from_place: string
+  to_place: string
+  stops: string | null
+  planned_start: string
+  planned_end: string
+  passengers: number | null
+  cargo: string | null
+  customer: string | null
+  decision_note: string | null
+  decided_at: string | null
+  requested_by: string | null
+  requested_by_me: boolean
+  decided_by: string | null
+  department_id: string | null
+  department: string | null
+  vehicle: { id: string; reg_no: string; vtype: VehicleType } | null
+  driver: { id: string; name: string; phone: string | null } | null
+  i_drive: boolean
+  can_approve: boolean
+  start_odometer: number | null
+  end_odometer: number | null
+  distance_km: number | null
+  started_at: string | null
+  ended_at: string | null
+  start_point: { lat: number; lng: number } | null
+  end_point: { lat: number; lng: number } | null
+  expenses_total: number
+  created_at: string
+}
+
+export interface TripDetail extends Trip {
+  expenses: { id: string; kind: string; amount: number; note: string | null; receipt_path: string | null; created_at: string; by: string | null }[]
+  points: { event: string; lat: number; lng: number; accuracy_m: number | null; at: string }[]
+}
+
+export interface AssignOptions {
+  vehicles: { id: string; reg_no: string; vtype: VehicleType; seats: number | null; default_driver_id: string | null; problems: string[] }[]
+  drivers: { id: string; name: string; licence_class: LicenceClass; problems: string[] }[]
+}
+
+export interface TmsMe {
+  can: { manage: boolean; approve: boolean; inventory: boolean; view_costs: boolean; see_fleet: boolean }
+  driver: Driver | null
+  to_approve: number
+  to_assign: number
+  my_open_trips: number
+}
+
 export interface TmsOverview {
   vehicles: { total: number; active: number; in_maintenance: number; off_road: number }
   drivers: { active: number; licence_expired: number }

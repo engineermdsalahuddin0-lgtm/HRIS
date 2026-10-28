@@ -49,7 +49,8 @@ export const NAV: NavItem[] = [
   { to: '/notices', label: 'Notices', icon: BellRing, section: 'Communication' },
   { to: '/helpdesk', label: 'Helpdesk', icon: LifeBuoy },
   { to: '/documents', label: 'Documents', icon: FolderOpen },
-  { to: '/transport', label: 'Transport', icon: Truck, anyOf: ['tms.manage', 'tms.approve', 'tms.inventory', 'tms.view_costs'], section: 'Operations' },
+  // Everyone: anyone may request a vehicle; drivers get My trips. Fleet tabs need tms.* (checked in the page and the database).
+  { to: '/transport', label: 'Transport', icon: Truck, section: 'Operations' },
   { to: '/password-requests', label: 'Password requests', icon: KeyRound, anyOf: ['users.reset_password'] },
   { to: '/payroll', label: 'Payroll runs', icon: Banknote, anyOf: ['payroll.prepare', 'payroll.review', 'payroll.approve', 'payroll.reopen', 'payroll.lock'], section: 'Payroll' },
   { to: '/compensation', label: 'Compensation', icon: Wallet, anyOf: ['compensation.view', 'increments.approve', 'bonuses.manage', 'deductions.manage'] },

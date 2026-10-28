@@ -3,7 +3,7 @@
 What is done and what is left, by module. Updated after every task (rule in `memory.md` A0).
 Details of each item: `memory.md` A9 (status board) and each module's architecture file.
 
-**Last updated: 2026-10-27**
+**Last updated: 2026-10-28**
 
 | Mark | Meaning |
 |---|---|
@@ -23,7 +23,7 @@ Details of each item: `memory.md` A9 (status board) and each module's architectu
 | Hiring (R1–R7) + organogram | 9 / 9 | Confirm R3–R5 test runs on Supabase |
 | Part 4 AI assistant | 6 / 8 | Live test with a real API key; apply the DMS link (D5) |
 | Part 5 Communication | 3 / 3 | — |
-| DMS | 6 / 6 steps built (D1 live) | Apply D2–D6 on Supabase; XLSX / auto-fill / OCR; acknowledgement; transport folder |
+| DMS | 6 / 6 steps live | XLSX / auto-fill / OCR; policy acknowledgement; transport folder (with TMS) |
 | Part 5 other modules | 0 / 8 | Assets, Fleet (TMS), Travel & expense, Reports, Integrations, Settings, Security sessions, System |
 
 ---
@@ -96,7 +96,7 @@ Details of each item: `memory.md` A9 (status board) and each module's architectu
 | AI6 Usage, log retention, monthly cap | ✅ | |
 | Edge Function `assistant` deployed | ✅ | |
 | **Live test with a real provider key** | ⚠️ | **Incomplete**: buy an API key, then test; fix whatever the first run reports |
-| Documents from the DMS as the only source | 🟡 | DMS D5 built (upload moved to Documents); not applied |
+| Documents from the DMS as the only source | 🟢 | DMS D5 applied; Edge Function redeploy to confirm |
 
 ## Part 5 — Communication — `src/communication/`
 | Feature | Status | Note |
@@ -109,11 +109,11 @@ Details of each item: `memory.md` A9 (status board) and each module's architectu
 | Step | Status | Note |
 |---|---|---|
 | D1 Folders (base / ISO / custom), system naming, upload, versions, duplicate refusal, read access, licences by expiry, 30 June default | ✅ | Next: give departments a code, try a real upload |
-| D2 Custodians, document requests, central review (never auto-approved), overdue lists, reminders + renewal tasks | 🟡 | Built, not applied |
-| D3 ISO checklist (clauses, evidence, gaps, CSV), read-only auditor | 🟡 | Built, not applied |
-| D4 Retention rules, legal hold, two-person disposal with proof | 🟡 | Built, not applied |
-| D5 DMS feeds the AI assistant (AI switch per type, citations open the document) | 🟡 | Built, not applied; **redeploy Edge Function `assistant`** |
-| D6 Audit log tab, CSV export, quarterly access review | 🟡 | Built, not applied |
+| D2 Custodians, document requests, central review (never auto-approved), overdue lists, reminders + renewal tasks | ✅ | |
+| D3 ISO checklist (clauses, evidence, gaps, CSV), read-only auditor | ✅ | |
+| D4 Retention rules, legal hold, two-person disposal with proof | ✅ | |
+| D5 DMS feeds the AI assistant (AI switch per type, citations open the document) | 🟢 | Applied; confirm the Edge Function `assistant` was redeployed |
+| D6 Audit log tab, CSV export, quarterly access review | ✅ | |
 | XLSX indexing, AI auto-fill on upload, server-side file content check, OCR | ⬜ | Need Edge Function work that could not be run here |
 | "Porechi" acknowledgement of new policies | ⬜ | Postponed (can reuse the notice acknowledgement) |
 | "Transport & Vehicles" folder | ⬜ | Add when TMS is built |

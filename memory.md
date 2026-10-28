@@ -452,6 +452,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **DMS D4 records** | `20261104000400_dms_d4_records` | ✅ applied, passed (user, 2026-10-28) | `dms_d4_records_test.sql` (5) |
 | **DMS D5 AI link** | `20261104000500_dms_d5_ai` + **redeploy Edge Function `assistant`** (reads `r.bucket`) | ✅ applied, passed; Edge Function `assistant` redeployed (user, 2026-10-28) | `dms_d5_ai_test.sql` (5) |
 | **DMS D6 audit** | `20261104000600_dms_d6_audit` | ✅ applied, passed (user, 2026-10-28) | `dms_d6_audit_test.sql` (3) |
+| **DMS null-safe access fix** | `20261104000700_dms_null_safe_access` | ⏳ not applied — **apply first** (security fix for the live DMS) | `dms_d7_null_safe_access_test.sql` (2) |
 | **TMS T1 fleet** | `20261105000100_tms_t1_fleet` | ⏳ not applied | `tms_t1_fleet_test.sql` (5); `dms_d1` test now counts ≥ 6 base folders |
 - Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
   (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
@@ -462,6 +463,11 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 ### A9a. Handoff — where work stopped (2026-10-25, last commit `ec84577`, tree clean)
 - **Finished**: recruitment/onboarding R1–R7 (full hiring cycle) + Department Organogram + interactive organogram demo.
   Handbook for all of it: `src/onboarding-process/architecture.md` (§1 status, §2 decisions 1–25, §10b organogram).
+- **2026-10-28 SECURITY FIX (agent): `20261104000700_dms_null_safe_access.sql`.** DMS access rules compared departments
+  with `=`; for a login without an employee department the result was NULL and `if not rule` let it through
+  (read department-only documents, edit / upload for other departments, review). Rules now `coalesce(…, false)`.
+  **Pitfall for every new rule:** wrap boolean access functions in `coalesce(…, false)`; the test proves it fails
+  without the fix. TMS T2 written null-safe from the start.
 - **2026-10-28: DMS D2–D6 applied on Supabase, all tests passed, the tabs load without errors (user).** Edge Function
   `assistant` redeployed with the D5 change (user, 2026-10-28). Open: browser test of the DMS flows.
 - **Earlier (2026-10-27, night): DMS D2–D6 built** (commits `16dd9d7`, `b8bb6fb`, `0e4f234`, `de2018c`, then D6). Local:

@@ -4,12 +4,11 @@
 | Key | Default roles | Meaning |
 |---|---|---|
 | `tms.manage` | HR Manager (Admin implicit) | Transport desk: vehicles, drivers, assignments, direct trips, fuel verification, maintenance, setup |
-| `tms.request` | every role | Ask for a vehicle |
 | `tms.approve` | Manager | Approve vehicle requests of their own department (`tms.manage` approves all) |
 | `tms.inventory` | HR Manager | Spare parts and tyre stock: receive, issue, adjust |
 | `tms.view_costs` | nobody (Admin implicit) | Cost dashboard: cost per vehicle and per km, fuel spend |
 
-**Drivers need no permission:** a driver record linked to a login sees "My trips" (start / end, fuel, expenses).
+**Anyone may request a vehicle** (no permission, like a helpdesk ticket). **Drivers need no permission:** a driver record linked to a login sees "My trips" (start / end, fuel, expenses).
 Outside drivers without a login are handled by the desk.
 
 ## Tabs (`/transport`)
@@ -32,7 +31,7 @@ seats, payload, ownership owned / leased / rented, branch, department, chassis /
 cost, odometer, status active / in maintenance / off road / disposed); drivers (employee or outside, licence no.,
 class, professional / non-professional, expiry, phone, NID masked, status, default vehicle); DMS base folder
 "Transport & Vehicles" with Registration Certificate, Fitness Certificate, Tax Token, Route Permit, Insurance,
-Driving Licence (all with expiry; tax token and route permit default to 30 June); documents linked to the vehicle or
+Driving Licence (all with expiry); documents linked to the vehicle or
 driver; next expiry per vehicle; no hard delete.
 
 **T2 Trips** — kinds staff / delivery / field; request with purpose, places, time, passengers or cargo, customer;

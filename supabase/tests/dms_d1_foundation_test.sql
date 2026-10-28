@@ -81,7 +81,7 @@ declare
   v jsonb := public.get_dms_setup();
   o jsonb := public.get_dms_overview(null, null);
 begin
-  assert (select count(*) from jsonb_array_elements(v -> 'folders') f where f ->> 'origin' = 'base') = 6, 'six base folders ' || (v -> 'folders')::text;
+  assert (select count(*) from jsonb_array_elements(v -> 'folders') f where f ->> 'origin' = 'base') >= 6, 'the base folders (6 in D1; later modules add more) ' || (v -> 'folders')::text;
   assert (select count(*) from jsonb_array_elements(v -> 'folders') f where f ->> 'origin' = 'iso') = 0, 'no ISO folder before choosing';
   assert jsonb_array_length(v -> 'catalog') = 8, 'eight standards offered';
   assert not (o #>> '{steps,iso,done}')::boolean and (o #>> '{steps,departments,missing_code}')::int = 1, 'steps ' || o::text;
@@ -105,7 +105,7 @@ begin
   exception when insufficient_privilege then null;
   end;
   assert not ((public.get_dms_library() -> 'can' ->> 'upload')::boolean), 'an employee cannot upload';
-  assert jsonb_array_length(public.get_dms_library() -> 'folders') = 6, 'the employee sees the library folders';
+  assert jsonb_array_length(public.get_dms_library() -> 'folders') >= 6, 'the employee sees the library folders';
   raise notice 'PASS: base folders for every company without any ISO; setup is for dms.manage only';
 end $$;
 

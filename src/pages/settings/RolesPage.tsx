@@ -16,6 +16,7 @@ const MODULE_LABELS: Record<string, string> = {
   settings: 'Settings',
   communication: 'Communication',
   dms: 'Documents',
+  tms: 'Transport',
 }
 
 type FieldTicks = Record<string, { view: boolean; edit: boolean }>

@@ -87,6 +87,8 @@ export const router = createBrowserRouter([
               { path: '/helpdesk/:id', element: page(() => import('@/communication/helpdesk/pages/TicketPage')) },
               // DMS (src/DMS): everyone reads what the read rule allows; upload and setup are checked inside.
               { path: '/documents', element: page(() => import('@/DMS/pages/DmsPage')) },
+              // TMS (src/TMS): tabs by permission; anyone may request a vehicle (T2), checked inside.
+              { path: '/transport', element: page(() => import('@/TMS/pages/TmsPage')) },
               guarded('users.reset_password', '/password-requests', page(() => import('@/communication/password-requests/pages/PasswordRequestsPage'))),
               // Part 4: AI assistant setup; the page itself checks Admin / handed-over HR Manager.
               { path: '/settings/assistant', element: page(() => import('@/AIassistant/setup/AssistantSetupPage')) },

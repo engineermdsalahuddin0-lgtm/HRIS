@@ -144,6 +144,24 @@ export interface TmsMe {
   my_open_trips: number
 }
 
+export type FuelFlag = 'over_tank' | 'odometer_back' | 'price_off' | 'low_efficiency'
+
+export interface FuelLog {
+  id: string; vehicle_id: string; reg_no: string; driver: string | null; trip_id: string | null
+  fuel: Fuel; unit: 'l' | 'm3' | 'kwh'; quantity: number; unit_price: number; amount: number; odometer_km: number
+  full_tank: boolean; station: string | null; paid_by: 'company' | 'driver_cash' | 'card'; receipt_path: string | null
+  point: { lat: number; lng: number } | null; filled_at: string; km_per_unit: number | null; flags: FuelFlag[]
+  status: 'recorded' | 'flagged' | 'verified' | 'disputed'; review_note: string | null; reviewed_by: string | null
+  reviewed_at: string | null; logged_by: string | null
+}
+
+export interface FuelVehicle {
+  id: string; reg_no: string; fuel: Fuel; fuel2: Fuel | null; odometer_km: number; tank_l: number | null; cng_m3: number | null
+  price: Partial<Record<Fuel, number>> | null; trip_id: string | null
+}
+
+export interface TmsSettings { fuel_prices: Partial<Record<Fuel, number>>; price_tolerance_pct: number; efficiency_tolerance_pct: number }
+
 export interface TmsOverview {
   vehicles: { total: number; active: number; in_maintenance: number; off_road: number }
   drivers: { active: number; licence_expired: number }

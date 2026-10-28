@@ -2,7 +2,9 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { pushEmails, rpc, safeFileName } from '@/communication/shared/api'
-import type { AssignOptions, Driver, Fleet, TmsMe, TmsOverview, Trip, TripDetail, VehicleDetail } from '../core/types'
+import type {
+  AssignOptions, Driver, Fleet, FuelLog, FuelVehicle, TmsMe, TmsOverview, TmsSettings, Trip, TripDetail, VehicleDetail,
+} from '../core/types'
 
 function useRefresh() {
   const qc = useQueryClient()
@@ -75,6 +77,30 @@ export function currentPosition(): Promise<{ lat: number; lng: number; accuracy_
       () => resolve(null),
       { enableHighAccuracy: true, timeout: 15_000, maximumAge: 60_000 },
     )
+  })
+}
+
+export const useFuel = (p: { scope: 'mine' | 'all'; flagged?: boolean }) =>
+  useQuery({ queryKey: ['tms', 'fuel', p], queryFn: () => rpc<FuelLog[]>('list_tms_fuel', { p }) })
+export const useFuelVehicles = () => useQuery({ queryKey: ['tms', 'fuel-vehicles'], queryFn: () => rpc<FuelVehicle[]>('tms_fuel_vehicles') })
+export const useTmsSettings = (enabled: boolean) =>
+  useQuery({ queryKey: ['tms', 'settings'], enabled, queryFn: () => rpc<TmsSettings | null>('get_tms_settings') })
+
+/** Logs a fill: the receipt (optional) goes to tms-files/{org}/fuel/{vehicle}/ first, plus one GPS reading. */
+export function useLogFuel() {
+  const refresh = useRefresh()
+  return useMutation({
+    mutationFn: async ({ orgId, p, file }: { orgId: string; p: Record<string, unknown> & { vehicle_id: string }; file: File | null }) => {
+      let receipt_path: string | null = null
+      if (file) {
+        receipt_path = `${orgId}/fuel/${p.vehicle_id}/${Date.now()}-${safeFileName(file.name)}`
+        const { error } = await supabase.storage.from('tms-files').upload(receipt_path, file, { contentType: file.type, upsert: false })
+        if (error) throw error
+      }
+      const pos = await currentPosition()
+      return rpc<FuelLog>('log_tms_fuel', { p: { ...p, receipt_path, ...(pos ? { lat: pos.lat, lng: pos.lng } : {}) } })
+    },
+    onSuccess: refresh,
   })
 }
 

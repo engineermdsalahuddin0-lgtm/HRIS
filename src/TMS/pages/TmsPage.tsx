@@ -10,10 +10,11 @@ import { LICENCE_CLASS, VEHICLE_STATUS, VEHICLE_TYPE, formatKm } from '../core/t
 import type { Driver, Fleet, Vehicle } from '../core/types'
 import { useFleet, useTmsMe, useTmsOverview } from '../data/api'
 import { DriverForm, VehicleForm } from '../components/FleetForms'
+import { FuelPanel } from '../components/FuelPanel'
 import { MyTripsPanel, TripsPanel } from '../components/TripsPanel'
 import { VehicleModal } from '../components/VehicleModal'
 
-type Tab = 'overview' | 'trips' | 'my-trips' | 'vehicles' | 'drivers'
+type Tab = 'overview' | 'trips' | 'my-trips' | 'fuel' | 'vehicles' | 'drivers'
 
 /**
  * /transport: the Transport Management System. Everyone can request a vehicle (Trips); drivers get My trips;
@@ -41,6 +42,7 @@ export default function TmsPage() {
     ...(seeFleet ? [{ key: 'overview' as Tab, label: 'Overview' }] : []),
     { key: 'trips', label: 'Trips', count: (m.to_approve + m.to_assign) || undefined },
     ...(m.driver ? [{ key: 'my-trips' as Tab, label: 'My trips', count: m.my_open_trips || undefined }] : []),
+    ...((m.can.manage || m.can.view_costs) ? [{ key: 'fuel' as Tab, label: 'Fuel' }] : []),
     ...(seeFleet && f ? [
       { key: 'vehicles' as Tab, label: 'Vehicles', count: f.vehicles.filter((v) => v.status !== 'disposed').length },
       { key: 'drivers' as Tab, label: 'Drivers', count: f.drivers.filter((d) => d.status !== 'inactive').length },
@@ -55,6 +57,7 @@ export default function TmsPage() {
       {tab === 'overview' && <OverviewTab onGo={go} />}
       {tab === 'trips' && <TripsPanel me={m} />}
       {tab === 'my-trips' && <MyTripsPanel />}
+      {tab === 'fuel' && <FuelPanel canManage={m.can.manage} />}
       {tab === 'vehicles' && f && <VehiclesTab fleet={f} />}
       {tab === 'drivers' && f && <DriversTab fleet={f} />}
     </div>

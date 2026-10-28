@@ -1,5 +1,5 @@
 import { useState } from 'react'
-import { MapPin, Play, Plus, Receipt, Square } from 'lucide-react'
+import { Fuel as FuelIcon, MapPin, Play, Plus, Receipt, Square } from 'lucide-react'
 import { useMyContext } from '@/lib/appContext'
 import { errorMessage } from '@/lib/identity'
 import { formatDateTime } from '@/lib/options'
@@ -7,6 +7,7 @@ import { Alert, Badge, Button, Card, EmptyState, Input, PageLoader, cx } from '@
 import { Modal, Select, Textarea } from '@/components/kit'
 import { EXPENSE_KIND, TRIP_KIND, TRIP_STATUS, formatKm, formatTaka, mapsLink } from '../core/tms'
 import type { TmsMe, Trip } from '../core/types'
+import { FuelForm } from './FuelPanel'
 import { currentPosition, openTmsFile, useAddExpense, useAssignOptions, useTrip, useTripAction, useTrips } from '../data/api'
 
 type Scope = 'mine' | 'approve' | 'all'
@@ -209,13 +210,17 @@ function AssignForm({ tripId, onDone }: { tripId: string; onDone: () => void }) 
 export function MyTripsPanel() {
   const trips = useTrips('driver')
   const [acting, setActing] = useState<{ trip: Trip; mode: 'start' | 'end' | 'expense' } | null>(null)
+  const [fueling, setFueling] = useState(false)
   if (trips.isPending) return <PageLoader />
   if (trips.isError) return <Alert>{errorMessage(trips.error)}</Alert>
   const open = trips.data.filter((t) => t.status === 'assigned' || t.status === 'in_progress')
   const done = trips.data.filter((t) => t.status === 'completed').slice(0, 10)
   return (
     <div className="space-y-4">
-      <p className="text-sm text-slate-500">Your location is taken only when you press Start, End or log fuel; never in the background.</p>
+      <div className="flex flex-wrap items-center gap-3">
+        <p className="flex-1 text-sm text-slate-500">Your location is taken only when you press Start, End or log fuel; never in the background.</p>
+        <Button variant="secondary" onClick={() => setFueling(true)}><FuelIcon className="size-4" /> Log fuel</Button>
+      </div>
       {open.length === 0 ? <EmptyState title="No trip assigned to you" /> : open.map((t) => (
         <Card key={t.id} className="space-y-3 p-4">
           <div className="flex flex-wrap items-center gap-2">
@@ -243,6 +248,7 @@ export function MyTripsPanel() {
           ))}</ul>
         </div>
       )}
+      {fueling && <FuelForm onClose={() => setFueling(false)} />}
       {acting && (acting.mode === 'expense'
         ? <ExpenseForm trip={acting.trip} onClose={() => setActing(null)} />
         : <OdometerForm trip={acting.trip} mode={acting.mode} onClose={() => setActing(null)} />)}

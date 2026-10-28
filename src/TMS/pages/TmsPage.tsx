@@ -11,10 +11,11 @@ import type { Driver, Fleet, Vehicle } from '../core/types'
 import { useFleet, useTmsMe, useTmsOverview } from '../data/api'
 import { DriverForm, VehicleForm } from '../components/FleetForms'
 import { FuelPanel } from '../components/FuelPanel'
+import { InventoryPanel, MaintenancePanel } from '../components/MaintenancePanel'
 import { MyTripsPanel, TripsPanel } from '../components/TripsPanel'
 import { VehicleModal } from '../components/VehicleModal'
 
-type Tab = 'overview' | 'trips' | 'my-trips' | 'fuel' | 'vehicles' | 'drivers'
+type Tab = 'overview' | 'trips' | 'my-trips' | 'fuel' | 'maintenance' | 'inventory' | 'vehicles' | 'drivers'
 
 /**
  * /transport: the Transport Management System. Everyone can request a vehicle (Trips); drivers get My trips;
@@ -43,6 +44,8 @@ export default function TmsPage() {
     { key: 'trips', label: 'Trips', count: (m.to_approve + m.to_assign) || undefined },
     ...(m.driver ? [{ key: 'my-trips' as Tab, label: 'My trips', count: m.my_open_trips || undefined }] : []),
     ...((m.can.manage || m.can.view_costs) ? [{ key: 'fuel' as Tab, label: 'Fuel' }] : []),
+    ...((m.can.manage || m.can.view_costs) && f ? [{ key: 'maintenance' as Tab, label: 'Maintenance' }] : []),
+    ...((m.can.inventory || m.can.manage) && f ? [{ key: 'inventory' as Tab, label: 'Inventory' }] : []),
     ...(seeFleet && f ? [
       { key: 'vehicles' as Tab, label: 'Vehicles', count: f.vehicles.filter((v) => v.status !== 'disposed').length },
       { key: 'drivers' as Tab, label: 'Drivers', count: f.drivers.filter((d) => d.status !== 'inactive').length },
@@ -58,6 +61,8 @@ export default function TmsPage() {
       {tab === 'trips' && <TripsPanel me={m} />}
       {tab === 'my-trips' && <MyTripsPanel />}
       {tab === 'fuel' && <FuelPanel canManage={m.can.manage} />}
+      {tab === 'maintenance' && f && <MaintenancePanel fleet={f} />}
+      {tab === 'inventory' && f && <InventoryPanel fleet={f} />}
       {tab === 'vehicles' && f && <VehiclesTab fleet={f} />}
       {tab === 'drivers' && f && <DriversTab fleet={f} />}
     </div>

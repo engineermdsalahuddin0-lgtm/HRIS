@@ -162,6 +162,34 @@ export interface FuelVehicle {
 
 export interface TmsSettings { fuel_prices: Partial<Record<Fuel, number>>; price_tolerance_pct: number; efficiency_tolerance_pct: number }
 
+export interface ServicePlan {
+  id: string; vehicle_id: string; reg_no: string; name: string; every_km: number | null; every_months: number | null
+  last_km: number | null; last_date: string | null; active: boolean; odometer_km: number; next_km: number | null
+  next_date: string | null; km_left: number | null; status: 'overdue' | 'due_soon' | 'ok'
+}
+
+export interface JobCard {
+  id: string; vehicle_id: string; reg_no: string; plan_id: string | null; plan: string | null; kind: 'service' | 'repair' | 'accident'
+  workshop: string | null; description: string; odometer_km: number | null; opened_at: string; closed_at: string | null
+  labour_cost: number; outside_parts_cost: number; stock_parts_cost: number; total_cost: number
+  parts: { part: string; code: string; qty: number; unit: string; unit_cost: number }[]
+  status: 'open' | 'closed' | 'cancelled'; close_note: string | null; opened_by: string | null
+}
+
+export interface Maintenance { plans: ServicePlan[]; open: JobCard[]; closed: JobCard[] }
+
+export interface Part {
+  id: string; code: string; name: string; category: 'part' | 'tyre' | 'lubricant' | 'battery' | 'other'; unit: string
+  on_hand: number; avg_cost: number; min_stock: number; active: boolean; value: number; low: boolean
+}
+
+export interface Inventory {
+  parts: Part[]
+  moves: { id: string; part: string; code: string; kind: 'receive' | 'issue' | 'adjust'; qty: number; unit: string; unit_cost: number
+           reg_no: string | null; job_card_id: string | null; supplier: string | null; ref: string | null; note: string | null; moved_at: string; by: string | null }[]
+  can_manage_stock: boolean
+}
+
 export interface TmsOverview {
   vehicles: { total: number; active: number; in_maintenance: number; off_road: number }
   drivers: { active: number; licence_expired: number }

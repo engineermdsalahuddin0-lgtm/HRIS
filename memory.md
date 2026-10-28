@@ -456,6 +456,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **TMS T1 fleet** | `20261105000100_tms_t1_fleet` | ⏳ not applied | `tms_t1_fleet_test.sql` (5); `dms_d1` test now counts ≥ 6 base folders |
 | **TMS T2 trips** | `20261105000200_tms_t2_trips` | ⏳ not applied | `tms_t2_trips_test.sql` (4) |
 | **TMS T3 fuel** | `20261105000300_tms_t3_fuel` | ⏳ not applied | `tms_t3_fuel_test.sql` (3) |
+| **TMS T4 maintenance** | `20261105000400_tms_t4_maintenance` | ⏳ not applied | `tms_t4_maintenance_test.sql` (4) |
 - Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
   (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405

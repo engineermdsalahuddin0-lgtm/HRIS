@@ -3,7 +3,7 @@
 What is done and what is left, by module. Updated after every task (rule in `memory.md` A0).
 Details of each item: `memory.md` A9 (status board) and each module's architecture file.
 
-**Last updated: 2026-10-28**
+**Last updated: 2026-10-28 (TMS)**
 
 | Mark | Meaning |
 |---|---|
@@ -122,7 +122,7 @@ Details of each item: `memory.md` A9 (status board) and each module's architectu
 | Module | Status | Note |
 |---|---|---|
 | 16 Assets: registry, asset requests | ⬜ | |
-| 17 Fleet → Transport Management System (TMS) | 📝 | Designed (`src/TMS/`); building T1–T5: fleet, trips + fuel + GPS points, maintenance + inventory, costs |
+| 17 Fleet → Transport Management System (TMS) | 🟡 | T1–T5 built, not applied: vehicles + papers (DMS) + drivers, trips with phone GPS points, fuel with fraud flags, maintenance + parts / tyre stock, cost dashboard. Phase 2: GPS device, live map |
 | 18 Travel & expense: conveyance bills, visits | ⬜ | |
 | 19 Reports & insights | ⬜ | |
 | 20 Integrations: API keys, webhooks, accounting | ⬜ | |

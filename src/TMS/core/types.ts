@@ -190,6 +190,20 @@ export interface Inventory {
   can_manage_stock: boolean
 }
 
+export interface VehicleCost {
+  id: string; reg_no: string; vtype: VehicleType; status: VehicleStatus; distance_km: number; fuel_cost: number
+  fuel_qty: Partial<Record<'l' | 'm3' | 'kwh', number>>; km_per_unit: number | null; repair_cost: number; trip_cost: number
+  total_cost: number; trips: number; flagged_fills: number; cost_per_km: number | null
+}
+
+export interface Costs {
+  from: string; to: string
+  vehicles: VehicleCost[]
+  totals: { distance_km: number; fuel_cost: number; repair_cost: number; trip_cost: number; total_cost: number; trips: number; cost_per_km: number | null }
+  live: { trip_id: string; reg_no: string; driver: string; from_place: string; to_place: string; started_at: string
+          last_point: { lat: number; lng: number; at: string; event: string } | null }[]
+}
+
 export interface TmsOverview {
   vehicles: { total: number; active: number; in_maintenance: number; off_road: number }
   drivers: { active: number; licence_expired: number }

@@ -1,4 +1,15 @@
-# TMS: Database schema (plan; "As built" sections are added per step)
+# TMS: Database schema
+
+**As built (2026-10-28): T1–T5 match this plan**, with these differences: no `tms.request` permission (anyone may
+request); `tms_fuel_logs.status` has `flagged`; `tms_stock_moves` has a frozen-history trigger; GPS points only
+from trip start / end and fuel fills; costs through `get_tms_costs` (`tms.view_costs`). RPCs: T1 `get_tms_fleet`,
+`get_tms_vehicle`, `save_tms_vehicle`, `save_tms_driver`, `tms_link_document`, `my_tms_driver`,
+`get_tms_overview`; T2 `get_tms_me`, `create_tms_trip`, `decide_tms_trip`, `tms_assign_options`,
+`assign_tms_trip`, `cancel_tms_trip`, `start_tms_trip`, `end_tms_trip`, `add_tms_trip_expense`,
+`list_tms_trips`, `get_tms_trip`; T3 `log_tms_fuel`, `review_tms_fuel`, `list_tms_fuel`, `tms_fuel_vehicles`,
+`get_tms_settings`, `save_tms_settings`; T4 `save_tms_service_plan`, `open_tms_job_card`,
+`close_tms_job_card`, `get_tms_maintenance`, `save_tms_part`, `tms_stock_move`, `get_tms_inventory`;
+T5 `get_tms_costs`. Every access rule returns false, never NULL.
 
 Conventions as everywhere (handbook A3): `org_id` on every row, `unique (org_id, id)`, composite FKs, closed RLS
 (RPC only), standard meta columns and triggers (audit, no delete), statuses instead of deletes, SQLSTATE errors with

@@ -457,6 +457,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **TMS T2 trips** | `20261105000200_tms_t2_trips` | ⏳ not applied | `tms_t2_trips_test.sql` (4) |
 | **TMS T3 fuel** | `20261105000300_tms_t3_fuel` | ⏳ not applied | `tms_t3_fuel_test.sql` (3) |
 | **TMS T4 maintenance** | `20261105000400_tms_t4_maintenance` | ⏳ not applied | `tms_t4_maintenance_test.sql` (4) |
+| **TMS T5 costs** | `20261105000500_tms_t5_costs` | ⏳ not applied | `tms_t5_costs_test.sql` (1) |
 - Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
   (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
 - **Pitfall**: PostgREST runs STABLE/IMMUTABLE functions in a read-only transaction; one that writes fails with HTTP 405
@@ -466,6 +467,12 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 ### A9a. Handoff — where work stopped (2026-10-25, last commit `ec84577`, tree clean)
 - **Finished**: recruitment/onboarding R1–R7 (full hiring cycle) + Department Organogram + interactive organogram demo.
   Handbook for all of it: `src/onboarding-process/architecture.md` (§1 status, §2 decisions 1–25, §10b organogram).
+- **Latest (2026-10-28): TMS T1–T5 built** (`src/TMS/`, route `/transport`, sidebar Operations → Transport for
+  everyone). Local: 35 SQL suites, 196 unit tests, build pass; not browser-checked. **User must apply in order:**
+  `20261104000700_dms_null_safe_access` (+ test), then `20261105000100…0500` each followed by its `tms_t*_test.sql`.
+  Then: Roles & access → give `tms.view_costs` to whoever sees costs; Transport → add vehicles and drivers; fuel prices
+  on the Fuel tab. Phase 2 (not built): GPS device webhook + live map, geofences, mobile tracking, staff bus seats,
+  conveyance bills, driver overtime to payroll, tyre serials, fuel card import.
 - **2026-10-28 SECURITY FIX (agent): `20261104000700_dms_null_safe_access.sql`.** DMS access rules compared departments
   with `=`; for a login without an employee department the result was NULL and `if not rule` let it through
   (read department-only documents, edit / upload for other departments, review). Rules now `coalesce(…, false)`.

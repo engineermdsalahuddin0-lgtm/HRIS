@@ -3,7 +3,7 @@ import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
 import { supabase } from '@/lib/supabase'
 import { pushEmails, rpc, safeFileName } from '@/communication/shared/api'
 import type {
-  AssignOptions, Driver, Fleet, FuelLog, FuelVehicle, Inventory, Maintenance, TmsMe, TmsOverview, TmsSettings, Trip, TripDetail, VehicleDetail,
+  AssignOptions, Costs, Driver, Fleet, FuelLog, FuelVehicle, Inventory, Maintenance, TmsMe, TmsOverview, TmsSettings, Trip, TripDetail, VehicleDetail,
 } from '../core/types'
 
 function useRefresh() {
@@ -104,6 +104,8 @@ export function useLogFuel() {
   })
 }
 
+export const useCosts = (from: string, to: string) =>
+  useQuery({ queryKey: ['tms', 'costs', from, to], queryFn: () => rpc<Costs>('get_tms_costs', { p_from: from || null, p_to: to || null }) })
 export const useMaintenance = () => useQuery({ queryKey: ['tms', 'maintenance'], queryFn: () => rpc<Maintenance>('get_tms_maintenance') })
 export const useInventory = () => useQuery({ queryKey: ['tms', 'inventory'], queryFn: () => rpc<Inventory>('get_tms_inventory') })
 

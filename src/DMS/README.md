@@ -1,7 +1,6 @@
 # DMS (Document Management System)
 
-**Status (2026-10-28): D1–D6 applied on Supabase, all tests passed.** Open: confirm the Edge Function `assistant`
-redeploy (D5). Read in this order:
+**Status (2026-10-28): D1–D6 applied on Supabase, all tests passed; Edge Function `assistant` redeployed.** Read in this order:
 
 1. `architecture.md` — decisions, layers, flows, how it plugs into the app and the AI assistant, build steps D1–D6
 2. `features.md` — permissions, dashboard tabs, feature list per step, ISO guide for clients

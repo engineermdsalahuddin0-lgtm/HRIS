@@ -96,7 +96,7 @@ Details of each item: `memory.md` A9 (status board) and each module's architectu
 | AI6 Usage, log retention, monthly cap | ✅ | |
 | Edge Function `assistant` deployed | ✅ | |
 | **Live test with a real provider key** | ⚠️ | **Incomplete**: buy an API key, then test; fix whatever the first run reports |
-| Documents from the DMS as the only source | 🟢 | DMS D5 applied; Edge Function redeploy to confirm |
+| Documents from the DMS as the only source | ✅ | |
 
 ## Part 5 — Communication — `src/communication/`
 | Feature | Status | Note |
@@ -112,7 +112,7 @@ Details of each item: `memory.md` A9 (status board) and each module's architectu
 | D2 Custodians, document requests, central review (never auto-approved), overdue lists, reminders + renewal tasks | ✅ | |
 | D3 ISO checklist (clauses, evidence, gaps, CSV), read-only auditor | ✅ | |
 | D4 Retention rules, legal hold, two-person disposal with proof | ✅ | |
-| D5 DMS feeds the AI assistant (AI switch per type, citations open the document) | 🟢 | Applied; confirm the Edge Function `assistant` was redeployed |
+| D5 DMS feeds the AI assistant (AI switch per type, citations open the document) | ✅ | |
 | D6 Audit log tab, CSV export, quarterly access review | ✅ | |
 | XLSX indexing, AI auto-fill on upload, server-side file content check, OCR | ⬜ | Need Edge Function work that could not be run here |
 | "Porechi" acknowledgement of new policies | ⬜ | Postponed (can reuse the notice acknowledgement) |

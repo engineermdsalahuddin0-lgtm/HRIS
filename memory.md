@@ -450,7 +450,7 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 | **DMS D2 governance** | `20261104000200_dms_d2_governance` | ✅ applied, passed (user, 2026-10-28) | `dms_d2_governance_test.sql` (8) |
 | **DMS D3 ISO checklist** | `20261104000300_dms_d3_compliance` | ✅ applied, passed (user, 2026-10-28) | `dms_d3_compliance_test.sql` (3) |
 | **DMS D4 records** | `20261104000400_dms_d4_records` | ✅ applied, passed (user, 2026-10-28) | `dms_d4_records_test.sql` (5) |
-| **DMS D5 AI link** | `20261104000500_dms_d5_ai` + **redeploy Edge Function `assistant`** (reads `r.bucket`) | ✅ migration applied, passed (user, 2026-10-28); Edge Function redeploy not confirmed | `dms_d5_ai_test.sql` (5) |
+| **DMS D5 AI link** | `20261104000500_dms_d5_ai` + **redeploy Edge Function `assistant`** (reads `r.bucket`) | ✅ applied, passed; Edge Function `assistant` redeployed (user, 2026-10-28) | `dms_d5_ai_test.sql` (5) |
 | **DMS D6 audit** | `20261104000600_dms_d6_audit` | ✅ applied, passed (user, 2026-10-28) | `dms_d6_audit_test.sql` (3) |
 - Local (2026-10-27): all 22 SQL suites pass in PGlite (with pgvector); vitest 183 tests; typecheck + build pass
   (main chunk 505 kB: chunk-boundary effect of the bundler, first-load size ~unchanged).
@@ -461,8 +461,8 @@ Conventions: `id uuid pk`, `org_id`, `created_at/updated_at/created_by/updated_b
 ### A9a. Handoff — where work stopped (2026-10-25, last commit `ec84577`, tree clean)
 - **Finished**: recruitment/onboarding R1–R7 (full hiring cycle) + Department Organogram + interactive organogram demo.
   Handbook for all of it: `src/onboarding-process/architecture.md` (§1 status, §2 decisions 1–25, §10b organogram).
-- **2026-10-28: DMS D2–D6 applied on Supabase, all tests passed, the tabs load without errors (user).** Open: confirm the
-  Edge Function `assistant` was redeployed (D5 reads DMS files from `dms-documents`); browser test of the DMS flows.
+- **2026-10-28: DMS D2–D6 applied on Supabase, all tests passed, the tabs load without errors (user).** Edge Function
+  `assistant` redeployed with the D5 change (user, 2026-10-28). Open: browser test of the DMS flows.
 - **Earlier (2026-10-27, night): DMS D2–D6 built** (commits `16dd9d7`, `b8bb6fb`, `0e4f234`, `de2018c`, then D6). Local:
   28 SQL suites, 192 unit tests, build pass; not browser-checked. **User must apply in order, each followed by its
   test:** `20261104000200_dms_d2_governance` → `dms_d2_governance_test.sql`, `…0300_dms_d3_compliance` →
